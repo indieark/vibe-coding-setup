@@ -15,3 +15,4 @@
 - 将 `Codex Desktop` fallback 从仓库 release 中的旧 `Setup.exe` 切换为官方 Microsoft Store 来源。
 - 为通用安装逻辑补充 `uri` 型 fallback，支持拉起 `ms-windows-store://` 或官方网页详情页。
 - 删除 release 中旧的 `Codex-26.325.31654.Setup.exe` 资产。
+- 重新通读整个仓库后，修正了 `README.md` 中三处与代码不一致的描述：`skills.zip` 触发条件、实际使用策略集合、以及 primary failure 后的 post-check / fallback 顺序。

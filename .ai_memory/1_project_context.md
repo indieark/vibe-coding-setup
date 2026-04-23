@@ -27,9 +27,16 @@
   1. `command`
   2. `appx`
   3. registry uninstall entries
-- `skills.zip` 独立于应用安装，只有在选中 `skills-manager` 且未 `-SkipSkills` 时才会预取并导入。
+- `skills.zip` 独立于应用安装；只要未传 `-SkipSkills`，脚本就会预取并在应用阶段后尝试导入，不依赖 `-Only` 是否包含 `skills-manager`。
 - `CC Switch` Provider 导入只走 `ccswitch://v1/import` deep link，不写 SQLite。
 - fallback 安装包统一下载到仓库内 `downloads/`，运行安装器时根据 `installerType` 分流到 `msi` / `exe` / `msix` / `uri`。
+- 主安装路径抛错后，脚本会先做一次 post-check 重新检测应用状态；只有仍无法确认安装成功时，才继续走 fallback。
+- 当前 manifest 实际使用到的主策略是：
+  - `winget`
+  - `direct-url`
+  - `github-latest-tag`
+  - `release-asset`
+- `github-release` 已在通用模块里实现，但当前 `manifest/apps.json` 还没有实际使用。
 
 ## 当前 fallback 资产共识
 
@@ -51,3 +58,4 @@
 - 每次 manifest 中的 fallback 文件名变动，都应同步更新 `README.md` 的来源/回退表。
 - 若 release 中允许新旧资产并存，文档中应明确说明“脚本只认 manifest 当前指向的文件名”。
 - 若某个应用已切换为官方 URI / Store 页作为 fallback，应同步更新模块逻辑、manifest 和 README，避免文档仍写成 release 资产。
+- README 中关于执行顺序、技能导入触发条件、策略使用情况，必须以 `bootstrap.ps1`、`modules/common.psm1`、`manifest/apps.json` 三处交叉核对后的结果为准。

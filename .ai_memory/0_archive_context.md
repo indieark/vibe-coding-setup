@@ -71,3 +71,46 @@
 
 - `Codex Desktop` fallback 问题已经解决。
 - 当前 `bootstrap-assets` release 中不再残留 `Codex` 旧安装包。
+
+## 2026-04-23 - 仓库全量复读与 README 对账归档
+
+### 核心议题背景
+
+用户要求“完整读一遍仓库，理解脚本执行全逻辑、理解已安装应用的主来源与回退来源，并更新 README 后归档总结”。这次重点不再是继续改安装逻辑，而是确认文档是否和代码真实行为完全一致。
+
+### Cognitive Evolution Path
+
+1. 先列出整个仓库真实文件集合，确认可执行逻辑实际上集中在：
+   - `bootstrap.ps1`
+   - `modules/common.psm1`
+   - `manifest/apps.json`
+   - 两个 `.cmd` 入口壳
+2. 虽然现有 `README.md` 已经很详细，但仍然按“代码优先、文档次之”的方式重读主入口和模块函数清单，避免把旧文档当真相源。
+3. 在对账过程中发现最关键的偏差不是安装来源表，而是执行条件和控制流细节：
+   - `skills.zip` 的预取和导入实际上只受 `-SkipSkills` 控制，不要求本次选择 `skills-manager`
+   - 当前 manifest 实际使用了 `release-asset`，而不是 `github-release`
+   - 主安装路径失败后，不是立刻 fallback，而是会先做一次 post-check 重新探测安装结果
+4. 因此这次 README 更新不只是补充说明，而是做了一次“代码事实校正”，把文档重新拉回到和脚本一致的状态。
+
+### 关键决策
+
+- 对这个仓库，README 只能作为“对外说明”，不能替代 `bootstrap.ps1` + `modules/common.psm1` + `manifest/apps.json` 作为唯一真相源。
+- 对用户要求的“完整理解”，优先提炼控制流、来源矩阵和特殊分支，而不是机械罗列每个函数。
+- 归档时把“文档与代码对账”本身记为稳定流程，防止未来再次出现 README 慢于代码演化的问题。
+
+### 当前结论
+
+- 当前仓库体量很小，但核心行为并不简单，尤其体现在：
+  - 自举依赖同步
+  - precheck / version gate
+  - primary install -> post-check -> fallback
+  - `skills.zip` 独立导入链
+  - `CC Switch` provider deep-link 导入
+- `README.md` 已根据代码重新校准。
+- `.ai_memory` 已同步记录这次确认下来的稳定事实与当前快照。
+
+### 后续行动指引
+
+1. 以后每次改 `manifest/apps.json` 或 `common.psm1`，都应同步回看 README 中的“执行顺序”和“来源/回退”章节。
+2. 如果未来把 `skills.zip` 的触发条件改成“仅在选择 `skills-manager` 时运行”，需要同时改代码和 README，而不是只改文档。
+3. 如果新增新的 fallback 类型，优先先补 `README` 的通用安装逻辑，再补应用级来源表。

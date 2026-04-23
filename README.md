@@ -53,7 +53,7 @@
 
 ### 4. 预取 `skills.zip`
 
-如果本次选择了 `skills-manager`，且没有传 `-SkipSkills`，脚本会先下载：
+只要没有传 `-SkipSkills`，脚本就会先下载：
 
 - `downloads/skills.zip`
 
@@ -62,6 +62,11 @@
 - `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release
 
 这一步在正式安装应用前执行。
+
+注意：
+
+- 当前实现里，`skills.zip` 不依赖 `-Only` 是否包含 `skills-manager`
+- 也就是说，就算这次只装 `git` / `nodejs`，只要没传 `-SkipSkills`，脚本仍会预取并在后面尝试导入技能包
 
 ### 5. 可选读取或跳过 CC Switch Provider 配置
 
@@ -132,15 +137,24 @@ precheck 决策规则：
 - `github-release`
 - `release-asset`
 
-这个仓库当前实际用到的是前四种。
+这个仓库当前实际用到的是：
+
+- `winget`
+- `direct-url`
+- `github-latest-tag`
+- `release-asset`
+
+`github-release` 目前属于通用能力，当前 manifest 没有实际使用。
 
 统一逻辑是：
 
 1. 先走主策略
 2. 主策略失败则记录 warning
-3. 如果 manifest 定义了 `fallback.releaseAsset`，再退到 `bootstrap-assets` Release 资产
-4. 如果 manifest 定义了 `fallback.uriCandidates`，则按顺序打开官方 URI / 页面
-5. 回退也失败，则该应用标记为失败
+3. 如果不是 `-DryRun`，先做一次 post-check，重新检测应用是否其实已经装上；如果已装上，就直接记为 `*-postcheck`
+4. 如果 manifest 定义了 `fallback.wingetId`，先退到备用 `winget`
+5. 如果 manifest 定义了 `fallback.releaseAsset`，再退到 `bootstrap-assets` Release 资产
+6. 如果 manifest 定义了 `fallback.uriCandidates`，则按顺序打开官方 URI / 页面
+7. 回退也失败，则该应用标记为失败
 
 下载的安装包统一落到：
 
@@ -155,7 +169,7 @@ precheck 决策规则：
 
 ### 9. 安装完应用后再导入 `skills.zip`
 
-如果本次安装包含 `skills-manager` 且没有 `-SkipSkills`，脚本会在应用安装阶段结束后执行 `Install-SkillBundle`：
+只要没有传 `-SkipSkills`，脚本就会在应用安装阶段结束后执行 `Install-SkillBundle`：
 
 1. 解压 `downloads/skills.zip`
 2. 递归查找所有包含 `SKILL.md` 的目录
@@ -172,6 +186,11 @@ precheck 决策规则：
 8. 如果这次确实导入了技能，且找到 `skills-manager.exe`，最后会自动拉起它
 
 也就是说，`skills.zip` 不再是“只要运行就整包重拷”；现在是按技能目录内容做增量同步，已经一致的技能会直接跳过。
+
+这里也有一个和直觉不完全一致的点：
+
+- 当前代码不会检查这次是否同时安装了 `skills-manager`
+- 只要 `skills.zip` 存在且未 `-SkipSkills`，它就会尝试同步到 `~/.skills-manager/skills`、`~/.codex/skills` 以及已启用的其它目标目录
 
 ### 10. 最后导入 CC Switch Provider
 
