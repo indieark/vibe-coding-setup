@@ -17,6 +17,9 @@
 这些文件默认不会优先使用。
 脚本会先尝试 `winget` 或线上最新版下载，只有失败时才回退到这里。
 
+- `PowerShell-7.6.1-win-x64.msi`
+  - 涓昏矾寰勶細PowerShell 鍏ュ畼 GitHub Release
+  - Repo锛歚PowerShell/PowerShell`
 - `Git-2.53.0.2-64-bit.exe`
   - 主路径：`winget` (`Git.Git`)
 - `node-v24.14.0-x64.msi`

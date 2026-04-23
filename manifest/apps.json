@@ -1,6 +1,26 @@
 {
   "apps": [
     {
+      "key": "powershell",
+      "name": "PowerShell 7.6.1",
+      "order": 5,
+      "strategy": "direct-url",
+      "url": "https://github.com/PowerShell/PowerShell/releases/download/v7.6.1/PowerShell-7.6.1-win-x64.msi",
+      "fallback": {
+        "releaseRepo": "indieark/vibe-coding-setup",
+        "releaseTag": "bootstrap-assets",
+        "releaseAsset": "PowerShell-7.6.1-win-x64.msi",
+        "localFile": "packages/PowerShell-7.6.1-win-x64.msi",
+        "installerType": "msi",
+        "silentArgs": [
+          "ADD_PATH=1",
+          "REGISTER_MANIFEST=1",
+          "USE_MU=1",
+          "ENABLE_MU=1"
+        ]
+      }
+    },
+    {
       "key": "git",
       "name": "Git",
       "order": 10,

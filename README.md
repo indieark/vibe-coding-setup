@@ -20,6 +20,7 @@
 
 ## 当前包含
 
+- `PowerShell 7.6.1`
 - `Git`
 - `Node.js`
 - `Python 3.13`

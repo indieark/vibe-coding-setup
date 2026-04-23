@@ -378,7 +378,7 @@ function Install-DownloadedPackage {
 
     switch ($InstallerType) {
         'msi' {
-            $args = @('/i', $PackagePath, '/qn', '/norestart')
+            $args = @('/i', $PackagePath, '/qn', '/norestart') + $SilentArgs
             if ($DryRun) {
                 Write-Log -Message ('[DryRun] msiexec.exe {0}' -f ($args -join ' '))
                 return
