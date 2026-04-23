@@ -5,7 +5,7 @@
 当前仓库的设计重点不是“纯离线安装”，而是把安装来源分成两层：
 
 - 主来源：`winget`、上游 GitHub Releases、固定直链
-- 回退来源：统一退到 `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release 资产
+- 回退来源：大多数应用退到 `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release 资产，`Codex Desktop` 退到官方 Microsoft Store 来源
 
 ## 当前包含
 
@@ -126,7 +126,8 @@ precheck 决策规则：
 1. 先走主策略
 2. 主策略失败则记录 warning
 3. 如果 manifest 定义了 `fallback.releaseAsset`，再退到 `bootstrap-assets` Release 资产
-4. 回退也失败，则该应用标记为失败
+4. 如果 manifest 定义了 `fallback.uriCandidates`，则按顺序打开官方 URI / 页面
+5. 回退也失败，则该应用标记为失败
 
 下载的安装包统一落到：
 
@@ -137,6 +138,7 @@ precheck 决策规则：
 - `msi` 走 `msiexec.exe /i ... /qn /norestart`
 - `exe` 直接静默参数启动
 - `msix` 走 `Add-AppxPackage`
+- `uri` 走 `Start-Process`，用于拉起官方 Store 协议或官方下载页面
 
 ### 9. 安装完应用后再导入 `skills.zip`
 
@@ -185,7 +187,7 @@ precheck 决策规则：
 | `Node.js` | `winget install --id OpenJS.NodeJS` | `winget show OpenJS.NodeJS` | `node --version`，失败后看注册表 `Node.js` | `indieark/vibe-coding-setup@bootstrap-assets/node-v25.9.0-x64.msi` |
 | `Python 3.13` | `winget install --id Python.Python.3.13` | `winget show Python.Python.3.13` | `py -V` | `indieark/vibe-coding-setup@bootstrap-assets/python-3.13.13-amd64.exe` |
 | `Visual Studio Code` | `winget install --id Microsoft.VisualStudioCode` | `winget show Microsoft.VisualStudioCode` | `code --version`，失败后看注册表 `Microsoft Visual Studio Code` | `indieark/vibe-coding-setup@bootstrap-assets/VSCodeUserSetup-x64-1.117.0.exe` |
-| `Codex Desktop` | `winget install --id 9PLM9XGG6VKS --source msstore` | `winget show 9PLM9XGG6VKS --source msstore` | `Get-AppxPackage -Name OpenAI.Codex` | `indieark/vibe-coding-setup@bootstrap-assets/Codex-26.325.31654.Setup.exe` |
+| `Codex Desktop` | `winget install --id 9PLM9XGG6VKS --source msstore` | `winget show 9PLM9XGG6VKS --source msstore` | `Get-AppxPackage -Name OpenAI.Codex` | 官方 Microsoft Store：优先 `ms-windows-store://pdp/?ProductId=9PLM9XGG6VKS`，失败再开 `https://apps.microsoft.com/detail/9PLM9XGG6VKS` |
 | `ChatGPT (Pake)` | `https://github.com/tw93/Pake/releases/latest/download/ChatGPT_x64.msi` | 无稳定可比较目标版本 | 注册表精确匹配 `ChatGPT` | `indieark/vibe-coding-setup@bootstrap-assets/ChatGPT_x64.msi` |
 | `CC Switch` | `farion1231/cc-switch` 的 latest tag，对应资产模板 `CC-Switch-{tag}-Windows.msi` | GitHub latest tag | 注册表精确匹配 `CC Switch` | `indieark/vibe-coding-setup@bootstrap-assets/CC-Switch-v3.14.0-Windows.msi` |
 | `Skills Manager` | `xingkongliang/skills-manager` 的 latest tag，对应资产模板 `skills-manager_{version}_x64_en-US.msi` | GitHub latest tag | 注册表精确匹配 `Skills Manager` | `indieark/vibe-coding-setup@bootstrap-assets/skills-manager_1.14.3_x64_en-US.msi` |
@@ -243,6 +245,11 @@ precheck 决策规则：
 
 - `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release
 
+例外：
+
+- `Codex Desktop` 不再依赖仓库 release 里的旧版 `Setup.exe`
+- 当 `winget` 的 `msstore` 安装路径失败时，脚本会退回到官方 Microsoft Store 协议或其网页详情页
+
 ### 当前 fallback 资产更新状态
 
 截至本次整理，`bootstrap-assets` Release 已补齐这些新版安装包：
@@ -257,15 +264,14 @@ precheck 决策规则：
 - `ChatGPT_x64.msi`
 - `skills.zip`
 
-当前仍未完成统一升级的只有：
+`Codex Desktop` 的 fallback 现在也已切到官方来源：
 
-- `Codex Desktop`
+- `ms-windows-store://pdp/?ProductId=9PLM9XGG6VKS`
+- `https://apps.microsoft.com/detail/9PLM9XGG6VKS`
 
-原因不是版本号拿不到，而是当前只确认到了 Microsoft Store 包和本机已装版本，尚未确认稳定、公开、可验证的官方 `Setup.exe` 下载来源，因此暂时保留：
+这样不再需要维护会过期的 `Codex-*.Setup.exe` 文件名。
 
-- `Codex-26.325.31654.Setup.exe`
-
-另外，当前 release 中新旧资产是并存的，没有自动清理旧文件；脚本只会按 `manifest/apps.json` 当前指向的新文件名走 fallback。
+另外，当前 release 中如果仍有旧资产，脚本只会按 `manifest/apps.json` 当前指向的新来源走 fallback。
 
 ## 使用方式
 

@@ -142,12 +142,10 @@
         "appxName": "OpenAI.Codex"
       },
       "fallback": {
-        "releaseRepo": "indieark/vibe-coding-setup",
-        "releaseTag": "bootstrap-assets",
-        "releaseAsset": "Codex-26.325.31654.Setup.exe",
-        "installerType": "exe",
-        "silentArgs": [
-          "/S"
+        "installerType": "uri",
+        "uriCandidates": [
+          "ms-windows-store://pdp/?ProductId=9PLM9XGG6VKS",
+          "https://apps.microsoft.com/detail/9PLM9XGG6VKS"
         ]
       }
     },

@@ -845,6 +845,15 @@ function Install-DownloadedPackage {
             Write-Log -Message ('Installing MSIX: {0}' -f (Split-Path -Leaf $PackagePath))
             Add-AppxPackage -Path $PackagePath
         }
+        'uri' {
+            if ($DryRun) {
+                Write-Log -Message ('[DryRun] Start-Process {0}' -f $PackagePath)
+                return
+            }
+
+            Write-Log -Message ('Opening installer URI: {0}' -f $PackagePath)
+            Start-Process -FilePath $PackagePath | Out-Null
+        }
         default {
             throw ('Unsupported installerType: {0}' -f $InstallerType)
         }
@@ -1044,6 +1053,29 @@ function Install-AppFromDefinition {
         }
         catch {
             Write-Log -Level 'WARN' -Message ('Release fallback failed: {0}' -f $_.Exception.Message)
+        }
+    }
+
+    $fallbackUris = @((Get-ObjectPropertyValue -Object $Definition.fallback -Name 'uriCandidates' -Default @()))
+    if ($fallbackUris.Count -gt 0) {
+        foreach ($fallbackUri in $fallbackUris) {
+            try {
+                Install-DownloadedPackage `
+                    -PackagePath ([string]$fallbackUri) `
+                    -InstallerType 'uri' `
+                    -DryRun:$DryRun
+
+                return [pscustomobject]@{
+                    Name = $Definition.name
+                    Key = $Definition.key
+                    Status = 'ok'
+                    Source = 'uri-fallback'
+                    Detail = [string]$fallbackUri
+                }
+            }
+            catch {
+                Write-Log -Level 'WARN' -Message ('URI fallback failed: {0}' -f $_.Exception.Message)
+            }
         }
     }
 
