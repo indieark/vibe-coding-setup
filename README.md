@@ -370,7 +370,7 @@ Set-Location "D:\AI Coding\Vibe Coding Setup"
 .\bootstrap.cmd
 ```
 
-`bootstrap.cmd` 现在会优先使用本机 `pwsh.exe`；如果不存在，再退回 `powershell.exe`。如果过程中触发 UAC 提权，新开的管理员窗口也会保持打开，方便查看最后的错误或 summary。
+`bootstrap.cmd` 现在会优先使用本机 `pwsh.exe`；如果不存在，再退回 `powershell.exe`。如果过程中触发 UAC 提权，新开的管理员窗口会在执行完成后保持打开，你可以手动关闭它，方便完整查看最后的错误或 summary。
 
 远程自举入口：
 

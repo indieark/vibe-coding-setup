@@ -5,6 +5,7 @@ param(
     [switch]$SkipCcSwitch,
     [switch]$SkipSkills,
     [switch]$PauseOnExit,
+    [switch]$KeepShellOpen,
     [string]$UserHomeOverride,
     [string]$CcSwitchProviderName,
     [string]$CcSwitchBaseUrl,
@@ -62,6 +63,19 @@ function Invoke-BootstrapExit {
         [Parameter(Mandatory)]
         [int]$Code
     )
+
+    if ($KeepShellOpen) {
+        Write-Host ''
+        if ($Code -eq 0) {
+            Write-Host 'Installation finished. This elevated window will stay open. Close it manually when you are done reviewing the output.'
+        }
+        else {
+            Write-Host 'Installation finished with errors. This elevated window will stay open. Close it manually after reviewing the output.'
+        }
+
+        $global:LASTEXITCODE = $Code
+        return
+    }
 
     if ($PauseOnExit) {
         Write-Host ''
@@ -253,10 +267,13 @@ if (-not $DryRun -and -not (Test-IsAdministrator)) {
         $PSBoundParameters['UserHomeOverride'] = $effectiveUserHome
     }
 
-    $relaunchArgs = ConvertTo-ArgumentTokens -BoundParameters $PSBoundParameters
+    $relaunchArgs = @(ConvertTo-ArgumentTokens -BoundParameters $PSBoundParameters)
     $argumentList = New-Object System.Collections.Generic.List[string]
     if ($PauseOnExit) {
         $argumentList.Add('-NoExit')
+        if (-not $PSBoundParameters.ContainsKey('KeepShellOpen')) {
+            $relaunchArgs += '-KeepShellOpen'
+        }
     }
 
     foreach ($token in @(
