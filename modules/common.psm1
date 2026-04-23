@@ -2132,7 +2132,9 @@ function Install-SkillBundle {
                 })
         }
 
-        Sync-SkillsManagerRegistry -ImportedSkills $importedSkills -DryRun:$DryRun
+        if ($importedSkills.Count -gt 0) {
+            Sync-SkillsManagerRegistry -ImportedSkills $importedSkills -DryRun:$DryRun
+        }
 
         if (-not $DryRun -and $importedSkills.Count -gt 0) {
             $skillsManagerExe = Get-InstalledSkillsManagerExecutable

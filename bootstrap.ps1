@@ -53,7 +53,12 @@ function Invoke-BootstrapExit {
             [void][System.Console]::ReadKey($true)
         }
         catch {
-            [void](Read-Host 'Press Enter to close this window')
+            try {
+                & cmd.exe /d /c 'pause >nul'
+            }
+            catch {
+                [void](Read-Host 'Press Enter to close this window')
+            }
         }
     }
 
@@ -166,6 +171,7 @@ function Copy-BootstrapReleaseAsset {
     Ensure-BootstrapDirectory -Path $destinationDir
 
     if ((-not $Refresh) -and (Test-Path -LiteralPath $destinationPath)) {
+        Write-BootstrapMessage ('Using cached release asset: {0}' -f $RelativePath)
         return
     }
 
@@ -238,13 +244,14 @@ $manifest = Get-AppManifest -ManifestPath $manifestPath
 $selectedApps = Get-SelectedApps -Apps $manifest.apps -Only $Only
 
 if (-not $SkipSkills) {
+    $shouldRefreshSkillBundle = $RefreshBootstrapDependencies.IsPresent -or (Test-HttpSourceRoot -SourceRoot $BootstrapSourceRoot)
     Copy-BootstrapReleaseAsset `
         -Repo $BootstrapAssetsRepo `
         -Tag $BootstrapAssetsTag `
         -DestinationRoot $root `
         -RelativePath 'downloads/skills.zip' `
         -AssetName 'skills.zip' `
-        -Refresh:($RefreshBootstrapDependencies.IsPresent)
+        -Refresh:$shouldRefreshSkillBundle
 }
 
 Write-Log -Message ('Workspace: {0}' -f $root)
