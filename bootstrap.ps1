@@ -5,6 +5,8 @@ param(
     [switch]$SkipCcSwitch,
     [switch]$SkipSkills,
     [string]$BootstrapSourceRoot = 'https://raw.githubusercontent.com/indieark/vibe-coding-setup/main',
+    [string]$BootstrapAssetsRepo = 'indieark/vibe-coding-setup',
+    [string]$BootstrapAssetsTag = 'bootstrap-assets',
     [switch]$RefreshBootstrapDependencies
 )
 
@@ -57,6 +59,19 @@ function Join-BootstrapSourcePath {
     return Join-Path $SourceRoot $RelativePath
 }
 
+function Get-BootstrapReleaseAssetUrl {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Repo,
+        [Parameter(Mandatory)]
+        [string]$Tag,
+        [Parameter(Mandatory)]
+        [string]$AssetName
+    )
+
+    return 'https://github.com/{0}/releases/download/{1}/{2}' -f $Repo, $Tag, $AssetName
+}
+
 function Copy-BootstrapDependency {
     param(
         [Parameter(Mandatory)]
@@ -90,6 +105,35 @@ function Copy-BootstrapDependency {
     }
 
     Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Force
+}
+
+function Copy-BootstrapReleaseAsset {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Repo,
+        [Parameter(Mandatory)]
+        [string]$Tag,
+        [Parameter(Mandatory)]
+        [string]$DestinationRoot,
+        [Parameter(Mandatory)]
+        [string]$RelativePath,
+        [Parameter(Mandatory)]
+        [string]$AssetName,
+        [Parameter(Mandatory)]
+        [bool]$Refresh
+    )
+
+    $destinationPath = Join-Path $DestinationRoot $RelativePath
+    $destinationDir = Split-Path -Parent $destinationPath
+    Ensure-BootstrapDirectory -Path $destinationDir
+
+    if ((-not $Refresh) -and (Test-Path -LiteralPath $destinationPath)) {
+        return
+    }
+
+    $url = Get-BootstrapReleaseAssetUrl -Repo $Repo -Tag $Tag -AssetName $AssetName
+    Write-BootstrapMessage ('Fetching release asset: {0}' -f $RelativePath)
+    Invoke-WebRequest -Uri $url -OutFile $destinationPath
 }
 
 function Sync-BootstrapDependencies {
@@ -146,11 +190,13 @@ $manifest = Get-AppManifest -ManifestPath $manifestPath
 $selectedApps = Get-SelectedApps -Apps $manifest.apps -Only $Only
 
 if ((-not $SkipSkills) -and ($selectedApps | Where-Object { $_.key -eq 'skills-manager' })) {
-    Sync-BootstrapDependencies `
-        -SourceRoot $BootstrapSourceRoot `
+    Copy-BootstrapReleaseAsset `
+        -Repo $BootstrapAssetsRepo `
+        -Tag $BootstrapAssetsTag `
         -DestinationRoot $root `
-        -Dependencies @('packages/skills.zip') `
-        -Refresh:$RefreshBootstrapDependencies
+        -RelativePath 'packages/skills.zip' `
+        -AssetName 'skills.zip' `
+        -Refresh:($RefreshBootstrapDependencies.IsPresent)
 }
 
 Write-Log -Message ('Workspace: {0}' -f $root)

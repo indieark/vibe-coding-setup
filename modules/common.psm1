@@ -243,6 +243,19 @@ function Invoke-DownloadFile {
     return $DestinationPath
 }
 
+function Get-GitHubReleaseAssetDownloadUrl {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Repo,
+        [Parameter(Mandatory)]
+        [string]$Tag,
+        [Parameter(Mandatory)]
+        [string]$AssetName
+    )
+
+    return 'https://github.com/{0}/releases/download/{1}/{2}' -f $Repo, $Tag, $AssetName
+}
+
 function Test-WingetInstalled {
     return $null -ne (Get-Command winget -ErrorAction SilentlyContinue)
 }
@@ -398,7 +411,7 @@ function Install-AppFromDefinition {
                 }
             }
             catch {
-                Write-Log -Level 'WARN' -Message ('winget path failed, falling back to local package: {0}' -f $Definition.name)
+                Write-Log -Level 'WARN' -Message ('winget path failed, falling back to release or local package: {0}' -f $Definition.name)
             }
         }
         'github-release' {
@@ -421,7 +434,7 @@ function Install-AppFromDefinition {
                 }
             }
             catch {
-                Write-Log -Level 'WARN' -Message ('GitHub release path failed, falling back to local package: {0}' -f $Definition.name)
+                Write-Log -Level 'WARN' -Message ('GitHub release path failed, falling back to release or local package: {0}' -f $Definition.name)
             }
         }
         'direct-url' {
@@ -444,7 +457,7 @@ function Install-AppFromDefinition {
                 }
             }
             catch {
-                Write-Log -Level 'WARN' -Message ('Direct URL path failed, falling back to local package: {0}' -f $Definition.name)
+                Write-Log -Level 'WARN' -Message ('Direct URL path failed, falling back to release or local package: {0}' -f $Definition.name)
             }
         }
         'github-latest-tag' {
@@ -472,7 +485,7 @@ function Install-AppFromDefinition {
                 }
             }
             catch {
-                Write-Log -Level 'WARN' -Message ('GitHub latest-tag path failed, falling back to local package: {0}' -f $Definition.name)
+                Write-Log -Level 'WARN' -Message ('GitHub latest-tag path failed, falling back to release or local package: {0}' -f $Definition.name)
             }
         }
         default {
@@ -484,20 +497,52 @@ function Install-AppFromDefinition {
         throw ('{0} has no usable fallback' -f $Definition.name)
     }
 
-    $localPackage = Resolve-WorkspacePath -WorkspaceRoot $WorkspaceRoot -RelativePath $Definition.fallback.localFile
-    Install-DownloadedPackage `
-        -PackagePath $localPackage `
-        -InstallerType $Definition.fallback.installerType `
-        -SilentArgs $Definition.fallback.silentArgs `
-        -DryRun:$DryRun
+    if ($Definition.fallback.releaseAsset) {
+        try {
+            $releaseRepo = $Definition.fallback.releaseRepo
+            $releaseTag = $Definition.fallback.releaseTag
+            $assetName = $Definition.fallback.releaseAsset
+            $url = Get-GitHubReleaseAssetDownloadUrl -Repo $releaseRepo -Tag $releaseTag -AssetName $assetName
+            $destination = Join-Path $downloadsRoot $assetName
 
-    return [pscustomobject]@{
-        Name = $Definition.name
-        Key = $Definition.key
-        Status = 'ok'
-        Source = 'local-fallback'
-        Detail = $Definition.fallback.localFile
+            Invoke-DownloadFile -Url $url -DestinationPath $destination -DryRun:$DryRun | Out-Null
+            Install-DownloadedPackage `
+                -PackagePath $destination `
+                -InstallerType $Definition.fallback.installerType `
+                -SilentArgs $Definition.fallback.silentArgs `
+                -DryRun:$DryRun
+
+            return [pscustomobject]@{
+                Name = $Definition.name
+                Key = $Definition.key
+                Status = 'ok'
+                Source = 'release-fallback'
+                Detail = '{0}@{1}/{2}' -f $releaseRepo, $releaseTag, $assetName
+            }
+        }
+        catch {
+            Write-Log -Level 'WARN' -Message ('Release fallback failed: {0}' -f $_.Exception.Message)
+        }
     }
+
+    if ($Definition.fallback.localFile) {
+        $localPackage = Resolve-WorkspacePath -WorkspaceRoot $WorkspaceRoot -RelativePath $Definition.fallback.localFile
+        Install-DownloadedPackage `
+            -PackagePath $localPackage `
+            -InstallerType $Definition.fallback.installerType `
+            -SilentArgs $Definition.fallback.silentArgs `
+            -DryRun:$DryRun
+
+        return [pscustomobject]@{
+            Name = $Definition.name
+            Key = $Definition.key
+            Status = 'ok'
+            Source = 'local-fallback'
+            Detail = $Definition.fallback.localFile
+        }
+    }
+
+    throw ('{0} has no usable fallback package after online sources failed' -f $Definition.name)
 }
 
 function ConvertFrom-SecureStringPlainText {

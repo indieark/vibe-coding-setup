@@ -10,6 +10,7 @@
   - 用途：批量导入本地 skill bundle
   - 使用位置：`bootstrap.ps1`
   - 说明：脚本会解压并识别其中包含 `SKILL.md` 的目录，然后同步到 `~/.skills-manager/skills`、`~/.codex/skills`，以及本机已存在的其它技能目录
+  - 发布方式：公开仓库运行时从 `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release 下载
 
 ## Fallback 资源
 
@@ -50,11 +51,12 @@
 如果用户是通过公开 GitHub 仓库的一条 PowerShell 命令启动：
 
 - 脚本会优先在线安装软件
-- 远程模式默认只会主动拉取 `packages/skills.zip`
+- 远程模式默认会从 `bootstrap-assets` Release 主动拉取 `skills.zip`
 - 这里的本地 fallback 安装包更适合完整仓库或离线分发场景
-- 公开 GitHub 仓库默认只保留 `README.md` 和 `skills.zip`，其余本地安装包由维护者本地保存，不进入 Git 历史
+- 公开 GitHub 仓库默认只保留脚本和说明文档，这里的本地安装包与 `skills.zip` 由维护者本地保存，不进入 Git 历史
 
 ## 维护建议
 
 - 如果更新某个本地 fallback 包，记得同时更新 `manifest/apps.json` 里的 `fallback.localFile`
+- 如果更新公开分发使用的 fallback 包或 `skills.zip`，记得同步更新 `bootstrap-assets` Release 资产
 - 如果将某个工具改成纯在线安装、不再需要本地兜底，可以把对应文件移到 `.local/unused/`

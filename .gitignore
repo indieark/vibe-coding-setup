@@ -6,5 +6,5 @@ temp/
 packages/*.exe
 packages/*.msi
 packages/*.msix
+packages/*.zip
 !packages/README.md
-!packages/skills.zip

@@ -7,6 +7,9 @@
       "strategy": "winget",
       "wingetId": "Git.Git",
       "fallback": {
+        "releaseRepo": "indieark/vibe-coding-setup",
+        "releaseTag": "bootstrap-assets",
+        "releaseAsset": "Git-2.53.0.2-64-bit.exe",
         "localFile": "packages/Git-2.53.0.2-64-bit.exe",
         "installerType": "exe",
         "silentArgs": [
@@ -24,6 +27,9 @@
       "strategy": "winget",
       "wingetId": "OpenJS.NodeJS",
       "fallback": {
+        "releaseRepo": "indieark/vibe-coding-setup",
+        "releaseTag": "bootstrap-assets",
+        "releaseAsset": "node-v24.14.0-x64.msi",
         "localFile": "packages/node-v24.14.0-x64.msi",
         "installerType": "msi",
         "silentArgs": []
@@ -36,6 +42,9 @@
       "strategy": "winget",
       "wingetId": "Python.Python.3.13",
       "fallback": {
+        "releaseRepo": "indieark/vibe-coding-setup",
+        "releaseTag": "bootstrap-assets",
+        "releaseAsset": "python-manager-26.0.msix",
         "localFile": "packages/python-manager-26.0.msix",
         "installerType": "msix",
         "silentArgs": []
@@ -48,6 +57,9 @@
       "strategy": "winget",
       "wingetId": "Microsoft.VisualStudioCode",
       "fallback": {
+        "releaseRepo": "indieark/vibe-coding-setup",
+        "releaseTag": "bootstrap-assets",
+        "releaseAsset": "VSCodeUserSetup-x64-1.112.0.exe",
         "localFile": "packages/VSCodeUserSetup-x64-1.112.0.exe",
         "installerType": "exe",
         "silentArgs": [
@@ -64,6 +76,9 @@
       "strategy": "winget",
       "wingetId": "OpenAI.Codex",
       "fallback": {
+        "releaseRepo": "indieark/vibe-coding-setup",
+        "releaseTag": "bootstrap-assets",
+        "releaseAsset": "Codex-26.325.31654.Setup.exe",
         "localFile": "packages/Codex-26.325.31654.Setup.exe",
         "installerType": "exe",
         "silentArgs": [
@@ -78,6 +93,9 @@
       "strategy": "direct-url",
       "url": "https://github.com/tw93/Pake/releases/latest/download/ChatGPT_x64.msi",
       "fallback": {
+        "releaseRepo": "indieark/vibe-coding-setup",
+        "releaseTag": "bootstrap-assets",
+        "releaseAsset": "ChatGPT_x64.msi",
         "localFile": "packages/ChatGPT_x64.msi",
         "installerType": "msi",
         "silentArgs": []
@@ -91,6 +109,9 @@
       "repo": "farion1231/cc-switch",
       "assetTemplate": "CC-Switch-{tag}-Windows.msi",
       "fallback": {
+        "releaseRepo": "indieark/vibe-coding-setup",
+        "releaseTag": "bootstrap-assets",
+        "releaseAsset": "CC-Switch-v3.11.1-Windows.msi",
         "localFile": "packages/CC-Switch-v3.11.1-Windows.msi",
         "installerType": "msi",
         "silentArgs": []
@@ -104,6 +125,9 @@
       "repo": "xingkongliang/skills-manager",
       "assetTemplate": "skills-manager_{version}_x64-setup.exe",
       "fallback": {
+        "releaseRepo": "indieark/vibe-coding-setup",
+        "releaseTag": "bootstrap-assets",
+        "releaseAsset": "skills-manager_1.9.0_x64-setup.exe",
         "localFile": "packages/skills-manager_1.9.0_x64-setup.exe",
         "installerType": "exe",
         "silentArgs": [

@@ -7,7 +7,7 @@
 - 基础工具优先走 `winget`
 - 开源桌面工具优先走 GitHub Releases 最新版
 - 自动创建 `D:\Vibe Coding\Chat`，作为 `Codex` 的默认工作目录
-- 支持远程自举：即使用户只拿到 `bootstrap.ps1`，脚本也会自动拉取 `modules/common.psm1`、`manifest/apps.json` 和 `packages/skills.zip`
+- 支持远程自举：即使用户只拿到 `bootstrap.ps1`，脚本也会自动拉取 `modules/common.psm1`、`manifest/apps.json`，并从 `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release 获取 `skills.zip`
 - `CC Switch` 的 Provider 导入优先走官方 `ccswitch://` deep link
 - `skills.zip` 自动解包到 `~/.skills-manager/skills`，并同步到 `~/.codex/skills`
 - 如果本机已存在 `.claude`、`.cursor`、`.gemini`、`.copilot`，也会顺带同步过去
@@ -90,13 +90,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 
 公开仓库发布说明：
 
-- 公开 GitHub 仓库默认只提交脚本、清单、文档和 `packages/skills.zip`
-- `packages/` 里的本地 fallback 安装包属于维护者本地资源，不会进入公开 Git 历史
+- 公开 GitHub 仓库默认只提交脚本、清单和文档，不提交安装包或 `skills.zip`
+- `packages/` 里的本地 fallback 安装包与 `skills.zip` 属于维护者本地资源，不会进入公开 Git 历史
 - 远程一键启动模式依赖：
   - `winget`
   - 上游 GitHub Releases
-  - 当前仓库里的 `packages/skills.zip`
-- 如果你需要真正离线分发，应改用维护者本地完整目录，或把 fallback 安装包放到 GitHub Releases 再由脚本下载
+  - `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release
+- 如果你需要真正离线分发，应改用维护者本地完整目录，或维护这个 Release 里的 fallback 安装包和 `skills.zip`
 
 ## 远程模式说明
 
@@ -105,12 +105,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 - `bootstrap.ps1` 会自动拉取：
   - `modules/common.psm1`
   - `manifest/apps.json`
-  - `packages/skills.zip`
+- `skills.zip` 会从 `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release 下载
 - 软件安装仍优先使用：
   - `winget`
   - 上游 GitHub 最新版
-- 本地 `packages/` 里的 fallback 安装包主要用于完整仓库场景，不是远程模式的主要依赖
-- 公开仓库默认不会包含这些大体积 fallback 安装包
+- 当在线主路径失败时，脚本会退回到 `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release 资产
+- 本地 `packages/` 里的 fallback 安装包主要用于维护者本地完整目录，不是公开仓库远程模式的主要依赖
 
 ## 已确认的自动化入口
 
