@@ -9,7 +9,6 @@
 
 ## 当前包含
 
-- `PowerShell 7`
 - `Git`
 - `Node.js`
 - `Python 3.13`
@@ -217,7 +216,6 @@ precheck 决策规则：
 
 | 应用 | 主来源 | 目标版本来源 | 安装检测 | 回退来源 |
 | --- | --- | --- | --- | --- |
-| `PowerShell 7` | `winget install --id 9MZ1SNWT0N5D --source msstore` | manifest 固定 `7.6.1` | `Get-AppxPackage -Name Microsoft.PowerShell` | `indieark/vibe-coding-setup@bootstrap-assets/PowerShell-7.6.1-win-x64.msi` |
 | `Git` | `winget install --id Git.Git` | `winget show Git.Git` | `git --version`，失败后看注册表 `^Git$` | `indieark/vibe-coding-setup@bootstrap-assets/Git-2.54.0-64-bit.exe` |
 | `Node.js` | `winget install --id OpenJS.NodeJS` | `winget show OpenJS.NodeJS` | `node --version`，失败后看注册表 `Node.js` | `indieark/vibe-coding-setup@bootstrap-assets/node-v25.9.0-x64.msi` |
 | `Python 3.13` | `winget install --id Python.Python.3.13` | `winget show Python.Python.3.13` | `py -V` | `indieark/vibe-coding-setup@bootstrap-assets/python-3.13.13-amd64.exe` |
@@ -358,7 +356,6 @@ precheck 决策规则：
 
 截至本次整理，`bootstrap-assets` Release 已补齐这些安装资产：
 
-- `PowerShell-7.6.1-win-x64.msi`
 - `Git-2.54.0-64-bit.exe`
 - `node-v25.9.0-x64.msi`
 - `python-3.13.13-amd64.exe`
@@ -449,7 +446,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 - `OpenJS.NodeJS`
 - `Python.Python.3.13`
 - `Microsoft.VisualStudioCode`
-- `PowerShell` Microsoft Store 包 `9MZ1SNWT0N5D`
 - `Codex Desktop` Microsoft Store 包 `9PLM9XGG6VKS`
 - `tw93/Pake` latest release asset
 - `farion1231/cc-switch` latest release asset
