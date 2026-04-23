@@ -45,6 +45,13 @@ Set-Location "D:\AI Coding\Vibe Coding Setup"
 .\bootstrap.cmd
 ```
 
+双击运行版本（新电脑只需要这一个文件）：
+
+```powershell
+Set-Location "D:\AI Coding\Vibe Coding Setup"
+.\run-remote-bootstrap.cmd
+```
+
 只安装部分工具：
 
 ```powershell
