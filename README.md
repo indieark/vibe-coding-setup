@@ -63,14 +63,24 @@
 
 这一步在正式安装应用前执行。
 
-### 5. 可选读取 CC Switch Provider 输入
+### 5. 可选读取或跳过 CC Switch Provider 配置
 
-如果本次选择了 `cc-switch`，且没有传 `-SkipCcSwitch`，脚本会先读取用户输入：
+如果本次选择了 `cc-switch`，且没有传 `-SkipCcSwitch`，脚本会先检查用户本机 `CC Switch` 的 `codex` provider 里是否已经存在同名配置：
 
-- Provider 名称，默认 `IndieArk API 2`
-- `base_url`，默认 `https://api2.indieark.tech/v1`
-- 默认模型，默认 `gpt-5.4`
-- `api_key`
+- 默认检查名称是 `IndieArk API 2`
+- 如果传了 `-CcSwitchProviderName` 或设置了 `VIBE_CODING_PROVIDER_NAME`，就检查那个名称
+
+如果已经存在，脚本会：
+
+- 直接跳过后续 Provider 询问
+- 最终也跳过导入，summary 里显示 `precheck-skip`
+
+如果不存在，脚本会按顺序逐项询问：
+
+- Provider 名称，直接回车使用默认值 `IndieArk API 2`
+- `base_url`，直接回车使用默认值 `https://api2.indieark.tech/v1`
+- 默认模型，直接回车使用默认值 `gpt-5.4`
+- `SK`，直接回车会保留为空，方便后续在 `CC Switch` 里手动补
 
 ### 6. 创建 Codex 默认工作目录
 
@@ -249,7 +259,9 @@ precheck 决策规则：
 
 如果协议没注册，脚本不会退回到 SQLite 直写。
 
-不过现在脚本在首次安装或更新 `CC Switch` 后，会先自动 warm up 一次应用，再等待 `ccswitch://` 协议完成注册，然后继续导入 provider。
+不过现在脚本只会在“本机还没有同名 provider”时才继续导入；如果已存在同名 `codex` provider，会直接跳过导入。
+
+真正需要导入时，脚本在首次安装或更新 `CC Switch` 后，会先自动 warm up 一次应用，再等待 `ccswitch://` 协议完成注册，然后继续导入 provider。
 
 如果 Windows 还没完成应用初始化，仍可能需要手动再打开一次 `CC Switch` 后重试。
 

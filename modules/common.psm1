@@ -1589,6 +1589,156 @@ function ConvertFrom-SecureStringPlainText {
     }
 }
 
+function Read-HostWithDefaultValue {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Prompt,
+        [string]$DefaultValue
+    )
+
+    $suffix = ''
+    if (-not [string]::IsNullOrWhiteSpace($DefaultValue)) {
+        $suffix = ' [{0}]' -f $DefaultValue
+    }
+
+    $value = Read-Host ('{0}{1}' -f $Prompt, $suffix)
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        return $DefaultValue
+    }
+
+    return $value.Trim()
+}
+
+function Get-CcSwitchDatabasePath {
+    $homeDir = Get-UserHomeDirectory
+    if ([string]::IsNullOrWhiteSpace($homeDir)) {
+        return $null
+    }
+
+    return Join-Path $homeDir '.cc-switch\cc-switch.db'
+}
+
+function Initialize-WinSqliteInterop {
+    if ('WinSqliteInterop' -as [type]) {
+        return
+    }
+
+    $sqliteInteropCode = @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+
+public static class WinSqliteInterop
+{
+    [DllImport("winsqlite3", CallingConvention = CallingConvention.Cdecl)]
+    public static extern int sqlite3_open_v2(byte[] filename, out IntPtr db, int flags, IntPtr zvfs);
+
+    [DllImport("winsqlite3", CallingConvention = CallingConvention.Cdecl)]
+    public static extern int sqlite3_close(IntPtr db);
+
+    [DllImport("winsqlite3", CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr sqlite3_errmsg(IntPtr db);
+
+    [DllImport("winsqlite3", CallingConvention = CallingConvention.Cdecl)]
+    public static extern int sqlite3_prepare_v2(IntPtr db, byte[] sql, int numBytes, out IntPtr stmt, IntPtr pzTail);
+
+    [DllImport("winsqlite3", CallingConvention = CallingConvention.Cdecl)]
+    public static extern int sqlite3_step(IntPtr stmt);
+
+    [DllImport("winsqlite3", CallingConvention = CallingConvention.Cdecl)]
+    public static extern int sqlite3_finalize(IntPtr stmt);
+
+    [DllImport("winsqlite3", CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr sqlite3_column_text(IntPtr stmt, int iCol);
+
+    public static string PtrToStringUtf8(IntPtr ptr)
+    {
+        if (ptr == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        int length = 0;
+        while (Marshal.ReadByte(ptr, length) != 0)
+        {
+            length++;
+        }
+
+        var bytes = new byte[length];
+        Marshal.Copy(ptr, bytes, 0, length);
+        return Encoding.UTF8.GetString(bytes);
+    }
+}
+'@
+
+    Add-Type -TypeDefinition $sqliteInteropCode
+}
+
+function Get-CcSwitchProviderByName {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ProviderName,
+        [string]$AppType = 'codex'
+    )
+
+    $dbPath = Get-CcSwitchDatabasePath
+    if ([string]::IsNullOrWhiteSpace($dbPath) -or -not (Test-Path -LiteralPath $dbPath)) {
+        return $null
+    }
+
+    Initialize-WinSqliteInterop
+
+    $sqliteOpenReadOnly = 0x00000001
+    $sqliteRow = 100
+    $db = [IntPtr]::Zero
+    $stmt = [IntPtr]::Zero
+
+    try {
+        $openPathBytes = [System.Text.Encoding]::UTF8.GetBytes($dbPath + [char]0)
+        $openResult = [WinSqliteInterop]::sqlite3_open_v2($openPathBytes, [ref]$db, $sqliteOpenReadOnly, [IntPtr]::Zero)
+        if ($openResult -ne 0) {
+            $openError = [WinSqliteInterop]::PtrToStringUtf8([WinSqliteInterop]::sqlite3_errmsg($db))
+            throw ('Failed to open CC Switch database: {0}' -f $openError)
+        }
+
+        $escapedProviderName = $ProviderName.Replace("'", "''")
+        $escapedAppType = $AppType.Replace("'", "''")
+        $sql = @"
+select id, name
+from providers
+where app_type = '$escapedAppType'
+  and name = '$escapedProviderName'
+limit 1;
+"@
+
+        $sqlBytes = [System.Text.Encoding]::UTF8.GetBytes($sql + [char]0)
+        $prepareResult = [WinSqliteInterop]::sqlite3_prepare_v2($db, $sqlBytes, -1, [ref]$stmt, [IntPtr]::Zero)
+        if ($prepareResult -ne 0) {
+            $prepareError = [WinSqliteInterop]::PtrToStringUtf8([WinSqliteInterop]::sqlite3_errmsg($db))
+            throw ('Failed to query CC Switch database: {0}' -f $prepareError)
+        }
+
+        $stepResult = [WinSqliteInterop]::sqlite3_step($stmt)
+        if ($stepResult -ne $sqliteRow) {
+            return $null
+        }
+
+        return [pscustomobject]@{
+            Id = [WinSqliteInterop]::PtrToStringUtf8([WinSqliteInterop]::sqlite3_column_text($stmt, 0))
+            Name = [WinSqliteInterop]::PtrToStringUtf8([WinSqliteInterop]::sqlite3_column_text($stmt, 1))
+        }
+    }
+    finally {
+        if ($stmt -ne [IntPtr]::Zero) {
+            [void][WinSqliteInterop]::sqlite3_finalize($stmt)
+        }
+
+        if ($db -ne [IntPtr]::Zero) {
+            [void][WinSqliteInterop]::sqlite3_close($db)
+        }
+    }
+}
+
 function Read-CodexProviderInput {
     param(
         [string]$PresetName,
@@ -1621,26 +1771,21 @@ function Read-CodexProviderInput {
         $model = 'gpt-5.4'
     }
 
+    $name = Read-HostWithDefaultValue -Prompt 'CC Switch provider name' -DefaultValue $name
+    $baseUrl = Read-HostWithDefaultValue -Prompt 'API base URL' -DefaultValue $baseUrl
+    $model = Read-HostWithDefaultValue -Prompt 'Model name' -DefaultValue $model
+
     $apiKey = $PresetApiKey
     if ([string]::IsNullOrWhiteSpace($apiKey)) {
-        $apiKey = $env:VIBE_CODING_API_KEY
-    }
-    if ([string]::IsNullOrWhiteSpace($apiKey)) {
-        $apiKey = $env:OPENAI_API_KEY
-    }
-    if ([string]::IsNullOrWhiteSpace($apiKey)) {
-        $secureApiKey = Read-Host 'API key (input hidden)' -AsSecureString
+        $secureApiKey = Read-Host 'SK (leave blank to skip, input hidden)' -AsSecureString
         $apiKey = ConvertFrom-SecureStringPlainText -SecureString $secureApiKey
-    }
-    if ([string]::IsNullOrWhiteSpace($apiKey)) {
-        throw 'API key cannot be empty'
     }
 
     return [pscustomobject]@{
-        Name = $name
+        Name = $name.Trim()
         BaseUrl = $baseUrl.Trim()
         Model = $model.Trim()
-        ApiKey = $apiKey
+        ApiKey = if ([string]::IsNullOrWhiteSpace($apiKey)) { '' } else { $apiKey.Trim() }
     }
 }
 
@@ -2258,6 +2403,7 @@ Export-ModuleMember -Function @(
     'Get-SelectedApps',
     'Ensure-CodexWorkspaceDirectory',
     'Install-AppFromDefinition',
+    'Get-CcSwitchProviderByName',
     'Read-CodexProviderInput',
     'Import-CcSwitchCodexProvider',
     'Install-SkillBundle'

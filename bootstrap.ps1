@@ -285,15 +285,47 @@ Write-Log -Message ('Mode: {0}' -f ($(if ($DryRun) { 'DryRun' } else { 'Install'
 Write-Log -Message ('Selected apps: {0}' -f (($selectedApps | ForEach-Object { $_.name }) -join ', '))
 
 $providerInfo = $null
+$providerPrecheckResult = $null
 if (-not $SkipCcSwitch -and ($selectedApps | Where-Object { $_.key -eq 'cc-switch' })) {
-    $providerInfo = Read-CodexProviderInput `
-        -PresetName $CcSwitchProviderName `
-        -PresetBaseUrl $CcSwitchBaseUrl `
-        -PresetModel $CcSwitchModel `
-        -PresetApiKey $CcSwitchApiKey
+    $providerNameToCheck = $CcSwitchProviderName
+    if ([string]::IsNullOrWhiteSpace($providerNameToCheck)) {
+        $providerNameToCheck = $env:VIBE_CODING_PROVIDER_NAME
+    }
+    if ([string]::IsNullOrWhiteSpace($providerNameToCheck)) {
+        $providerNameToCheck = 'IndieArk API 2'
+    }
+
+    $existingProvider = $null
+    try {
+        $existingProvider = Get-CcSwitchProviderByName -ProviderName $providerNameToCheck
+    }
+    catch {
+        Write-Log -Level 'WARN' -Message ('CC Switch provider precheck failed, fallback to interactive prompt: {0}' -f $_.Exception.Message)
+    }
+
+    if ($existingProvider) {
+        Write-Log -Message ('CC Switch already has codex provider "{0}", skip provider prompts and import' -f $providerNameToCheck)
+        $providerPrecheckResult = [pscustomobject]@{
+            Name = 'CC Switch Provider Import'
+            Key = 'cc-switch-provider'
+            Status = 'ok'
+            Source = 'precheck-skip'
+            Detail = ('Existing provider found: {0}' -f $providerNameToCheck)
+        }
+    }
+    else {
+        $providerInfo = Read-CodexProviderInput `
+            -PresetName $CcSwitchProviderName `
+            -PresetBaseUrl $CcSwitchBaseUrl `
+            -PresetModel $CcSwitchModel `
+            -PresetApiKey $CcSwitchApiKey
+    }
 }
 
 $results = New-Object System.Collections.Generic.List[object]
+if ($providerPrecheckResult) {
+    $results.Add($providerPrecheckResult)
+}
 
 try {
     $workspaceResult = Ensure-CodexWorkspaceDirectory -DryRun:$DryRun
