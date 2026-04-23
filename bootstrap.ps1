@@ -259,12 +259,17 @@ if (-not $DryRun -and -not (Test-IsAdministrator)) {
         $argumentList.Add('-NoExit')
     }
 
-    $argumentList.AddRange(@(
+    foreach ($token in @(
             '-NoProfile',
             '-ExecutionPolicy', 'Bypass',
             '-File', ('"{0}"' -f $PSCommandPath)
-        ))
-    $argumentList.AddRange($relaunchArgs)
+        )) {
+        $argumentList.Add([string]$token)
+    }
+
+    foreach ($token in $relaunchArgs) {
+        $argumentList.Add([string]$token)
+    }
 
     Write-Host 'Administrator privileges are required. Requesting UAC elevation...'
     Start-Process -FilePath (Get-CurrentPowerShellExecutable) -Verb RunAs -ArgumentList $argumentList.ToArray() | Out-Null
@@ -334,7 +339,7 @@ if ($providerPrecheckResult) {
 }
 
 try {
-    $workspaceResult = Ensure-CodexWorkspaceDirectory -DryRun:$DryRun
+    $workspaceResult = Initialize-CodexWorkspaceDirectory -DryRun:$DryRun
     $results.Add($workspaceResult)
 }
 catch {

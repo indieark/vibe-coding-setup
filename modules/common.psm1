@@ -92,7 +92,7 @@ function Get-SelectedApps {
     return $selected
 }
 
-function Ensure-Directory {
+function Initialize-Directory {
     param(
         [Parameter(Mandatory)]
         [string]$Path
@@ -139,7 +139,7 @@ function Get-UserLocalAppDataDirectory {
     return $null
 }
 
-function Ensure-CodexWorkspaceDirectory {
+function Initialize-CodexWorkspaceDirectory {
     param(
         [switch]$DryRun
     )
@@ -165,8 +165,8 @@ function Ensure-CodexWorkspaceDirectory {
         }
     }
 
-    Ensure-Directory -Path $workspaceRoot
-    Ensure-Directory -Path $chatPath
+    Initialize-Directory -Path $workspaceRoot
+    Initialize-Directory -Path $chatPath
     Write-Log -Message ('Created Codex workspace directory: {0}' -f $chatPath)
 
     return [pscustomobject]@{
@@ -275,7 +275,7 @@ function Invoke-DownloadFile {
         return $DestinationPath
     }
 
-    Ensure-Directory -Path (Split-Path -Parent $DestinationPath)
+    Initialize-Directory -Path (Split-Path -Parent $DestinationPath)
     Write-Log -Message ('Downloading {0}' -f $Url)
     Invoke-WebRequest -Uri $Url -OutFile $DestinationPath
     return $DestinationPath
@@ -475,7 +475,7 @@ function Invoke-WingetAction {
     }
 
     $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ('winget-' + [guid]::NewGuid().ToString('N'))
-    Ensure-Directory -Path $tempRoot
+    Initialize-Directory -Path $tempRoot
     $stdoutPath = Join-Path $tempRoot 'stdout.log'
     $stderrPath = Join-Path $tempRoot 'stderr.log'
     $stdoutOffset = 0
@@ -598,7 +598,7 @@ function Get-ObjectPropertyValue {
     return $property.Value
 }
 
-function Refresh-CurrentProcessPath {
+function Update-CurrentProcessPath {
     $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
     $currentPath = $env:Path
@@ -625,7 +625,7 @@ function Reset-InstallDetectionState {
         Remove-Variable -Name UninstallRegistryEntries -Scope Script -Force
     }
 
-    Refresh-CurrentProcessPath
+    Update-CurrentProcessPath
 }
 
 function Get-NormalizedVersionString {
@@ -1307,7 +1307,7 @@ function Install-AppFromDefinition {
     )
 
     $downloadsRoot = Join-Path $WorkspaceRoot 'downloads'
-    Ensure-Directory -Path $downloadsRoot
+    Initialize-Directory -Path $downloadsRoot
     $decision = Get-AppInstallDecision -Definition $Definition
 
     switch ($decision.Reason) {
@@ -1945,7 +1945,7 @@ function Copy-SkillDirectory {
         return
     }
 
-    Ensure-Directory -Path (Split-Path -Parent $DestinationPath)
+    Initialize-Directory -Path (Split-Path -Parent $DestinationPath)
     Remove-DirectoryContentsSafe -Path $DestinationPath
     Copy-Item -LiteralPath $SourcePath -Destination $DestinationPath -Recurse -Force
 }
@@ -2085,7 +2085,7 @@ function Get-InstalledSkillsManagerExecutable {
     return $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
 }
 
-function Ensure-SkillsManagerDatabase {
+function Initialize-SkillsManagerDatabase {
     param(
         [Parameter(Mandatory)]
         [string]$DbPath,
@@ -2147,7 +2147,7 @@ function Sync-SkillsManagerRegistry {
         return
     }
 
-    Refresh-CurrentProcessPath
+    Update-CurrentProcessPath
     $python = Get-PythonLauncher
     if (-not $python) {
         Write-Log -Level 'WARN' -Message 'Python is not available yet; skip skills-manager DB sync for this run'
@@ -2157,7 +2157,7 @@ function Sync-SkillsManagerRegistry {
     $homeDir = Get-UserHomeDirectory
     $dbPath = Join-Path $homeDir '.skills-manager\skills-manager.db'
     $skillsManagerExe = Get-InstalledSkillsManagerExecutable
-    $dbState = Ensure-SkillsManagerDatabase -DbPath $dbPath -SkillsManagerExe $skillsManagerExe -DryRun:$DryRun
+    $dbState = Initialize-SkillsManagerDatabase -DbPath $dbPath -SkillsManagerExe $skillsManagerExe -DryRun:$DryRun
     if (-not $dbState.Available) {
         Write-Log -Level 'WARN' -Message ('skills-manager DB not found, skip registry sync: {0}' -f $dbPath)
         return [pscustomobject]@{
@@ -2167,7 +2167,7 @@ function Sync-SkillsManagerRegistry {
     }
 
     $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ('skills-registry-' + [guid]::NewGuid().ToString('N'))
-    Ensure-Directory -Path $tempRoot
+    Initialize-Directory -Path $tempRoot
 
     $payloadPath = Join-Path $tempRoot 'skills.json'
     $scriptPath = Join-Path $tempRoot 'sync_skills_manager_registry.py'
@@ -2313,7 +2313,7 @@ function Install-SkillBundle {
 
     try {
         Write-Log -Message ('Skill source-of-truth root: {0}' -f $centralRoot)
-        Ensure-Directory -Path $tempRoot
+        Initialize-Directory -Path $tempRoot
         Expand-Archive -LiteralPath $ZipPath -DestinationPath $tempRoot -Force
         $skillDirs = @(Get-SkillDirectoriesFromExtractedRoot -RootPath $tempRoot)
 
@@ -2406,7 +2406,7 @@ Export-ModuleMember -Function @(
     'ConvertTo-ArgumentTokens',
     'Get-AppManifest',
     'Get-SelectedApps',
-    'Ensure-CodexWorkspaceDirectory',
+    'Initialize-CodexWorkspaceDirectory',
     'Install-AppFromDefinition',
     'Get-CcSwitchProviderByName',
     'Read-CodexProviderInput',
