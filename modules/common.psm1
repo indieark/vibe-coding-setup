@@ -368,7 +368,7 @@ function Write-WingetOutputLines {
             continue
         }
 
-        if ($normalizedLine -match '[█▒]' -and $normalizedLine -match '(?<percent>\d{1,3})%') {
+        if ($normalizedLine -match '(?<percent>\d{1,3})%' -and $normalizedLine -notmatch '[A-Za-z]') {
             $progressPercent = [int]$Matches['percent']
             if ($progressPercent -eq [int]$LastProgressPercent.Value) {
                 continue
@@ -381,15 +381,19 @@ function Write-WingetOutputLines {
             continue
         }
 
-        if ($normalizedLine -match '[█▒]' -or $normalizedLine -match '^\d{1,3}%$') {
+        if ($normalizedLine -match '^\d{1,3}%$' -or $normalizedLine -notmatch '[A-Za-z0-9]') {
             continue
         }
 
-        if ($normalizedLine -match '^(版本|发布者|发布服务器 URL|发布服务器支持 URL|许可证|隐私 URL|版权所有|协议|Category|Pricing|Free Trial|Terms of Transaction|Seizure Warning|Store License Terms|Publisher|Publisher Url|Publisher Support Url|License|Privacy Url|Copyright|Agreements|Installer|Installer Type|Store Product Id|Offline Distribution Supported)\s*[:：]') {
+        if ($normalizedLine -match '^(Category|Pricing|Free Trial|Terms of Transaction|Seizure Warning|Store License Terms|Publisher|Publisher Url|Publisher Support Url|License|Privacy Url|Copyright|Agreements|Installer|Installer Type|Store Product Id|Offline Distribution Supported)\s*:') {
             continue
         }
 
-        if ($normalizedLine -match 'Microsoft Store 提供的' -or $normalizedLine -match 'from Microsoft Store') {
+        if ($normalizedLine -match 'Microsoft Store' -and $normalizedLine -notmatch '(?i)install|upgrade|found|available') {
+            continue
+        }
+
+        if ($normalizedLine -match 'https?://') {
             continue
         }
 
