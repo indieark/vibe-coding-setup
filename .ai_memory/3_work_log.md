@@ -12,4 +12,6 @@
   - CC Switch `3.14.0`
 - 修正了 Python fallback 方案：由 `python-manager-26.0.msix` 切换为官方运行时安装包 `python-3.13.13-amd64.exe`，并补齐静默参数。
 - 验证了更新后的 manifest 在 `-DryRun` 下可正常工作。
-- 记录未完成项：`Codex Desktop` fallback 尚未升级，原因是官方安装器公开来源未确认。
+- 将 `Codex Desktop` fallback 从仓库 release 中的旧 `Setup.exe` 切换为官方 Microsoft Store 来源。
+- 为通用安装逻辑补充 `uri` 型 fallback，支持拉起 `ms-windows-store://` 或官方网页详情页。
+- 删除 release 中旧的 `Codex-26.325.31654.Setup.exe` 资产。

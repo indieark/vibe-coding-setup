@@ -35,10 +35,39 @@
   - Python 3.13
   - Visual Studio Code
   - CC Switch
-- `Codex Desktop` 仍是唯一明确未完成项。
+- 后续已完成 `Codex Desktop` fallback 收尾：
+  - 不再维护 release 中会过期的 `Codex-*.Setup.exe`
+  - 改为官方 Microsoft Store 协议和网页详情页作为 fallback
+  - release 中旧的 `Codex-26.325.31654.Setup.exe` 已删除
 
 ### 后续行动指引
 
-1. 如继续推进，优先研究 `Codex Desktop` 的官方安装器分发来源或 Store offline package 获取路径。
-2. 如准备长期维护此仓库，建议补一个“同步官方最新版到 bootstrap-assets”的自动化脚本。
-3. 如准备清理 release，先确认是否需要保留旧版资产作回滚，再决定是否删除旧文件。
+1. 如准备长期维护此仓库，建议补一个“同步官方最新版到 bootstrap-assets”的自动化脚本。
+2. 如希望提升可验证性，可为 release 资产增加 checksum 记录与校验步骤。
+3. 如未来再遇到没有稳定直链的桌面应用，优先考虑“官方 Store / 官方 URI fallback”而不是自托管易过期安装器。
+
+## 2026-04-23 - Codex Desktop fallback 收尾归档
+
+### 核心议题背景
+
+在主安装项与 release 资产大体整理完成后，剩余唯一悬而未决的问题是 `Codex Desktop` 仍依赖仓库 release 中的旧版 `Setup.exe`。用户随后要求把这个 fallback 来源问题彻底解决。
+
+### Cognitive Evolution Path
+
+1. 先确认 `Codex` 在官方侧有哪些可验证来源。
+2. 通过 `winget show --id 9PLM9XGG6VKS --source msstore` 与 OpenAI 官方页面，确认它的官方来源稳定落在 Microsoft Store，而不是公开 GitHub Release / 固定 exe 下载页。
+3. 由此放弃“继续追 `Codex-*.Setup.exe` 文件名”的思路，改为在通用安装逻辑中增加 `uri` 型 fallback。
+4. 最终把 `Codex Desktop` 的 fallback 改成：
+   - `ms-windows-store://pdp/?ProductId=9PLM9XGG6VKS`
+   - `https://apps.microsoft.com/detail/9PLM9XGG6VKS`
+5. 完成代码、manifest、README 的同步修改后，再删除 release 中旧的 `Codex-26.325.31654.Setup.exe`。
+
+### 关键决策
+
+- 对没有稳定公开安装器文件名的官方桌面应用，优先使用官方 Store / URI 作为 fallback。
+- 不为了保留“静默 exe fallback”而继续维护一个高过期风险的自托管安装器。
+
+### 当前结论
+
+- `Codex Desktop` fallback 问题已经解决。
+- 当前 `bootstrap-assets` release 中不再残留 `Codex` 旧安装包。
