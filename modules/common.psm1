@@ -1120,7 +1120,7 @@ function Install-DownloadedPackage {
         [switch]$DryRun
     )
 
-    if (-not (Test-Path -LiteralPath $PackagePath) -and -not $DryRun) {
+    if ($InstallerType -ne 'uri' -and -not (Test-Path -LiteralPath $PackagePath) -and -not $DryRun) {
         throw "Package not found: $PackagePath"
     }
 
@@ -1637,6 +1637,44 @@ function Copy-SkillDirectory {
     Copy-Item -LiteralPath $SourcePath -Destination $DestinationPath -Recurse -Force
 }
 
+function Get-DirectoryFileSignature {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return $null
+    }
+
+    $resolvedPath = (Resolve-Path -LiteralPath $Path).Path.TrimEnd('\')
+    $files = @(Get-ChildItem -LiteralPath $resolvedPath -File -Recurse | Sort-Object FullName)
+    $entries = foreach ($file in $files) {
+        $relativePath = $file.FullName.Substring($resolvedPath.Length).TrimStart('\')
+        $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
+        '{0}|{1}' -f $relativePath.Replace('\', '/'), $hash
+    }
+
+    return ($entries -join "`n")
+}
+
+function Test-SkillDirectoryInSync {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SourcePath,
+        [Parameter(Mandatory)]
+        [string]$DestinationPath
+    )
+
+    if (-not (Test-Path -LiteralPath $DestinationPath)) {
+        return $false
+    }
+
+    $sourceSignature = Get-DirectoryFileSignature -Path $SourcePath
+    $destinationSignature = Get-DirectoryFileSignature -Path $DestinationPath
+    return $sourceSignature -eq $destinationSignature
+}
+
 function Get-SkillDirectoriesFromExtractedRoot {
     param(
         [Parameter(Mandatory)]
@@ -1894,35 +1932,47 @@ function Install-SkillBundle {
     $importedSkills = New-Object System.Collections.Generic.List[object]
 
     try {
-        if (-not $DryRun) {
-            Ensure-Directory -Path $tempRoot
-            Expand-Archive -LiteralPath $ZipPath -DestinationPath $tempRoot -Force
-        }
-
-        if ($DryRun) {
-            $skillDirs = @(Get-SkillDirectoriesFromZip -ZipPath $ZipPath)
-        }
-        else {
-            $skillDirs = @(Get-SkillDirectoriesFromExtractedRoot -RootPath $tempRoot)
-        }
+        Ensure-Directory -Path $tempRoot
+        Expand-Archive -LiteralPath $ZipPath -DestinationPath $tempRoot -Force
+        $skillDirs = @(Get-SkillDirectoriesFromExtractedRoot -RootPath $tempRoot)
 
         Write-Log -Message ('Discovered {0} skill directories' -f $skillDirs.Count)
 
         foreach ($skillDir in $skillDirs) {
             $skillName = Split-Path -Leaf $skillDir
-            $sourcePath = if ($DryRun) { $skillDir } else { $skillDir }
+            $sourcePath = $skillDir
             $centralPath = Join-Path $centralRoot $skillName
-            Copy-SkillDirectory -SourcePath $sourcePath -DestinationPath $centralPath -DryRun:$DryRun
-
             $skillTargets = New-Object System.Collections.Generic.List[object]
+            $needsImport = $false
+
+            if (-not (Test-SkillDirectoryInSync -SourcePath $sourcePath -DestinationPath $centralPath)) {
+                $needsImport = $true
+            }
 
             foreach ($target in $targets | Where-Object { $_.Enabled }) {
                 $targetPath = Join-Path $target.Path $skillName
-                Copy-SkillDirectory -SourcePath $sourcePath -DestinationPath $targetPath -DryRun:$DryRun
                 $skillTargets.Add([pscustomobject]@{
                         Tool = $target.Name
                         Path = $targetPath
                     })
+
+                if (-not (Test-SkillDirectoryInSync -SourcePath $sourcePath -DestinationPath $targetPath)) {
+                    $needsImport = $true
+                }
+            }
+
+            if (-not $needsImport) {
+                Write-Log -Message ('Skill already synchronized, skip: {0}' -f $skillName)
+                continue
+            }
+
+            Copy-SkillDirectory -SourcePath $sourcePath -DestinationPath $centralPath -DryRun:$DryRun
+
+            foreach ($target in $targets | Where-Object { $_.Enabled }) {
+                $targetPath = Join-Path $target.Path $skillName
+                if (-not (Test-SkillDirectoryInSync -SourcePath $sourcePath -DestinationPath $targetPath)) {
+                    Copy-SkillDirectory -SourcePath $sourcePath -DestinationPath $targetPath -DryRun:$DryRun
+                }
             }
 
             $importedSkills.Add([pscustomobject]@{
@@ -1937,7 +1987,7 @@ function Install-SkillBundle {
 
         Sync-SkillsManagerRegistry -ImportedSkills $importedSkills -DryRun:$DryRun
 
-        if (-not $DryRun) {
+        if (-not $DryRun -and $importedSkills.Count -gt 0) {
             $skillsManagerExe = Get-InstalledSkillsManagerExecutable
             if ($skillsManagerExe) {
                 Write-Log -Message 'Imported skills and synced skills-manager DB; launching Skills Manager'
@@ -1950,11 +2000,11 @@ function Install-SkillBundle {
             Key = 'skills-bundle'
             Status = 'ok'
             Source = 'local-zip'
-            Detail = '{0} skills imported' -f $skillDirs.Count
+            Detail = if ($importedSkills.Count -eq 0) { 'All skills already synchronized' } else { '{0} skills imported' -f $importedSkills.Count }
         }
     }
     finally {
-        if (-not $DryRun -and (Test-Path -LiteralPath $tempRoot)) {
+        if (Test-Path -LiteralPath $tempRoot) {
             Remove-Item -LiteralPath $tempRoot -Recurse -Force
         }
     }

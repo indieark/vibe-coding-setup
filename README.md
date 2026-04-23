@@ -106,6 +106,7 @@
 precheck 决策规则：
 
 - 未安装：安装
+- 如果 manifest 开启 `installIfMissingOnly`：只要检测到已安装就直接跳过
 - 已安装但版本低于目标：更新
 - 已安装且版本不低于目标：跳过
 - 已安装但当前版本或目标版本无法比较：继续安装，让上游来源自行处理
@@ -147,16 +148,19 @@ precheck 决策规则：
 
 1. 解压 `downloads/skills.zip`
 2. 递归查找所有包含 `SKILL.md` 的目录
-3. 复制到 `~/.skills-manager/skills/<skill-name>`
-4. 同步复制到 `~/.codex/skills/<skill-name>`
-5. 如果本机存在以下目录，也会一起同步：
+3. 先比较技能目录内容是否已经同步
+4. 如果 `~/.skills-manager/skills/<skill-name>` 缺失或内容不同，则复制过去
+5. 如果本机存在以下目录，也会一起做同样的“缺失或内容不同才同步”检查：
    - `~/.claude/skills`
    - `~/.cursor/skills`
    - `~/.gemini/antigravity/global_skills`
    - `~/.gemini/skills`
    - `~/.copilot/skills`
-6. 如果不是 `-DryRun`，再写入 `~/.skills-manager/skills-manager.db`
-7. 如果找到 `skills-manager.exe`，最后会自动拉起它
+6. `~/.codex/skills/<skill-name>` 也按同样规则同步
+7. 如果不是 `-DryRun`，并且这次确实有技能被导入，才写入 `~/.skills-manager/skills-manager.db`
+8. 如果这次确实导入了技能，且找到 `skills-manager.exe`，最后会自动拉起它
+
+也就是说，`skills.zip` 不再是“只要运行就整包重拷”；现在是按技能目录内容做增量同步，已经一致的技能会直接跳过。
 
 ### 10. 最后导入 CC Switch Provider
 
@@ -188,8 +192,8 @@ precheck 决策规则：
 | `Node.js` | `winget install --id OpenJS.NodeJS` | `winget show OpenJS.NodeJS` | `node --version`，失败后看注册表 `Node.js` | `indieark/vibe-coding-setup@bootstrap-assets/node-v25.9.0-x64.msi` |
 | `Python 3.13` | `winget install --id Python.Python.3.13` | `winget show Python.Python.3.13` | `py -V` | `indieark/vibe-coding-setup@bootstrap-assets/python-3.13.13-amd64.exe` |
 | `Visual Studio Code` | `winget install --id Microsoft.VisualStudioCode` | `winget show Microsoft.VisualStudioCode` | `code --version`，失败后看注册表 `Microsoft Visual Studio Code` | `indieark/vibe-coding-setup@bootstrap-assets/VSCodeUserSetup-x64-1.117.0.exe` |
-| `Codex Desktop` | `winget install --id 9PLM9XGG6VKS --source msstore` | `winget show 9PLM9XGG6VKS --source msstore` | `Get-AppxPackage -Name OpenAI.Codex` | 官方 Microsoft Store：优先 `ms-windows-store://pdp/?ProductId=9PLM9XGG6VKS`，失败再开 `https://apps.microsoft.com/detail/9PLM9XGG6VKS` |
-| `ChatGPT (Pake)` | `https://github.com/tw93/Pake/releases/latest/download/ChatGPT_x64.msi` | 无稳定可比较目标版本 | 注册表精确匹配 `ChatGPT` | `indieark/vibe-coding-setup@bootstrap-assets/ChatGPT_x64.msi` |
+| `Codex Desktop` | `winget install --id 9PLM9XGG6VKS --source msstore` | `winget show 9PLM9XGG6VKS --source msstore`；但实际按 presence-only 预检，检测到已安装即跳过 | `Get-AppxPackage -Name OpenAI.Codex` | 官方 Microsoft Store：优先 `ms-windows-store://pdp/?ProductId=9PLM9XGG6VKS`，失败再开 `https://apps.microsoft.com/detail/9PLM9XGG6VKS` |
+| `ChatGPT (Pake)` | `https://github.com/tw93/Pake/releases/latest/download/ChatGPT_x64.msi` | 无稳定可比较目标版本；实际按 presence-only 预检 | 注册表精确匹配 `ChatGPT` | `indieark/vibe-coding-setup@bootstrap-assets/ChatGPT_x64.msi` |
 | `CC Switch` | `farion1231/cc-switch` 的 latest tag，对应资产模板 `CC-Switch-{tag}-Windows.msi` | GitHub latest tag | 注册表精确匹配 `CC Switch` | `indieark/vibe-coding-setup@bootstrap-assets/CC-Switch-v3.14.0-Windows.msi` |
 | `Codex Provider Sync` | `indieark/vibe-coding-setup@bootstrap-assets/Codex.Provider.Sync_0.1.4_x64-setup.exe` | 从 release 资产文件名提取版本 | 注册表包含匹配 `Codex Provider Sync` | 无单独二级回退；主来源就是自托管 release 资产 |
 | `Skills Manager` | `xingkongliang/skills-manager` 的 latest tag，对应资产模板 `skills-manager_{version}_x64_en-US.msi` | GitHub latest tag | 注册表正则匹配 `^(Skills Manager|skills-manager)$`；检测到后按 presence-only 跳过 | `indieark/vibe-coding-setup@bootstrap-assets/skills-manager_1.14.3_x64_en-US.msi` |
@@ -203,17 +207,17 @@ precheck 决策规则：
 
 ## 特殊行为说明
 
-### ChatGPT (Pake) 的版本门禁是弱的
+### Codex Desktop 和 ChatGPT 现在按 presence-only 处理
 
-因为它当前走的是固定直链：
+这两个应用都能稳定检测“是否已安装”，但当前都没有可靠、稳定、可比较的目标版本门禁：
 
-- `https://github.com/tw93/Pake/releases/latest/download/ChatGPT_x64.msi`
+- `Codex Desktop` 走 Microsoft Store，`winget show` 不稳定返回可用于脚本比较的版本
+- `ChatGPT (Pake)` 当前走固定 latest 直链，没有 manifest 固定 `targetVersion`
 
-但 manifest 里没有可比较的 `targetVersion`，所以一旦机器上已经安装了它，precheck 仍然会进入：
+因此脚本现在对它们采用同一条务实策略：
 
-- `unknown-target-version`
-
-也就是不会稳定命中“已是最新版本就跳过”。
+- 只要检测到已安装，就直接 `precheck-skip`
+- 不再因为“目标版本不可比较”而每次强行重装
 
 ### Python fallback 现在改为真正的运行时安装包
 
@@ -250,6 +254,31 @@ precheck 决策规则：
 - `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release
 
 如果这个资产不存在或下载失败，技能导入阶段会直接失败。
+
+### `skills.zip` 现在按内容同步，不是无脑重导
+
+`Install-SkillBundle` 现在会先把 `skills.zip` 解到临时目录，再逐个技能比较源目录和目标目录内容。
+
+判定范围包括：
+
+- `~/.skills-manager/skills/<skill-name>`
+- `~/.codex/skills/<skill-name>`
+- 如果目录存在，也包括：
+  - `~/.claude/skills`
+  - `~/.cursor/skills`
+  - `~/.gemini/antigravity/global_skills`
+  - `~/.gemini/skills`
+  - `~/.copilot/skills`
+
+只有某个技能在任一启用目标中缺失，或者文件内容不一致时，脚本才会重新同步该技能。
+
+如果所有目标都已经和 `skills.zip` 一致，日志会显示：
+
+- `Skill already synchronized, skip: <skill-name>`
+
+最后 summary 会显示：
+
+- `All skills already synchronized`
 
 ### Skills Manager 按 presence-only 处理
 
@@ -379,5 +408,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 - 增加日志落盘
 - 增加安装结果 JSON 报告
 - 为直链或 Release 资产增加 checksum / 版本校验
-- 为 `ChatGPT (Pake)` 增加稳定版本来源，避免每次都进入重新安装路径
+- 为 `Codex Desktop` / `ChatGPT (Pake)` 增加稳定版本来源，便于未来从 presence-only 回到可比较版本门禁
 - 继续观察 `Skills Manager` 后续是否提供稳定 CLI、可靠版本号或显式 rescan 命令

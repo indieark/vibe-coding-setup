@@ -134,6 +134,7 @@
       "key": "codex",
       "name": "Codex Desktop",
       "order": 50,
+      "installIfMissingOnly": true,
       "strategy": "winget",
       "wingetId": "9PLM9XGG6VKS",
       "wingetSource": "msstore",
@@ -153,6 +154,7 @@
       "key": "chatgpt",
       "name": "ChatGPT (Pake)",
       "order": 60,
+      "installIfMissingOnly": true,
       "strategy": "direct-url",
       "url": "https://github.com/tw93/Pake/releases/latest/download/ChatGPT_x64.msi",
       "detect": {
