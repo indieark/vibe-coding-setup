@@ -108,13 +108,15 @@ function Ensure-CodexWorkspaceDirectory {
         [switch]$DryRun
     )
 
-    $driveRoot = 'D:\'
-    $workspaceRoot = 'D:\Vibe Coding'
-    $chatPath = 'D:\Vibe Coding\Chat'
+    $candidateDrives = @('D:\', 'C:\')
+    $driveRoot = $candidateDrives | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 
-    if (-not (Test-Path -LiteralPath $driveRoot)) {
-        throw 'Drive D: is not available'
+    if (-not $driveRoot) {
+        throw 'Neither drive D: nor C: is available'
     }
+
+    $workspaceRoot = Join-Path $driveRoot 'Vibe Coding'
+    $chatPath = Join-Path $workspaceRoot 'Chat'
 
     if ($DryRun) {
         Write-Log -Message ('[DryRun] Create Codex workspace directory: {0}' -f $chatPath)
