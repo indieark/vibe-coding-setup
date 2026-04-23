@@ -3,8 +3,3 @@ logs/
 temp/
 .local/
 *.log
-packages/*.exe
-packages/*.msi
-packages/*.msix
-packages/*.zip
-!packages/README.md

@@ -1047,23 +1047,6 @@ function Install-AppFromDefinition {
         }
     }
 
-    if ($Definition.fallback.localFile) {
-        $localPackage = Resolve-WorkspacePath -WorkspaceRoot $WorkspaceRoot -RelativePath $Definition.fallback.localFile
-        Install-DownloadedPackage `
-            -PackagePath $localPackage `
-            -InstallerType $Definition.fallback.installerType `
-            -SilentArgs $Definition.fallback.silentArgs `
-            -DryRun:$DryRun
-
-        return [pscustomobject]@{
-            Name = $Definition.name
-            Key = $Definition.key
-            Status = 'ok'
-            Source = 'local-fallback'
-            Detail = $Definition.fallback.localFile
-        }
-    }
-
     throw ('{0} has no usable fallback package after online sources failed' -f $Definition.name)
 }
 

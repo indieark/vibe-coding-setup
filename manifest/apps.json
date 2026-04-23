@@ -16,7 +16,6 @@
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
         "releaseAsset": "PowerShell-7.6.1-win-x64.msi",
-        "localFile": "packages/PowerShell-7.6.1-win-x64.msi",
         "installerType": "msi",
         "silentArgs": [
           "ADD_PATH=1",
@@ -45,7 +44,6 @@
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
         "releaseAsset": "Git-2.53.0.2-64-bit.exe",
-        "localFile": "packages/Git-2.53.0.2-64-bit.exe",
         "installerType": "exe",
         "silentArgs": [
           "/VERYSILENT",
@@ -74,7 +72,6 @@
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
         "releaseAsset": "node-v24.14.0-x64.msi",
-        "localFile": "packages/node-v24.14.0-x64.msi",
         "installerType": "msi",
         "silentArgs": []
       }
@@ -96,7 +93,6 @@
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
         "releaseAsset": "python-manager-26.0.msix",
-        "localFile": "packages/python-manager-26.0.msix",
         "installerType": "msix",
         "silentArgs": []
       }
@@ -120,7 +116,6 @@
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
         "releaseAsset": "VSCodeUserSetup-x64-1.112.0.exe",
-        "localFile": "packages/VSCodeUserSetup-x64-1.112.0.exe",
         "installerType": "exe",
         "silentArgs": [
           "/VERYSILENT",
@@ -144,7 +139,6 @@
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
         "releaseAsset": "Codex-26.325.31654.Setup.exe",
-        "localFile": "packages/Codex-26.325.31654.Setup.exe",
         "installerType": "exe",
         "silentArgs": [
           "/S"
@@ -165,7 +159,6 @@
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
         "releaseAsset": "ChatGPT_x64.msi",
-        "localFile": "packages/ChatGPT_x64.msi",
         "installerType": "msi",
         "silentArgs": []
       }
@@ -185,7 +178,6 @@
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
         "releaseAsset": "CC-Switch-v3.11.1-Windows.msi",
-        "localFile": "packages/CC-Switch-v3.11.1-Windows.msi",
         "installerType": "msi",
         "silentArgs": []
       }
@@ -205,7 +197,6 @@
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
         "releaseAsset": "skills-manager_1.14.3_x64_en-US.msi",
-        "localFile": "packages/skills-manager_1.14.3_x64_en-US.msi",
         "installerType": "msi",
         "silentArgs": []
       }

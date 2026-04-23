@@ -18,9 +18,8 @@
 
 目录约定：
 
-- `packages/`：脚本当前实际引用的本地兜底安装包与 `skills.zip`
-- `.local/unused/`：当前脚本未引用、且不希望进入 Git 的安装包暂存目录
-- `downloads/`：脚本运行时临时下载的最新版安装包，已加入 `.gitignore`
+- `.local/unused/`：本地未使用安装包暂存目录
+- `downloads/`：脚本运行时临时下载的安装包与 `skills.zip`，已加入 `.gitignore`
 
 ## 当前包含
 
@@ -104,12 +103,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 公开仓库发布说明：
 
 - 公开 GitHub 仓库默认只提交脚本、清单和文档，不提交安装包或 `skills.zip`
-- `packages/` 里的本地 fallback 安装包与 `skills.zip` 属于维护者本地资源，不会进入公开 Git 历史
 - 远程一键启动模式依赖：
   - `winget`
   - 上游 GitHub Releases
   - `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release
-- 如果你需要真正离线分发，应改用维护者本地完整目录，或维护这个 Release 里的 fallback 安装包和 `skills.zip`
+- 如果你需要真正离线分发，应单独维护一份安装包归档，或维护这个 Release 里的 fallback 安装包和 `skills.zip`
 
 ## 远程模式说明
 
@@ -118,12 +116,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 - `bootstrap.ps1` 会自动拉取：
   - `modules/common.psm1`
   - `manifest/apps.json`
-- `skills.zip` 会从 `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release 下载
+- `skills.zip` 会下载到 `downloads/skills.zip`
 - 软件安装仍优先使用：
   - `winget`
   - 上游 GitHub 最新版
 - 当在线主路径失败时，脚本会退回到 `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release 资产
-- 本地 `packages/` 里的 fallback 安装包主要用于维护者本地完整目录，不是公开仓库远程模式的主要依赖
+- 当前仓库不再保留本地 `packages/` 目录，fallback 统一依赖 Release 资产
 
 ## 已确认的自动化入口
 

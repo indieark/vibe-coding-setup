@@ -204,7 +204,7 @@ if ((-not $SkipSkills) -and ($selectedApps | Where-Object { $_.key -eq 'skills-m
         -Repo $BootstrapAssetsRepo `
         -Tag $BootstrapAssetsTag `
         -DestinationRoot $root `
-        -RelativePath 'packages/skills.zip' `
+        -RelativePath 'downloads/skills.zip' `
         -AssetName 'skills.zip' `
         -Refresh:($RefreshBootstrapDependencies.IsPresent)
 }
@@ -255,7 +255,7 @@ foreach ($app in ($selectedApps | Sort-Object order)) {
 if (-not $SkipSkills -and ($selectedApps | Where-Object { $_.key -eq 'skills-manager' })) {
     try {
         $skillResult = Install-SkillBundle `
-            -ZipPath (Join-Path $root 'packages\skills.zip') `
+            -ZipPath (Join-Path $root 'downloads\skills.zip') `
             -DryRun:$DryRun
         $results.Add($skillResult)
     }
