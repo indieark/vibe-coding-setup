@@ -426,6 +426,7 @@ function Invoke-WingetAction {
         $Action,
         '--id', $PackageId,
         '--exact',
+        '--silent',
         '--accept-package-agreements',
         '--accept-source-agreements',
         '--disable-interactivity'
@@ -519,6 +520,9 @@ function Invoke-WingetAction {
         $exitText = if ($null -eq $exitCode) { 'unknown' } else { [string]$exitCode }
         throw ('winget {0} {1} failed, exit={2}' -f $Action, $PackageId, $exitText)
     }
+
+    Reset-InstallDetectionState
+    Write-Log -Message ('winget {0} completed: {1}' -f $Action, $PackageId)
 }
 
 function Test-WingetPackageInstalled {
@@ -588,6 +592,14 @@ function Refresh-CurrentProcessPath {
     $env:Path = ($segments -join ';')
 }
 
+function Reset-InstallDetectionState {
+    if (Get-Variable -Name UninstallRegistryEntries -Scope Script -ErrorAction SilentlyContinue) {
+        Remove-Variable -Name UninstallRegistryEntries -Scope Script -Force
+    }
+
+    Refresh-CurrentProcessPath
+}
+
 function Get-NormalizedVersionString {
     param(
         [string]$VersionText
@@ -638,6 +650,14 @@ function Compare-VersionStrings {
 }
 
 function Get-UninstallRegistryEntries {
+    param(
+        [switch]$Refresh
+    )
+
+    if ($Refresh -and (Get-Variable -Name UninstallRegistryEntries -Scope Script -ErrorAction SilentlyContinue)) {
+        Remove-Variable -Name UninstallRegistryEntries -Scope Script -Force
+    }
+
     if (Get-Variable -Name UninstallRegistryEntries -Scope Script -ErrorAction SilentlyContinue) {
         return $script:UninstallRegistryEntries
     }
@@ -1087,7 +1107,7 @@ function Test-InstallRecoveredAfterPrimaryFailure {
     )
 
     for ($attempt = 0; $attempt -lt $Attempts; $attempt++) {
-        Refresh-CurrentProcessPath
+        Reset-InstallDetectionState
         $installed = Get-InstalledAppVersion -Definition $Definition
         if ($installed.Found) {
             if ($InitialDecision.Reason -eq 'missing') {
@@ -1179,6 +1199,8 @@ function Install-DownloadedPackage {
             if ($proc.ExitCode -ne 0) {
                 throw ('MSI install failed, exit={0}' -f $proc.ExitCode)
             }
+
+            Reset-InstallDetectionState
         }
         'exe' {
             if ($DryRun) {
@@ -1191,6 +1213,8 @@ function Install-DownloadedPackage {
             if ($proc.ExitCode -ne 0) {
                 throw ('EXE install failed, exit={0}' -f $proc.ExitCode)
             }
+
+            Reset-InstallDetectionState
         }
         'msix' {
             if ($DryRun) {
@@ -1200,6 +1224,7 @@ function Install-DownloadedPackage {
 
             Write-Log -Message ('Installing MSIX: {0}' -f (Split-Path -Leaf $PackagePath))
             Add-AppxPackage -Path $PackagePath
+            Reset-InstallDetectionState
         }
         'uri' {
             if ($DryRun) {
@@ -1509,23 +1534,48 @@ function ConvertFrom-SecureStringPlainText {
 }
 
 function Read-CodexProviderInput {
-    $name = Read-Host 'Provider name shown in CC Switch (default IndieArk API 2)'
+    param(
+        [string]$PresetName,
+        [string]$PresetBaseUrl,
+        [string]$PresetModel,
+        [string]$PresetApiKey
+    )
+
+    $name = $PresetName
+    if ([string]::IsNullOrWhiteSpace($name)) {
+        $name = $env:VIBE_CODING_PROVIDER_NAME
+    }
     if ([string]::IsNullOrWhiteSpace($name)) {
         $name = 'IndieArk API 2'
     }
 
-    $baseUrl = Read-Host 'OpenAI-compatible base URL (default https://api2.indieark.tech/v1)'
+    $baseUrl = $PresetBaseUrl
+    if ([string]::IsNullOrWhiteSpace($baseUrl)) {
+        $baseUrl = $env:VIBE_CODING_BASE_URL
+    }
     if ([string]::IsNullOrWhiteSpace($baseUrl)) {
         $baseUrl = 'https://api2.indieark.tech/v1'
     }
 
-    $model = Read-Host 'Default model name (default gpt-5.4)'
+    $model = $PresetModel
+    if ([string]::IsNullOrWhiteSpace($model)) {
+        $model = $env:VIBE_CODING_MODEL
+    }
     if ([string]::IsNullOrWhiteSpace($model)) {
         $model = 'gpt-5.4'
     }
 
-    $secureApiKey = Read-Host 'API key (input hidden)' -AsSecureString
-    $apiKey = ConvertFrom-SecureStringPlainText -SecureString $secureApiKey
+    $apiKey = $PresetApiKey
+    if ([string]::IsNullOrWhiteSpace($apiKey)) {
+        $apiKey = $env:VIBE_CODING_API_KEY
+    }
+    if ([string]::IsNullOrWhiteSpace($apiKey)) {
+        $apiKey = $env:OPENAI_API_KEY
+    }
+    if ([string]::IsNullOrWhiteSpace($apiKey)) {
+        $secureApiKey = Read-Host 'API key (input hidden)' -AsSecureString
+        $apiKey = ConvertFrom-SecureStringPlainText -SecureString $secureApiKey
+    }
     if ([string]::IsNullOrWhiteSpace($apiKey)) {
         throw 'API key cannot be empty'
     }
@@ -1562,7 +1612,7 @@ function Test-CcSwitchProtocolRegistered {
 }
 
 function Get-InstalledCcSwitchExecutable {
-    $entry = Get-UninstallRegistryEntries | Where-Object {
+    $entry = Get-UninstallRegistryEntries -Refresh | Where-Object {
         [string](Get-ObjectPropertyValue -Object $_ -Name 'DisplayName') -eq 'CC Switch'
     } | Select-Object -First 1
 
@@ -1628,19 +1678,20 @@ function Import-CcSwitchCodexProvider {
     }
 
     $protocolRegistered = Test-CcSwitchProtocolRegistered
+    $ccSwitchExe = $null
     if ($ForceWarmup -or -not $protocolRegistered) {
         $ccSwitchExe = Get-InstalledCcSwitchExecutable
         if ($ccSwitchExe) {
             $warmupReason = if ($ForceWarmup) { 'fresh install or update detected' } else { 'protocol not registered yet' }
             Write-Log -Message ('Launching CC Switch before provider import ({0}): {1}' -f $warmupReason, $ccSwitchExe)
             Start-Process -FilePath $ccSwitchExe | Out-Null
-            Start-Sleep -Seconds 3
+            Start-Sleep -Seconds 5
 
-            if (-not (Wait-CcSwitchProtocolRegistration -TimeoutSeconds 15)) {
+            if (-not (Wait-CcSwitchProtocolRegistration -TimeoutSeconds 25)) {
                 throw 'ccswitch:// protocol is not registered after launching CC Switch. Retry once manually if Windows is still finalizing app registration.'
             }
 
-            Start-Sleep -Seconds 2
+            Start-Sleep -Seconds 3
         }
         else {
             throw 'ccswitch:// protocol is not registered and CC Switch executable was not found. Launch CC Switch once, then retry.'
@@ -1648,7 +1699,16 @@ function Import-CcSwitchCodexProvider {
     }
 
     Write-Log -Message ('Importing CC Switch provider via official deep link: {0}' -f $ProviderInfo.Name)
-    Start-Process -FilePath $link | Out-Null
+    if (-not $ccSwitchExe) {
+        $ccSwitchExe = Get-InstalledCcSwitchExecutable
+    }
+
+    if ($ccSwitchExe) {
+        Start-Process -FilePath $ccSwitchExe -ArgumentList $link | Out-Null
+    }
+    else {
+        Start-Process -FilePath $link | Out-Null
+    }
 
     return [pscustomobject]@{
         Name = 'CC Switch Provider Import'
@@ -1836,13 +1896,20 @@ function Sync-SkillsManagerRegistry {
         return
     }
 
+    Refresh-CurrentProcessPath
     $python = Get-PythonLauncher
     if (-not $python) {
-        throw 'Python is required to register imported skills in skills-manager.db'
+        Write-Log -Level 'WARN' -Message 'Python is not available yet; skip skills-manager DB sync for this run'
+        return
     }
 
     $homeDir = Get-UserHomeDirectory
     $dbPath = Join-Path $homeDir '.skills-manager\skills-manager.db'
+    if (-not (Test-Path -LiteralPath $dbPath)) {
+        Write-Log -Level 'WARN' -Message ('skills-manager DB not found, skip registry sync: {0}' -f $dbPath)
+        return
+    }
+
     $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ('skills-registry-' + [guid]::NewGuid().ToString('N'))
     Ensure-Directory -Path $tempRoot
 
@@ -1956,7 +2023,7 @@ conn.close()
     try {
         & $python $scriptPath $payloadPath $dbPath
         if ($LASTEXITCODE -ne 0) {
-            throw ('skills-manager registry sync failed, exit={0}' -f $LASTEXITCODE)
+            Write-Log -Level 'WARN' -Message ('skills-manager registry sync failed, exit={0}' -f $LASTEXITCODE)
         }
     }
     finally {

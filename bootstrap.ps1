@@ -5,6 +5,10 @@ param(
     [switch]$SkipCcSwitch,
     [switch]$SkipSkills,
     [switch]$PauseOnExit,
+    [string]$CcSwitchProviderName,
+    [string]$CcSwitchBaseUrl,
+    [string]$CcSwitchModel,
+    [string]$CcSwitchApiKey,
     [string]$BootstrapSourceRoot,
     [string]$BootstrapAssetsRepo = 'indieark/vibe-coding-setup',
     [string]$BootstrapAssetsTag = 'bootstrap-assets',
@@ -233,7 +237,7 @@ $manifestPath = Join-Path $root 'manifest\apps.json'
 $manifest = Get-AppManifest -ManifestPath $manifestPath
 $selectedApps = Get-SelectedApps -Apps $manifest.apps -Only $Only
 
-if ((-not $SkipSkills) -and ($selectedApps | Where-Object { $_.key -eq 'skills-manager' })) {
+if (-not $SkipSkills) {
     Copy-BootstrapReleaseAsset `
         -Repo $BootstrapAssetsRepo `
         -Tag $BootstrapAssetsTag `
@@ -249,7 +253,11 @@ Write-Log -Message ('Selected apps: {0}' -f (($selectedApps | ForEach-Object { $
 
 $providerInfo = $null
 if (-not $SkipCcSwitch -and ($selectedApps | Where-Object { $_.key -eq 'cc-switch' })) {
-    $providerInfo = Read-CodexProviderInput
+    $providerInfo = Read-CodexProviderInput `
+        -PresetName $CcSwitchProviderName `
+        -PresetBaseUrl $CcSwitchBaseUrl `
+        -PresetModel $CcSwitchModel `
+        -PresetApiKey $CcSwitchApiKey
 }
 
 $results = New-Object System.Collections.Generic.List[object]
@@ -286,7 +294,7 @@ foreach ($app in ($selectedApps | Sort-Object order)) {
     }
 }
 
-if (-not $SkipSkills -and ($selectedApps | Where-Object { $_.key -eq 'skills-manager' })) {
+if (-not $SkipSkills) {
     try {
         $skillResult = Install-SkillBundle `
             -ZipPath (Join-Path $root 'downloads\skills.zip') `
