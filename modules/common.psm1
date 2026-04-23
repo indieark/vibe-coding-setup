@@ -331,6 +331,27 @@ function Test-WingetNoApplicableUpgradeOutput {
     return $false
 }
 
+function Write-WingetOutputLines {
+    param(
+        [AllowEmptyCollection()]
+        [string[]]$Lines = @(),
+        [Parameter(Mandatory)]
+        [ref]$LastLine,
+        [Parameter(Mandatory)]
+        [ref]$Emitted
+    )
+
+    foreach ($line in $Lines) {
+        if ($line -eq [string]$LastLine.Value) {
+            continue
+        }
+
+        Write-Log -Message ('winget> {0}' -f $line)
+        $LastLine.Value = $line
+        $Emitted.Value = $true
+    }
+}
+
 function Invoke-WingetAction {
     param(
         [Parameter(Mandatory)]
@@ -376,6 +397,7 @@ function Invoke-WingetAction {
     $stdoutOffset = 0
     $stderrOffset = 0
     $lastHeartbeat = Get-Date
+    $lastWingetLine = $null
 
     try {
         $process = Start-Process -FilePath 'winget.exe' -ArgumentList $args -PassThru -NoNewWindow `
@@ -388,10 +410,7 @@ function Invoke-WingetAction {
                     @{ Path = $stderrPath; Offset = ([ref]$stderrOffset) }
                 )) {
                 $lines = @(Get-AppendedTextLines -Path $entry.Path -Offset $entry.Offset)
-                foreach ($line in $lines) {
-                    Write-Log -Message ('winget> {0}' -f $line)
-                    $sawOutput = $true
-                }
+                Write-WingetOutputLines -Lines $lines -LastLine ([ref]$lastWingetLine) -Emitted ([ref]$sawOutput)
             }
 
             if ($sawOutput) {
@@ -413,9 +432,8 @@ function Invoke-WingetAction {
                 @{ Path = $stderrPath; Offset = ([ref]$stderrOffset) }
             )) {
             $lines = @(Get-AppendedTextLines -Path $entry.Path -Offset $entry.Offset)
-            foreach ($line in $lines) {
-                Write-Log -Message ('winget> {0}' -f $line)
-            }
+            $emittedFinal = $false
+            Write-WingetOutputLines -Lines $lines -LastLine ([ref]$lastWingetLine) -Emitted ([ref]$emittedFinal)
         }
 
         $stdoutText = if (Test-Path -LiteralPath $stdoutPath) { Get-Content -LiteralPath $stdoutPath -Raw -Encoding UTF8 -ErrorAction SilentlyContinue } else { '' }
@@ -1184,6 +1202,25 @@ function Install-AppFromDefinition {
 
     if (-not $Definition.fallback) {
         throw ('{0} has no usable fallback' -f $Definition.name)
+    }
+
+    $fallbackWingetId = [string](Get-ObjectPropertyValue -Object $Definition.fallback -Name 'wingetId')
+    if (-not [string]::IsNullOrWhiteSpace($fallbackWingetId)) {
+        try {
+            $fallbackWingetSource = [string](Get-ObjectPropertyValue -Object $Definition.fallback -Name 'wingetSource')
+            Invoke-WingetAction -Action 'install' -PackageId $fallbackWingetId -Source $fallbackWingetSource -DryRun:$DryRun
+
+            return [pscustomobject]@{
+                Name = $Definition.name
+                Key = $Definition.key
+                Status = 'ok'
+                Source = 'winget-fallback'
+                Detail = if (-not [string]::IsNullOrWhiteSpace($fallbackWingetSource)) { '{0} ({1})' -f $fallbackWingetId, $fallbackWingetSource } else { $fallbackWingetId }
+            }
+        }
+        catch {
+            Write-Log -Level 'WARN' -Message ('winget fallback failed: {0}' -f $_.Exception.Message)
+        }
     }
 
     $fallbackReleaseAsset = [string](Get-ObjectPropertyValue -Object $Definition.fallback -Name 'releaseAsset')

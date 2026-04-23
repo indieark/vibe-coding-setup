@@ -4,25 +4,24 @@
       "key": "powershell",
       "name": "PowerShell 7",
       "order": 5,
-      "strategy": "winget",
-      "wingetId": "9MZ1SNWT0N5D",
-      "wingetSource": "msstore",
-      "wingetSkipInstalledCheck": true,
+      "strategy": "release-asset",
+      "repo": "indieark/vibe-coding-setup",
+      "tag": "bootstrap-assets",
+      "assetName": "PowerShell-7.6.1-win-x64.msi",
+      "installerType": "msi",
+      "silentArgs": [
+        "ADD_PATH=1",
+        "REGISTER_MANIFEST=1",
+        "USE_MU=1",
+        "ENABLE_MU=1"
+      ],
       "targetVersion": "7.6.1",
       "detect": {
         "appxName": "Microsoft.PowerShell"
       },
       "fallback": {
-        "releaseRepo": "indieark/vibe-coding-setup",
-        "releaseTag": "bootstrap-assets",
-        "releaseAsset": "PowerShell-7.6.1-win-x64.msi",
-        "installerType": "msi",
-        "silentArgs": [
-          "ADD_PATH=1",
-          "REGISTER_MANIFEST=1",
-          "USE_MU=1",
-          "ENABLE_MU=1"
-        ]
+        "wingetId": "9MZ1SNWT0N5D",
+        "wingetSource": "msstore"
       }
     },
     {
