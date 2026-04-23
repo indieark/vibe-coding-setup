@@ -735,6 +735,7 @@ function Get-AppInstallDecision {
 
     $installed = Get-InstalledAppVersion -Definition $Definition
     $desired = Get-DesiredAppVersion -Definition $Definition
+    $installIfMissingOnly = [bool](Get-ObjectPropertyValue -Object $Definition -Name 'installIfMissingOnly' -Default $false)
 
     if (-not $installed.Found) {
         return [pscustomobject]@{
@@ -743,6 +744,16 @@ function Get-AppInstallDecision {
             InstalledVersion = $null
             DesiredVersion = $desired.Version
             Detail = 'Not installed'
+        }
+    }
+
+    if ($installIfMissingOnly) {
+        return [pscustomobject]@{
+            Action = 'skip'
+            Reason = 'present'
+            InstalledVersion = $installed.Version
+            DesiredVersion = $desired.Version
+            Detail = 'Installed app detected and installIfMissingOnly is enabled'
         }
     }
 
@@ -883,6 +894,14 @@ function Install-AppFromDefinition {
         'current' {
             Write-Log -Message ('Precheck {0}: installed {1}, target {2}, skip' -f $Definition.name, $decision.InstalledVersion, $decision.DesiredVersion)
         }
+        'present' {
+            if ([string]::IsNullOrWhiteSpace([string]$decision.InstalledVersion)) {
+                Write-Log -Message ('Precheck {0}: detected as installed, installIfMissingOnly enabled, skip' -f $Definition.name)
+            }
+            else {
+                Write-Log -Message ('Precheck {0}: installed {1}, installIfMissingOnly enabled, skip' -f $Definition.name, $decision.InstalledVersion)
+            }
+        }
         'unknown-target-version' {
             Write-Log -Message ('Precheck {0}: installed {1}, target version unavailable, will let source reconcile' -f $Definition.name, $decision.InstalledVersion)
         }
@@ -895,12 +914,24 @@ function Install-AppFromDefinition {
     }
 
     if ($decision.Action -eq 'skip') {
+        $skipDetail = if ($decision.Reason -eq 'present') {
+            if ([string]::IsNullOrWhiteSpace([string]$decision.InstalledVersion)) {
+                'Detected as installed; installIfMissingOnly enabled'
+            }
+            else {
+                'Detected as installed ({0}); installIfMissingOnly enabled' -f $decision.InstalledVersion
+            }
+        }
+        else {
+            '{0} >= {1}' -f $decision.InstalledVersion, $decision.DesiredVersion
+        }
+
         return [pscustomobject]@{
             Name = $Definition.name
             Key = $Definition.key
             Status = 'ok'
             Source = 'precheck-skip'
-            Detail = '{0} >= {1}' -f $decision.InstalledVersion, $decision.DesiredVersion
+            Detail = $skipDetail
         }
     }
 
@@ -1028,19 +1059,20 @@ function Install-AppFromDefinition {
         throw ('{0} has no usable fallback' -f $Definition.name)
     }
 
-    if ($Definition.fallback.releaseAsset) {
+    $fallbackReleaseAsset = [string](Get-ObjectPropertyValue -Object $Definition.fallback -Name 'releaseAsset')
+    if (-not [string]::IsNullOrWhiteSpace($fallbackReleaseAsset)) {
         try {
-            $releaseRepo = $Definition.fallback.releaseRepo
-            $releaseTag = $Definition.fallback.releaseTag
-            $assetName = $Definition.fallback.releaseAsset
+            $releaseRepo = [string](Get-ObjectPropertyValue -Object $Definition.fallback -Name 'releaseRepo')
+            $releaseTag = [string](Get-ObjectPropertyValue -Object $Definition.fallback -Name 'releaseTag')
+            $assetName = $fallbackReleaseAsset
             $url = Get-GitHubReleaseAssetDownloadUrl -Repo $releaseRepo -Tag $releaseTag -AssetName $assetName
             $destination = Join-Path $downloadsRoot $assetName
 
             Invoke-DownloadFile -Url $url -DestinationPath $destination -DryRun:$DryRun | Out-Null
             Install-DownloadedPackage `
                 -PackagePath $destination `
-                -InstallerType $Definition.fallback.installerType `
-                -SilentArgs $Definition.fallback.silentArgs `
+                -InstallerType ([string](Get-ObjectPropertyValue -Object $Definition.fallback -Name 'installerType')) `
+                -SilentArgs @((Get-ObjectPropertyValue -Object $Definition.fallback -Name 'silentArgs' -Default @())) `
                 -DryRun:$DryRun
 
             return [pscustomobject]@{
@@ -1150,6 +1182,47 @@ function Test-CcSwitchProtocolRegistered {
     return (Test-Path 'Registry::HKEY_CLASSES_ROOT\ccswitch')
 }
 
+function Get-InstalledCcSwitchExecutable {
+    $entry = Get-UninstallRegistryEntries | Where-Object {
+        [string](Get-ObjectPropertyValue -Object $_ -Name 'DisplayName') -eq 'CC Switch'
+    } | Select-Object -First 1
+
+    if (-not $entry) {
+        return $null
+    }
+
+    $candidates = New-Object System.Collections.Generic.List[string]
+    $installLocation = [string](Get-ObjectPropertyValue -Object $entry -Name 'InstallLocation')
+    if (-not [string]::IsNullOrWhiteSpace($installLocation)) {
+        $candidates.Add((Join-Path $installLocation 'cc-switch.exe'))
+        $candidates.Add((Join-Path $installLocation 'CC Switch.exe'))
+    }
+
+    $displayIcon = [string](Get-ObjectPropertyValue -Object $entry -Name 'DisplayIcon')
+    if (-not [string]::IsNullOrWhiteSpace($displayIcon)) {
+        $candidates.Add($displayIcon.Trim('"'))
+    }
+
+    return $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
+}
+
+function Wait-CcSwitchProtocolRegistration {
+    param(
+        [int]$TimeoutSeconds = 15
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        if (Test-CcSwitchProtocolRegistered) {
+            return $true
+        }
+
+        Start-Sleep -Milliseconds 500
+    } while ((Get-Date) -lt $deadline)
+
+    return (Test-CcSwitchProtocolRegistered)
+}
+
 function Import-CcSwitchCodexProvider {
     param(
         [Parameter(Mandatory)]
@@ -1171,7 +1244,18 @@ function Import-CcSwitchCodexProvider {
     }
 
     if (-not (Test-CcSwitchProtocolRegistered)) {
-        throw 'ccswitch:// protocol is not registered. Launch CC Switch once, then retry.'
+        $ccSwitchExe = Get-InstalledCcSwitchExecutable
+        if ($ccSwitchExe) {
+            Write-Log -Message ('CC Switch protocol is not registered yet; launching app once: {0}' -f $ccSwitchExe)
+            Start-Process -FilePath $ccSwitchExe | Out-Null
+
+            if (-not (Wait-CcSwitchProtocolRegistration -TimeoutSeconds 15)) {
+                throw 'ccswitch:// protocol is not registered after launching CC Switch. Retry once manually if Windows is still finalizing app registration.'
+            }
+        }
+        else {
+            throw 'ccswitch:// protocol is not registered and CC Switch executable was not found. Launch CC Switch once, then retry.'
+        }
     }
 
     Write-Log -Message ('Importing CC Switch provider via official deep link: {0}' -f $ProviderInfo.Name)

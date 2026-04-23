@@ -4,7 +4,7 @@
 
 当前仓库的设计重点不是“纯离线安装”，而是把安装来源分成两层：
 
-- 主来源：`winget`、上游 GitHub Releases、固定直链
+- 主来源：`winget`、上游 GitHub Releases、固定直链、自托管 GitHub Release 资产
 - 回退来源：大多数应用退到 `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release 资产，`Codex Desktop` 退到官方 Microsoft Store 来源
 
 ## 当前包含
@@ -17,6 +17,7 @@
 - `Codex Desktop`
 - `ChatGPT (Pake)`
 - `CC Switch`
+- `Codex Provider Sync`
 - `Skills Manager`
 
 ## 主脚本逻辑
@@ -119,7 +120,7 @@ precheck 决策规则：
 - `github-release`
 - `release-asset`
 
-这个仓库当前实际用到的是前三种。
+这个仓库当前实际用到的是前四种。
 
 统一逻辑是：
 
@@ -190,7 +191,8 @@ precheck 决策规则：
 | `Codex Desktop` | `winget install --id 9PLM9XGG6VKS --source msstore` | `winget show 9PLM9XGG6VKS --source msstore` | `Get-AppxPackage -Name OpenAI.Codex` | 官方 Microsoft Store：优先 `ms-windows-store://pdp/?ProductId=9PLM9XGG6VKS`，失败再开 `https://apps.microsoft.com/detail/9PLM9XGG6VKS` |
 | `ChatGPT (Pake)` | `https://github.com/tw93/Pake/releases/latest/download/ChatGPT_x64.msi` | 无稳定可比较目标版本 | 注册表精确匹配 `ChatGPT` | `indieark/vibe-coding-setup@bootstrap-assets/ChatGPT_x64.msi` |
 | `CC Switch` | `farion1231/cc-switch` 的 latest tag，对应资产模板 `CC-Switch-{tag}-Windows.msi` | GitHub latest tag | 注册表精确匹配 `CC Switch` | `indieark/vibe-coding-setup@bootstrap-assets/CC-Switch-v3.14.0-Windows.msi` |
-| `Skills Manager` | `xingkongliang/skills-manager` 的 latest tag，对应资产模板 `skills-manager_{version}_x64_en-US.msi` | GitHub latest tag | 注册表精确匹配 `Skills Manager` | `indieark/vibe-coding-setup@bootstrap-assets/skills-manager_1.14.3_x64_en-US.msi` |
+| `Codex Provider Sync` | `indieark/vibe-coding-setup@bootstrap-assets/Codex.Provider.Sync_0.1.4_x64-setup.exe` | 从 release 资产文件名提取版本 | 注册表包含匹配 `Codex Provider Sync` | 无单独二级回退；主来源就是自托管 release 资产 |
+| `Skills Manager` | `xingkongliang/skills-manager` 的 latest tag，对应资产模板 `skills-manager_{version}_x64_en-US.msi` | GitHub latest tag | 注册表正则匹配 `^(Skills Manager|skills-manager)$`；检测到后按 presence-only 跳过 | `indieark/vibe-coding-setup@bootstrap-assets/skills-manager_1.14.3_x64_en-US.msi` |
 
 补充两个“非应用安装项”：
 
@@ -229,7 +231,17 @@ precheck 决策规则：
 
 - `ccswitch://v1/import`
 
-如果协议没注册，脚本不会退回到 SQLite 直写。
+如果协议没注册，脚本不会退回到 SQLite 直写；当前仍需要先手动启动一次 `CC Switch`，让 `ccswitch://` 协议完成注册后再重试。
+
+### Codex Provider Sync 直接走自托管 release
+
+因为 `indieark/codex-provider-sync` 是私有仓库，这里没有再走“先访问上游、失败后 fallback”的双层策略。
+
+当前 manifest 直接把主来源指向：
+
+- `indieark/vibe-coding-setup@bootstrap-assets/Codex.Provider.Sync_0.1.4_x64-setup.exe`
+
+这样远程自举时不需要拥有私有仓库访问权限，也不会因为上游 release 不可见而在主路径上失败。
 
 ### `skills.zip` 也没有第二来源
 
@@ -238,6 +250,20 @@ precheck 决策规则：
 - `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release
 
 如果这个资产不存在或下载失败，技能导入阶段会直接失败。
+
+### Skills Manager 按 presence-only 处理
+
+`Skills Manager` 当前安装后的注册表元数据并不稳定：
+
+- 实际 `DisplayName` 可能是 `skills-manager`
+- 实际 `DisplayVersion` 可能不会跟 GitHub release tag 对齐
+
+因此脚本现在对它采用 presence-only 预检：
+
+- 先用正则同时匹配 `Skills Manager` / `skills-manager`
+- 只要检测到已经安装，就不再按 GitHub latest tag 做版本升级判断
+
+这样可以避免同一台机器在第二次、第三次运行时反复重装 `Skills Manager`。
 
 ### 本地 `packages/` 目录已经不再使用
 
@@ -250,9 +276,9 @@ precheck 决策规则：
 - `Codex Desktop` 不再依赖仓库 release 里的旧版 `Setup.exe`
 - 当 `winget` 的 `msstore` 安装路径失败时，脚本会退回到官方 Microsoft Store 协议或其网页详情页
 
-### 当前 fallback 资产更新状态
+### 当前仓库 release 资产更新状态
 
-截至本次整理，`bootstrap-assets` Release 已补齐这些新版安装包：
+截至本次整理，`bootstrap-assets` Release 已补齐这些安装资产：
 
 - `PowerShell-7.6.1-win-x64.msi`
 - `Git-2.54.0-64-bit.exe`
@@ -260,6 +286,7 @@ precheck 决策规则：
 - `python-3.13.13-amd64.exe`
 - `VSCodeUserSetup-x64-1.117.0.exe`
 - `CC-Switch-v3.14.0-Windows.msi`
+- `Codex.Provider.Sync_0.1.4_x64-setup.exe`
 - `skills-manager_1.14.3_x64_en-US.msi`
 - `ChatGPT_x64.msi`
 - `skills.zip`
@@ -344,6 +371,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 - `Codex Desktop` Microsoft Store 包 `9PLM9XGG6VKS`
 - `tw93/Pake` latest release asset
 - `farion1231/cc-switch` latest release asset
+- `indieark/codex-provider-sync` private release asset（镜像到 `bootstrap-assets` 后对外安装）
 - `xingkongliang/skills-manager` latest MSI release asset
 
 ## 建议后续
@@ -352,4 +380,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 - 增加安装结果 JSON 报告
 - 为直链或 Release 资产增加 checksum / 版本校验
 - 为 `ChatGPT (Pake)` 增加稳定版本来源，避免每次都进入重新安装路径
-- 继续观察 `Skills Manager` 后续是否提供稳定 CLI 或显式 rescan 命令
+- 继续观察 `Skills Manager` 后续是否提供稳定 CLI、可靠版本号或显式 rescan 命令

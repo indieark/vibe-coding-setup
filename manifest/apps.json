@@ -187,15 +187,33 @@
       }
     },
     {
+      "key": "codex-provider-sync",
+      "name": "Codex Provider Sync",
+      "order": 75,
+      "strategy": "release-asset",
+      "repo": "indieark/vibe-coding-setup",
+      "tag": "bootstrap-assets",
+      "assetName": "Codex.Provider.Sync_0.1.4_x64-setup.exe",
+      "installerType": "exe",
+      "silentArgs": [
+        "/S"
+      ],
+      "detect": {
+        "registryDisplayName": "Codex Provider Sync",
+        "registryMatch": "contains"
+      }
+    },
+    {
       "key": "skills-manager",
       "name": "Skills Manager",
       "order": 80,
+      "installIfMissingOnly": true,
       "strategy": "github-latest-tag",
       "repo": "xingkongliang/skills-manager",
       "assetTemplate": "skills-manager_{version}_x64_en-US.msi",
       "detect": {
-        "registryDisplayName": "Skills Manager",
-        "registryMatch": "exact"
+        "registryDisplayName": "^(Skills Manager|skills-manager)$",
+        "registryMatch": "regex"
       },
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
