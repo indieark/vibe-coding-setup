@@ -253,36 +253,6 @@ function Invoke-DownloadFile {
     return $DestinationPath
 }
 
-function Invoke-ProcessWithProgress {
-    param(
-        [Parameter(Mandatory)]
-        [string]$FilePath,
-        [Parameter(Mandatory)]
-        [string[]]$ArgumentList,
-        [Parameter(Mandatory)]
-        [string]$Activity,
-        [Parameter(Mandatory)]
-        [string]$Status
-    )
-
-    $process = Start-Process -FilePath $FilePath -ArgumentList $ArgumentList -PassThru -WindowStyle Hidden
-    $tick = 0
-
-    try {
-        while (-not $process.HasExited) {
-            $percent = (($tick % 20) + 1) * 5
-            Write-Progress -Activity $Activity -Status $Status -PercentComplete $percent
-            Start-Sleep -Milliseconds 750
-            $tick++
-        }
-    }
-    finally {
-        Write-Progress -Activity $Activity -Completed
-    }
-
-    return $process.ExitCode
-}
-
 function Get-GitHubReleaseAssetDownloadUrl {
     param(
         [Parameter(Mandatory)]
@@ -334,11 +304,8 @@ function Invoke-WingetAction {
     }
 
     Write-Log -Message ('Running winget {0}: {1}' -f $Action, $PackageId)
-    $exitCode = Invoke-ProcessWithProgress `
-        -FilePath 'winget' `
-        -ArgumentList $args `
-        -Activity ('winget {0}' -f $Action) `
-        -Status $PackageId
+    & winget @args
+    $exitCode = $LASTEXITCODE
 
     if ($exitCode -ne 0) {
         if ($Action -eq 'upgrade') {
@@ -1116,19 +1083,19 @@ function ConvertFrom-SecureStringPlainText {
 }
 
 function Read-CodexProviderInput {
-    $name = Read-Host 'Provider name shown in CC Switch (default Team Relay)'
+    $name = Read-Host 'Provider name shown in CC Switch (default IndieArk API 2)'
     if ([string]::IsNullOrWhiteSpace($name)) {
-        $name = 'Team Relay'
+        $name = 'IndieArk API 2'
     }
 
-    $baseUrl = Read-Host 'OpenAI-compatible base URL (default https://api.indieark.tech/v1)'
+    $baseUrl = Read-Host 'OpenAI-compatible base URL (default https://api2.indieark.tech/v1)'
     if ([string]::IsNullOrWhiteSpace($baseUrl)) {
-        $baseUrl = 'https://api.indieark.tech/v1'
+        $baseUrl = 'https://api2.indieark.tech/v1'
     }
 
-    $model = Read-Host 'Default model name (default gpt5.4)'
+    $model = Read-Host 'Default model name (default gpt-5.4)'
     if ([string]::IsNullOrWhiteSpace($model)) {
-        $model = 'gpt5.4'
+        $model = 'gpt-5.4'
     }
 
     $secureApiKey = Read-Host 'API key (input hidden)' -AsSecureString
