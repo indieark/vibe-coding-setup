@@ -254,14 +254,20 @@ if (-not $DryRun -and -not (Test-IsAdministrator)) {
     }
 
     $relaunchArgs = ConvertTo-ArgumentTokens -BoundParameters $PSBoundParameters
-    $argumentList = @(
-        '-NoProfile',
-        '-ExecutionPolicy', 'Bypass',
-        '-File', ('"{0}"' -f $PSCommandPath)
-    ) + $relaunchArgs
+    $argumentList = New-Object System.Collections.Generic.List[string]
+    if ($PauseOnExit) {
+        $argumentList.Add('-NoExit')
+    }
+
+    $argumentList.AddRange(@(
+            '-NoProfile',
+            '-ExecutionPolicy', 'Bypass',
+            '-File', ('"{0}"' -f $PSCommandPath)
+        ))
+    $argumentList.AddRange($relaunchArgs)
 
     Write-Host 'Administrator privileges are required. Requesting UAC elevation...'
-    Start-Process -FilePath (Get-CurrentPowerShellExecutable) -Verb RunAs -ArgumentList $argumentList | Out-Null
+    Start-Process -FilePath (Get-CurrentPowerShellExecutable) -Verb RunAs -ArgumentList $argumentList.ToArray() | Out-Null
     Invoke-BootstrapExit -Code 0
 }
 
