@@ -497,6 +497,7 @@ function Invoke-WingetAction {
         $stdoutText = if (Test-Path -LiteralPath $stdoutPath) { Get-Content -LiteralPath $stdoutPath -Raw -Encoding UTF8 -ErrorAction SilentlyContinue } else { '' }
         $stderrText = if (Test-Path -LiteralPath $stderrPath) { Get-Content -LiteralPath $stderrPath -Raw -Encoding UTF8 -ErrorAction SilentlyContinue } else { '' }
         $combinedOutput = @($stdoutText, $stderrText) -join "`n"
+        $process.WaitForExit()
         $exitCode = $process.ExitCode
     }
     finally {
@@ -515,7 +516,8 @@ function Invoke-WingetAction {
             Write-Log -Level 'WARN' -Message ('winget upgrade {0} returned {1}; continuing' -f $PackageId, $exitCode)
             return
         }
-        throw ('winget {0} {1} failed, exit={2}' -f $Action, $PackageId, $exitCode)
+        $exitText = if ($null -eq $exitCode) { 'unknown' } else { [string]$exitCode }
+        throw ('winget {0} {1} failed, exit={2}' -f $Action, $PackageId, $exitText)
     }
 }
 
@@ -876,16 +878,16 @@ function Get-WingetPackageLatestVersion {
     }
 
     $version = $null
-    $topLevelMatch = [regex]::Match($output, '(?m)^Version:\s*(?<version>.+?)\s*$')
+    $topLevelMatch = [regex]::Match($output, '(?m)^(?:Version|版本):\s*(?<version>.+?)\s*$')
     if ($topLevelMatch.Success) {
         $candidate = $topLevelMatch.Groups['version'].Value.Trim()
-        if ($candidate -ne 'Unknown') {
+        if ($candidate -notin @('Unknown', '未知')) {
             $version = $candidate
         }
     }
 
     if ([string]::IsNullOrWhiteSpace($version)) {
-        $descriptionMatch = [regex]::Match($output, '(?m)^\s+Version:\s*v?(?<version>\d+(?:\.\d+)+)\s*$')
+        $descriptionMatch = [regex]::Match($output, '(?m)^\s+(?:Version|版本):\s*v?(?<version>\d+(?:\.\d+)+)\s*$')
         if ($descriptionMatch.Success) {
             $version = $descriptionMatch.Groups['version'].Value
         }
