@@ -560,6 +560,28 @@ function Get-ObjectPropertyValue {
     return $property.Value
 }
 
+function Refresh-CurrentProcessPath {
+    $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $currentPath = $env:Path
+
+    $segments = New-Object System.Collections.Generic.List[string]
+    foreach ($pathValue in @($machinePath, $userPath, $currentPath)) {
+        foreach ($segment in @($pathValue -split ';')) {
+            $trimmed = [string]$segment
+            if ([string]::IsNullOrWhiteSpace($trimmed)) {
+                continue
+            }
+
+            if ($segments -notcontains $trimmed) {
+                $segments.Add($trimmed)
+            }
+        }
+    }
+
+    $env:Path = ($segments -join ';')
+}
+
 function Get-NormalizedVersionString {
     param(
         [string]$VersionText
@@ -1006,6 +1028,82 @@ function Get-AppInstallDecision {
     }
 }
 
+function Test-InstallRecoveredAfterPrimaryFailure {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Definition,
+        [Parameter(Mandatory)]
+        [pscustomobject]$InitialDecision,
+        [int]$Attempts = 6,
+        [int]$DelayMilliseconds = 1500
+    )
+
+    for ($attempt = 0; $attempt -lt $Attempts; $attempt++) {
+        Refresh-CurrentProcessPath
+        $installed = Get-InstalledAppVersion -Definition $Definition
+        if ($installed.Found) {
+            if ($InitialDecision.Reason -eq 'missing') {
+                return [pscustomobject]@{
+                    Recovered = $true
+                    InstalledVersion = $installed.Version
+                    Detail = 'App became detectable after primary installer returned an error'
+                }
+            }
+
+            $postDecision = Get-AppInstallDecision -Definition $Definition
+            if ($postDecision.Action -eq 'skip') {
+                return [pscustomobject]@{
+                    Recovered = $true
+                    InstalledVersion = $postDecision.InstalledVersion
+                    Detail = $postDecision.Detail
+                }
+            }
+        }
+
+        if ($attempt -lt ($Attempts - 1)) {
+            Start-Sleep -Milliseconds $DelayMilliseconds
+        }
+    }
+
+    return [pscustomobject]@{
+        Recovered = $false
+        InstalledVersion = $null
+        Detail = 'App was still not verifiably installed after recheck'
+    }
+}
+
+function Resolve-PrimaryInstallFailure {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Definition,
+        [Parameter(Mandatory)]
+        [pscustomobject]$InitialDecision,
+        [Parameter(Mandatory)]
+        [string]$PrimarySource,
+        [Parameter(Mandatory)]
+        [System.Management.Automation.ErrorRecord]$ErrorRecord,
+        [switch]$DryRun
+    )
+
+    Write-Log -Level 'WARN' -Message ('{0} path raised an error for {1}: {2}' -f $PrimarySource, $Definition.name, $ErrorRecord.Exception.Message)
+    if (-not $DryRun) {
+        $recovered = Test-InstallRecoveredAfterPrimaryFailure -Definition $Definition -InitialDecision $InitialDecision
+        if ($recovered.Recovered) {
+            Write-Log -Level 'WARN' -Message ('{0} appears installed after post-failure recheck; skipping fallback for {1}' -f $Definition.name, $PrimarySource)
+            return [pscustomobject]@{
+                Name = $Definition.name
+                Key = $Definition.key
+                Status = 'ok'
+                Source = '{0}-postcheck' -f $PrimarySource
+                Detail = if ([string]::IsNullOrWhiteSpace([string]$recovered.InstalledVersion)) { $recovered.Detail } else { '{0} ({1})' -f $recovered.Detail, $recovered.InstalledVersion }
+            }
+        }
+    }
+
+    Write-Log -Level 'WARN' -Message ('{0} path failed, falling back to release or local package: {1}' -f $PrimarySource, $Definition.name)
+    return $null
+}
+
 function Install-DownloadedPackage {
     param(
         [Parameter(Mandatory)]
@@ -1148,7 +1246,10 @@ function Install-AppFromDefinition {
                 }
             }
             catch {
-                Write-Log -Level 'WARN' -Message ('winget path failed, falling back to release or local package: {0}' -f $Definition.name)
+                $recoveredResult = Resolve-PrimaryInstallFailure -Definition $Definition -InitialDecision $decision -PrimarySource 'winget' -ErrorRecord $_ -DryRun:$DryRun
+                if ($null -ne $recoveredResult) {
+                    return $recoveredResult
+                }
             }
         }
         'github-release' {
@@ -1171,7 +1272,10 @@ function Install-AppFromDefinition {
                 }
             }
             catch {
-                Write-Log -Level 'WARN' -Message ('GitHub release path failed, falling back to release or local package: {0}' -f $Definition.name)
+                $recoveredResult = Resolve-PrimaryInstallFailure -Definition $Definition -InitialDecision $decision -PrimarySource 'github-release' -ErrorRecord $_ -DryRun:$DryRun
+                if ($null -ne $recoveredResult) {
+                    return $recoveredResult
+                }
             }
         }
         'release-asset' {
@@ -1195,7 +1299,10 @@ function Install-AppFromDefinition {
                 }
             }
             catch {
-                Write-Log -Level 'WARN' -Message ('Release asset path failed, falling back to release or local package: {0}' -f $Definition.name)
+                $recoveredResult = Resolve-PrimaryInstallFailure -Definition $Definition -InitialDecision $decision -PrimarySource 'release-asset' -ErrorRecord $_ -DryRun:$DryRun
+                if ($null -ne $recoveredResult) {
+                    return $recoveredResult
+                }
             }
         }
         'direct-url' {
@@ -1218,7 +1325,10 @@ function Install-AppFromDefinition {
                 }
             }
             catch {
-                Write-Log -Level 'WARN' -Message ('Direct URL path failed, falling back to release or local package: {0}' -f $Definition.name)
+                $recoveredResult = Resolve-PrimaryInstallFailure -Definition $Definition -InitialDecision $decision -PrimarySource 'direct-url' -ErrorRecord $_ -DryRun:$DryRun
+                if ($null -ne $recoveredResult) {
+                    return $recoveredResult
+                }
             }
         }
         'github-latest-tag' {
@@ -1246,7 +1356,10 @@ function Install-AppFromDefinition {
                 }
             }
             catch {
-                Write-Log -Level 'WARN' -Message ('GitHub latest-tag path failed, falling back to release or local package: {0}' -f $Definition.name)
+                $recoveredResult = Resolve-PrimaryInstallFailure -Definition $Definition -InitialDecision $decision -PrimarySource 'github-latest-tag' -ErrorRecord $_ -DryRun:$DryRun
+                if ($null -ne $recoveredResult) {
+                    return $recoveredResult
+                }
             }
         }
         default {
