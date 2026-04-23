@@ -93,14 +93,9 @@
       "key": "codex",
       "name": "Codex Desktop",
       "order": 50,
-      "strategy": "release-asset",
-      "repo": "indieark/vibe-coding-setup",
-      "tag": "bootstrap-assets",
-      "assetName": "Codex-26.325.31654.Setup.exe",
-      "installerType": "exe",
-      "silentArgs": [
-        "/S"
-      ],
+      "strategy": "winget",
+      "wingetId": "9PLM9XGG6VKS",
+      "wingetSource": "msstore",
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",

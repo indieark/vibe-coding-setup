@@ -307,6 +307,7 @@ function Invoke-WingetAction {
         [string]$Action,
         [Parameter(Mandatory)]
         [string]$PackageId,
+        [string]$Source,
         [switch]$DryRun
     )
 
@@ -322,6 +323,10 @@ function Invoke-WingetAction {
         '--accept-source-agreements',
         '--disable-interactivity'
     )
+
+    if (-not [string]::IsNullOrWhiteSpace($Source)) {
+        $args += @('--source', $Source)
+    }
 
     if ($DryRun) {
         Write-Log -Message ('[DryRun] winget {0} {1}' -f $Action, $PackageId)
@@ -347,14 +352,20 @@ function Invoke-WingetAction {
 function Test-WingetPackageInstalled {
     param(
         [Parameter(Mandatory)]
-        [string]$PackageId
+        [string]$PackageId,
+        [string]$Source
     )
 
     if (-not (Test-WingetInstalled)) {
         return $false
     }
 
-    $output = & winget list --id $PackageId --exact --accept-source-agreements --disable-interactivity 2>$null | Out-String
+    $args = @('list', '--id', $PackageId, '--exact', '--accept-source-agreements', '--disable-interactivity')
+    if (-not [string]::IsNullOrWhiteSpace($Source)) {
+        $args += @('--source', $Source)
+    }
+
+    $output = & winget @args 2>$null | Out-String
     if ($LASTEXITCODE -ne 0) {
         return $false
     }
@@ -432,24 +443,24 @@ function Install-AppFromDefinition {
     switch ($Definition.strategy) {
         'winget' {
             try {
-                if (Test-WingetPackageInstalled -PackageId $Definition.wingetId) {
-                    Invoke-WingetAction -Action 'upgrade' -PackageId $Definition.wingetId -DryRun:$DryRun
+                if (Test-WingetPackageInstalled -PackageId $Definition.wingetId -Source $Definition.wingetSource) {
+                    Invoke-WingetAction -Action 'upgrade' -PackageId $Definition.wingetId -Source $Definition.wingetSource -DryRun:$DryRun
                     return [pscustomobject]@{
                         Name = $Definition.name
                         Key = $Definition.key
                         Status = 'ok'
                         Source = 'winget-upgrade'
-                        Detail = $Definition.wingetId
+                        Detail = if ($Definition.wingetSource) { '{0} ({1})' -f $Definition.wingetId, $Definition.wingetSource } else { $Definition.wingetId }
                     }
                 }
 
-                Invoke-WingetAction -Action 'install' -PackageId $Definition.wingetId -DryRun:$DryRun
+                Invoke-WingetAction -Action 'install' -PackageId $Definition.wingetId -Source $Definition.wingetSource -DryRun:$DryRun
                 return [pscustomobject]@{
                     Name = $Definition.name
                     Key = $Definition.key
                     Status = 'ok'
                     Source = 'winget-install'
-                    Detail = $Definition.wingetId
+                    Detail = if ($Definition.wingetSource) { '{0} ({1})' -f $Definition.wingetId, $Definition.wingetSource } else { $Definition.wingetId }
                 }
             }
             catch {
@@ -632,14 +643,14 @@ function Read-CodexProviderInput {
         $name = 'Team Relay'
     }
 
-    $baseUrl = Read-Host 'OpenAI-compatible base URL (for example https://api.example.com/v1)'
+    $baseUrl = Read-Host 'OpenAI-compatible base URL (default https://api.indieark.tech/v1)'
     if ([string]::IsNullOrWhiteSpace($baseUrl)) {
-        throw 'Base URL cannot be empty'
+        $baseUrl = 'https://api.indieark.tech/v1'
     }
 
-    $model = Read-Host 'Default model name (default gpt-5.4)'
+    $model = Read-Host 'Default model name (default gpt5.4)'
     if ([string]::IsNullOrWhiteSpace($model)) {
-        $model = 'gpt-5.4'
+        $model = 'gpt5.4'
     }
 
     $secureApiKey = Read-Host 'API key (input hidden)' -AsSecureString
