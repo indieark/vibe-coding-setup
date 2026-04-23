@@ -300,6 +300,8 @@ precheck 决策规则：
 
 只有某个技能在任一启用目标中缺失，或者文件内容不一致时，脚本才会重新同步该技能。
 
+如果某个目标目录本质上只是另一个目标的软链接 / junction（例如 `~/.codex/skills` 指向 `~/.skills-manager/skills`），脚本会在 central import 之后重新做一次同步检查；如果内容已经一致，就跳过第二次复制，避免把刚导入的 central skill 又删掉。
+
 如果所有目标都已经和 `skills.zip` 一致，日志会显示：
 
 - `Skill already synchronized, skip: <skill-name>`

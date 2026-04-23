@@ -2352,6 +2352,11 @@ function Install-SkillBundle {
                 $targetPath = Join-Path $target.Path $skillName
                 if ($targetsNeedingSync -contains $targetPath) {
                     $copySourcePath = if (Test-Path -LiteralPath $centralPath) { $centralPath } else { $sourcePath }
+                    if (Test-SkillDirectoryInSync -SourcePath $copySourcePath -DestinationPath $targetPath) {
+                        Write-Log -Message ('Target already synchronized after central import, skip duplicate copy: {0}' -f $targetPath)
+                        continue
+                    }
+
                     Copy-SkillDirectory -SourcePath $copySourcePath -DestinationPath $targetPath -DryRun:$DryRun
                 }
             }
