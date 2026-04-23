@@ -373,6 +373,462 @@ function Test-WingetPackageInstalled {
     return $output -match [regex]::Escape($PackageId)
 }
 
+function Get-ObjectPropertyValue {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Object,
+        [Parameter(Mandatory)]
+        [string]$Name,
+        $Default = $null
+    )
+
+    if ($null -eq $Object) {
+        return $Default
+    }
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        return $Default
+    }
+
+    return $property.Value
+}
+
+function Get-NormalizedVersionString {
+    param(
+        [string]$VersionText
+    )
+
+    if ([string]::IsNullOrWhiteSpace($VersionText)) {
+        return $null
+    }
+
+    $match = [regex]::Match($VersionText.Trim(), '(?i)v?(?<version>\d+(?:\.\d+)+)')
+    if (-not $match.Success) {
+        return $null
+    }
+
+    return $match.Groups['version'].Value
+}
+
+function Compare-VersionStrings {
+    param(
+        [string]$LeftVersion,
+        [string]$RightVersion
+    )
+
+    $left = Get-NormalizedVersionString -VersionText $LeftVersion
+    $right = Get-NormalizedVersionString -VersionText $RightVersion
+    if ([string]::IsNullOrWhiteSpace($left) -or [string]::IsNullOrWhiteSpace($right)) {
+        return $null
+    }
+
+    $leftParts = $left.Split('.') | ForEach-Object { [int]$_ }
+    $rightParts = $right.Split('.') | ForEach-Object { [int]$_ }
+    $length = [Math]::Max($leftParts.Count, $rightParts.Count)
+
+    for ($index = 0; $index -lt $length; $index++) {
+        $leftValue = if ($index -lt $leftParts.Count) { $leftParts[$index] } else { 0 }
+        $rightValue = if ($index -lt $rightParts.Count) { $rightParts[$index] } else { 0 }
+
+        if ($leftValue -lt $rightValue) {
+            return -1
+        }
+
+        if ($leftValue -gt $rightValue) {
+            return 1
+        }
+    }
+
+    return 0
+}
+
+function Get-UninstallRegistryEntries {
+    if (Get-Variable -Name UninstallRegistryEntries -Scope Script -ErrorAction SilentlyContinue) {
+        return $script:UninstallRegistryEntries
+    }
+
+    $paths = @(
+        'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    )
+
+    $entries = foreach ($path in $paths) {
+        Get-ItemProperty -Path $path -ErrorAction SilentlyContinue
+    }
+
+    $script:UninstallRegistryEntries = @(
+        $entries |
+        Where-Object {
+            $displayNameProperty = $_.PSObject.Properties['DisplayName']
+            $null -ne $displayNameProperty -and -not [string]::IsNullOrWhiteSpace([string]$displayNameProperty.Value)
+        }
+    )
+    return $script:UninstallRegistryEntries
+}
+
+function Select-BestVersionRecord {
+    param(
+        [Parameter(Mandatory)]
+        [object[]]$Records,
+        [Parameter(Mandatory)]
+        [scriptblock]$VersionSelector
+    )
+
+    $selected = $null
+    foreach ($record in $Records) {
+        if ($null -eq $selected) {
+            $selected = $record
+            continue
+        }
+
+        $candidateVersion = & $VersionSelector $record
+        $selectedVersion = & $VersionSelector $selected
+        $comparison = Compare-VersionStrings -LeftVersion $candidateVersion -RightVersion $selectedVersion
+        if ($comparison -gt 0) {
+            $selected = $record
+        }
+    }
+
+    return $selected
+}
+
+function Get-InstalledRegistryVersion {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$DetectConfig
+    )
+
+    $displayName = [string](Get-ObjectPropertyValue -Object $DetectConfig -Name 'registryDisplayName')
+    if ([string]::IsNullOrWhiteSpace($displayName)) {
+        return $null
+    }
+
+    $matchMode = [string](Get-ObjectPropertyValue -Object $DetectConfig -Name 'registryMatch' -Default 'contains')
+    $entries = Get-UninstallRegistryEntries
+    $matched = switch ($matchMode) {
+        'exact' { @($entries | Where-Object { [string](Get-ObjectPropertyValue -Object $_ -Name 'DisplayName') -eq $displayName }) }
+        'regex' { @($entries | Where-Object { [string](Get-ObjectPropertyValue -Object $_ -Name 'DisplayName') -match $displayName }) }
+        default { @($entries | Where-Object { [string](Get-ObjectPropertyValue -Object $_ -Name 'DisplayName') -like ('*{0}*' -f $displayName) }) }
+    }
+    $matched = @($matched)
+
+    if ($matched.Count -eq 0) {
+        return [pscustomobject]@{
+            Found = $false
+            Version = $null
+            Source = 'registry'
+            Detail = $displayName
+        }
+    }
+
+    $selected = Select-BestVersionRecord -Records $matched -VersionSelector { param($entry) $entry.DisplayVersion }
+    return [pscustomobject]@{
+        Found = $true
+        Version = $selected.DisplayVersion
+        Source = 'registry'
+        Detail = $selected.DisplayName
+    }
+}
+
+function Get-InstalledAppxVersion {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$DetectConfig
+    )
+
+    $appxName = [string](Get-ObjectPropertyValue -Object $DetectConfig -Name 'appxName')
+    if ([string]::IsNullOrWhiteSpace($appxName)) {
+        return $null
+    }
+
+    $packages = @(Get-AppxPackage -Name $appxName -ErrorAction SilentlyContinue)
+    if ($packages.Count -eq 0) {
+        return [pscustomobject]@{
+            Found = $false
+            Version = $null
+            Source = 'appx'
+            Detail = $appxName
+        }
+    }
+
+    $selected = $packages | Sort-Object Version -Descending | Select-Object -First 1
+    return [pscustomobject]@{
+        Found = $true
+        Version = $selected.Version.ToString()
+        Source = 'appx'
+        Detail = $selected.Name
+    }
+}
+
+function Get-InstalledCommandVersion {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$DetectConfig
+    )
+
+    $commandName = [string](Get-ObjectPropertyValue -Object $DetectConfig -Name 'command')
+    if ([string]::IsNullOrWhiteSpace($commandName)) {
+        return $null
+    }
+
+    if (-not (Get-Command $commandName -ErrorAction SilentlyContinue)) {
+        return [pscustomobject]@{
+            Found = $false
+            Version = $null
+            Source = 'command'
+            Detail = $commandName
+        }
+    }
+
+    $arguments = @((Get-ObjectPropertyValue -Object $DetectConfig -Name 'args' -Default @()))
+    $pattern = [string](Get-ObjectPropertyValue -Object $DetectConfig -Name 'regex')
+    $outputLines = @(& $commandName @arguments 2>&1)
+    $outputText = ($outputLines | Out-String)
+
+    $version = $null
+    if (-not [string]::IsNullOrWhiteSpace($pattern)) {
+        $match = [regex]::Match($outputText, $pattern, [System.Text.RegularExpressions.RegexOptions]::Multiline)
+        if ($match.Success -and $match.Groups['version'].Success) {
+            $version = $match.Groups['version'].Value
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($version)) {
+        $version = Get-NormalizedVersionString -VersionText $outputText
+    }
+
+    return [pscustomobject]@{
+        Found = $true
+        Version = $version
+        Source = 'command'
+        Detail = $commandName
+    }
+}
+
+function Get-InstalledAppVersion {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Definition
+    )
+
+    $detectConfig = Get-ObjectPropertyValue -Object $Definition -Name 'detect'
+    if ($null -eq $detectConfig) {
+        return [pscustomobject]@{
+            Found = $false
+            Version = $null
+            Source = 'none'
+            Detail = 'No detection rule'
+        }
+    }
+
+    $lastResult = $null
+    foreach ($resolver in @(
+            { param($config) Get-InstalledCommandVersion -DetectConfig $config },
+            { param($config) Get-InstalledAppxVersion -DetectConfig $config },
+            { param($config) Get-InstalledRegistryVersion -DetectConfig $config }
+        )) {
+        $result = & $resolver $detectConfig
+        if ($null -eq $result) {
+            continue
+        }
+
+        $lastResult = $result
+        if ($result.Found) {
+            return $result
+        }
+    }
+
+    if ($null -ne $lastResult) {
+        return $lastResult
+    }
+
+    return [pscustomobject]@{
+        Found = $false
+        Version = $null
+        Source = 'none'
+        Detail = 'No detection rule'
+    }
+}
+
+function Get-WingetPackageLatestVersion {
+    param(
+        [Parameter(Mandatory)]
+        [string]$PackageId,
+        [string]$Source
+    )
+
+    if (-not (Test-WingetInstalled)) {
+        return $null
+    }
+
+    $cacheKey = if ([string]::IsNullOrWhiteSpace($Source)) { $PackageId } else { '{0}@{1}' -f $PackageId, $Source }
+    if (-not (Get-Variable -Name WingetShowCache -Scope Script -ErrorAction SilentlyContinue)) {
+        $script:WingetShowCache = @{}
+    }
+
+    if ($script:WingetShowCache.ContainsKey($cacheKey)) {
+        return $script:WingetShowCache[$cacheKey]
+    }
+
+    $args = @('show', '--id', $PackageId, '--exact', '--accept-source-agreements')
+    if (-not [string]::IsNullOrWhiteSpace($Source)) {
+        $args += @('--source', $Source)
+    }
+
+    $output = (& winget @args 2>$null | Out-String)
+    if ($LASTEXITCODE -ne 0) {
+        $script:WingetShowCache[$cacheKey] = $null
+        return $null
+    }
+
+    $version = $null
+    $topLevelMatch = [regex]::Match($output, '(?m)^Version:\s*(?<version>.+?)\s*$')
+    if ($topLevelMatch.Success) {
+        $candidate = $topLevelMatch.Groups['version'].Value.Trim()
+        if ($candidate -ne 'Unknown') {
+            $version = $candidate
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($version)) {
+        $descriptionMatch = [regex]::Match($output, '(?m)^\s+Version:\s*v?(?<version>\d+(?:\.\d+)+)\s*$')
+        if ($descriptionMatch.Success) {
+            $version = $descriptionMatch.Groups['version'].Value
+        }
+    }
+
+    $script:WingetShowCache[$cacheKey] = $version
+    return $version
+}
+
+function Get-DesiredAppVersion {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Definition
+    )
+
+    $explicitTarget = Get-ObjectPropertyValue -Object $Definition -Name 'targetVersion'
+    if (-not [string]::IsNullOrWhiteSpace([string]$explicitTarget)) {
+        return [pscustomobject]@{
+            Found = $true
+            Version = [string]$explicitTarget
+            Source = 'manifest'
+        }
+    }
+
+    switch ($Definition.strategy) {
+        'winget' {
+            $wingetSource = [string](Get-ObjectPropertyValue -Object $Definition -Name 'wingetSource')
+            $version = Get-WingetPackageLatestVersion -PackageId $Definition.wingetId -Source $wingetSource
+            if (-not [string]::IsNullOrWhiteSpace($version)) {
+                return [pscustomobject]@{
+                    Found = $true
+                    Version = $version
+                    Source = 'winget-show'
+                }
+            }
+        }
+        'github-latest-tag' {
+            $tag = Get-GitHubLatestTagViaRedirect -Repo $Definition.repo
+            if (-not [string]::IsNullOrWhiteSpace($tag)) {
+                return [pscustomobject]@{
+                    Found = $true
+                    Version = $tag.TrimStart('v')
+                    Source = 'github-latest-tag'
+                }
+            }
+        }
+        'release-asset' {
+            $assetName = [string](Get-ObjectPropertyValue -Object $Definition -Name 'assetName')
+            $version = Get-NormalizedVersionString -VersionText $assetName
+            if (-not [string]::IsNullOrWhiteSpace($version)) {
+                return [pscustomobject]@{
+                    Found = $true
+                    Version = $version
+                    Source = 'release-asset-name'
+                }
+            }
+        }
+    }
+
+    return [pscustomobject]@{
+        Found = $false
+        Version = $null
+        Source = 'unknown'
+    }
+}
+
+function Get-AppInstallDecision {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Definition
+    )
+
+    $installed = Get-InstalledAppVersion -Definition $Definition
+    $desired = Get-DesiredAppVersion -Definition $Definition
+
+    if (-not $installed.Found) {
+        return [pscustomobject]@{
+            Action = 'install'
+            Reason = 'missing'
+            InstalledVersion = $null
+            DesiredVersion = $desired.Version
+            Detail = 'Not installed'
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace([string]$installed.Version)) {
+        return [pscustomobject]@{
+            Action = 'install'
+            Reason = 'unknown-installed-version'
+            InstalledVersion = $null
+            DesiredVersion = $desired.Version
+            Detail = 'Installed version could not be determined'
+        }
+    }
+
+    if (-not $desired.Found -or [string]::IsNullOrWhiteSpace([string]$desired.Version)) {
+        return [pscustomobject]@{
+            Action = 'install'
+            Reason = 'unknown-target-version'
+            InstalledVersion = $installed.Version
+            DesiredVersion = $null
+            Detail = 'Installed version detected, but target version is not comparable'
+        }
+    }
+
+    $comparison = Compare-VersionStrings -LeftVersion $installed.Version -RightVersion $desired.Version
+    if ($null -eq $comparison) {
+        return [pscustomobject]@{
+            Action = 'install'
+            Reason = 'non-comparable'
+            InstalledVersion = $installed.Version
+            DesiredVersion = $desired.Version
+            Detail = 'Installed and target versions are not comparable'
+        }
+    }
+
+    if ($comparison -ge 0) {
+        return [pscustomobject]@{
+            Action = 'skip'
+            Reason = 'current'
+            InstalledVersion = $installed.Version
+            DesiredVersion = $desired.Version
+            Detail = 'Installed version is current'
+        }
+    }
+
+    return [pscustomobject]@{
+        Action = 'install'
+        Reason = 'outdated'
+        InstalledVersion = $installed.Version
+        DesiredVersion = $desired.Version
+        Detail = 'Installed version is older than target'
+    }
+}
+
 function Install-DownloadedPackage {
     param(
         [Parameter(Mandatory)]
@@ -439,28 +895,50 @@ function Install-AppFromDefinition {
 
     $downloadsRoot = Join-Path $WorkspaceRoot 'downloads'
     Ensure-Directory -Path $downloadsRoot
+    $decision = Get-AppInstallDecision -Definition $Definition
+
+    switch ($decision.Reason) {
+        'missing' {
+            Write-Log -Message ('Precheck {0}: not installed, will install' -f $Definition.name)
+        }
+        'outdated' {
+            Write-Log -Message ('Precheck {0}: installed {1}, target {2}, will update' -f $Definition.name, $decision.InstalledVersion, $decision.DesiredVersion)
+        }
+        'current' {
+            Write-Log -Message ('Precheck {0}: installed {1}, target {2}, skip' -f $Definition.name, $decision.InstalledVersion, $decision.DesiredVersion)
+        }
+        'unknown-target-version' {
+            Write-Log -Message ('Precheck {0}: installed {1}, target version unavailable, will let source reconcile' -f $Definition.name, $decision.InstalledVersion)
+        }
+        'unknown-installed-version' {
+            Write-Log -Message ('Precheck {0}: app exists but installed version is unknown, will reinstall or update' -f $Definition.name)
+        }
+        'non-comparable' {
+            Write-Log -Message ('Precheck {0}: installed {1}, target {2}, versions not comparable, will reinstall or update' -f $Definition.name, $decision.InstalledVersion, $decision.DesiredVersion)
+        }
+    }
+
+    if ($decision.Action -eq 'skip') {
+        return [pscustomobject]@{
+            Name = $Definition.name
+            Key = $Definition.key
+            Status = 'ok'
+            Source = 'precheck-skip'
+            Detail = '{0} >= {1}' -f $decision.InstalledVersion, $decision.DesiredVersion
+        }
+    }
 
     switch ($Definition.strategy) {
         'winget' {
             try {
-                if (Test-WingetPackageInstalled -PackageId $Definition.wingetId -Source $Definition.wingetSource) {
-                    Invoke-WingetAction -Action 'upgrade' -PackageId $Definition.wingetId -Source $Definition.wingetSource -DryRun:$DryRun
-                    return [pscustomobject]@{
-                        Name = $Definition.name
-                        Key = $Definition.key
-                        Status = 'ok'
-                        Source = 'winget-upgrade'
-                        Detail = if ($Definition.wingetSource) { '{0} ({1})' -f $Definition.wingetId, $Definition.wingetSource } else { $Definition.wingetId }
-                    }
-                }
-
-                Invoke-WingetAction -Action 'install' -PackageId $Definition.wingetId -Source $Definition.wingetSource -DryRun:$DryRun
+                $wingetSource = [string](Get-ObjectPropertyValue -Object $Definition -Name 'wingetSource')
+                Invoke-WingetAction -Action 'install' -PackageId $Definition.wingetId -Source $wingetSource -DryRun:$DryRun
                 return [pscustomobject]@{
                     Name = $Definition.name
                     Key = $Definition.key
                     Status = 'ok'
-                    Source = 'winget-install'
-                    Detail = if ($Definition.wingetSource) { '{0} ({1})' -f $Definition.wingetId, $Definition.wingetSource } else { $Definition.wingetId }
+                    Source = 'winget'
+                    Detail = if (-not [string]::IsNullOrWhiteSpace($wingetSource)) { '{0} ({1})' -f $Definition.wingetId, $wingetSource } else { $Definition.wingetId }
                 }
             }
             catch {

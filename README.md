@@ -6,6 +6,10 @@
 
 - 基础工具优先走 `winget`
 - 开源桌面工具优先走 GitHub Releases 最新版
+- 安装前会先做本机版本门禁：
+  - 未安装：安装
+  - 低于目标版本：更新
+  - 已是目标版本：跳过
 - 自动创建 `D:\Vibe Coding\Chat`，如果没有 `D:` 盘则回退到 `C:\Vibe Coding\Chat`，作为 `Codex` 的默认工作目录
 - 支持远程自举：即使用户只拿到 `bootstrap.ps1`，脚本也会自动拉取 `modules/common.psm1`、`manifest/apps.json`，并从 `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release 获取 `skills.zip`
 - `CC Switch` 的 Provider 导入优先走官方 `ccswitch://` deep link
@@ -20,7 +24,7 @@
 
 ## 当前包含
 
-- `PowerShell 7.6.1`
+- `PowerShell 7`
 - `Git`
 - `Node.js`
 - `Python 3.13`
@@ -140,6 +144,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 - `api_key`
 - 默认模型名
 
+默认值现在是：
+
+- Provider：`IndieArk API 2`
+- `base_url`：`https://api2.indieark.tech/v1`
+- 模型：`gpt-5.4`
+
 然后自动生成并触发 Codex Provider 导入。
 
 ### Skills Manager
@@ -161,7 +171,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 - `OpenJS.NodeJS`
 - `Python.Python.3.13`
 - `Microsoft.VisualStudioCode`
-- `Codex Desktop` fallback release asset
+- `PowerShell` Microsoft Store package `9MZ1SNWT0N5D`
+- `Codex Desktop` Microsoft Store package `9PLM9XGG6VKS`
 - `tw93/pake` latest release asset
 - `farion1231/cc-switch` latest release asset
 - `xingkongliang/skills-manager` latest MSI release asset

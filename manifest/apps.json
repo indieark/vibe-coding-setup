@@ -2,10 +2,16 @@
   "apps": [
     {
       "key": "powershell",
-      "name": "PowerShell 7.6.1",
+      "name": "PowerShell 7",
       "order": 5,
-      "strategy": "direct-url",
-      "url": "https://github.com/PowerShell/PowerShell/releases/download/v7.6.1/PowerShell-7.6.1-win-x64.msi",
+      "strategy": "winget",
+      "wingetId": "9MZ1SNWT0N5D",
+      "wingetSource": "msstore",
+      "wingetSkipInstalledCheck": true,
+      "targetVersion": "7.6.1",
+      "detect": {
+        "appxName": "Microsoft.PowerShell"
+      },
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
@@ -26,6 +32,15 @@
       "order": 10,
       "strategy": "winget",
       "wingetId": "Git.Git",
+      "detect": {
+        "command": "git",
+        "args": [
+          "--version"
+        ],
+        "regex": "git version (?<version>[0-9][0-9A-Za-z.\\-]*)",
+        "registryDisplayName": "^Git$",
+        "registryMatch": "regex"
+      },
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
@@ -46,6 +61,15 @@
       "order": 20,
       "strategy": "winget",
       "wingetId": "OpenJS.NodeJS",
+      "detect": {
+        "command": "node",
+        "args": [
+          "--version"
+        ],
+        "regex": "v(?<version>[0-9][0-9A-Za-z.\\-]*)",
+        "registryDisplayName": "^Node\\.js$",
+        "registryMatch": "regex"
+      },
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
@@ -61,6 +85,13 @@
       "order": 30,
       "strategy": "winget",
       "wingetId": "Python.Python.3.13",
+      "detect": {
+        "command": "py",
+        "args": [
+          "-V"
+        ],
+        "regex": "Python (?<version>[0-9][0-9A-Za-z.\\-]*)"
+      },
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
@@ -76,6 +107,15 @@
       "order": 40,
       "strategy": "winget",
       "wingetId": "Microsoft.VisualStudioCode",
+      "detect": {
+        "command": "code",
+        "args": [
+          "--version"
+        ],
+        "regex": "^(?<version>[0-9][0-9A-Za-z.\\-]*)$",
+        "registryDisplayName": "Microsoft Visual Studio Code",
+        "registryMatch": "contains"
+      },
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
@@ -96,6 +136,10 @@
       "strategy": "winget",
       "wingetId": "9PLM9XGG6VKS",
       "wingetSource": "msstore",
+      "wingetSkipInstalledCheck": true,
+      "detect": {
+        "appxName": "OpenAI.Codex"
+      },
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
@@ -113,6 +157,10 @@
       "order": 60,
       "strategy": "direct-url",
       "url": "https://github.com/tw93/Pake/releases/latest/download/ChatGPT_x64.msi",
+      "detect": {
+        "registryDisplayName": "ChatGPT",
+        "registryMatch": "exact"
+      },
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
@@ -129,6 +177,10 @@
       "strategy": "github-latest-tag",
       "repo": "farion1231/cc-switch",
       "assetTemplate": "CC-Switch-{tag}-Windows.msi",
+      "detect": {
+        "registryDisplayName": "CC Switch",
+        "registryMatch": "exact"
+      },
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
@@ -145,6 +197,10 @@
       "strategy": "github-latest-tag",
       "repo": "xingkongliang/skills-manager",
       "assetTemplate": "skills-manager_{version}_x64_en-US.msi",
+      "detect": {
+        "registryDisplayName": "Skills Manager",
+        "registryMatch": "exact"
+      },
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",

@@ -4,7 +4,7 @@ param(
     [string[]]$Only,
     [switch]$SkipCcSwitch,
     [switch]$SkipSkills,
-    [string]$BootstrapSourceRoot = 'https://raw.githubusercontent.com/indieark/vibe-coding-setup/main',
+    [string]$BootstrapSourceRoot,
     [string]$BootstrapAssetsRepo = 'indieark/vibe-coding-setup',
     [string]$BootstrapAssetsTag = 'bootstrap-assets',
     [switch]$RefreshBootstrapDependencies
@@ -158,6 +158,16 @@ function Sync-BootstrapDependencies {
 }
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+if ([string]::IsNullOrWhiteSpace($BootstrapSourceRoot)) {
+    $localDependenciesReady = (Test-Path -LiteralPath (Join-Path $root 'modules\common.psm1')) -and (Test-Path -LiteralPath (Join-Path $root 'manifest\apps.json'))
+    if ($localDependenciesReady) {
+        $BootstrapSourceRoot = $root
+    }
+    else {
+        $BootstrapSourceRoot = 'https://raw.githubusercontent.com/indieark/vibe-coding-setup/main'
+    }
+}
 
 $bootstrapDependencies = @(
     'modules/common.psm1',
