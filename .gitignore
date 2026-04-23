@@ -1,0 +1,10 @@
+downloads/
+logs/
+temp/
+.local/
+*.log
+packages/*.exe
+packages/*.msi
+packages/*.msix
+!packages/README.md
+!packages/skills.zip

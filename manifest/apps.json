@@ -1,0 +1,116 @@
+{
+  "apps": [
+    {
+      "key": "git",
+      "name": "Git",
+      "order": 10,
+      "strategy": "winget",
+      "wingetId": "Git.Git",
+      "fallback": {
+        "localFile": "packages/Git-2.53.0.2-64-bit.exe",
+        "installerType": "exe",
+        "silentArgs": [
+          "/VERYSILENT",
+          "/NORESTART",
+          "/NOCANCEL",
+          "/SP-"
+        ]
+      }
+    },
+    {
+      "key": "nodejs",
+      "name": "Node.js",
+      "order": 20,
+      "strategy": "winget",
+      "wingetId": "OpenJS.NodeJS",
+      "fallback": {
+        "localFile": "packages/node-v24.14.0-x64.msi",
+        "installerType": "msi",
+        "silentArgs": []
+      }
+    },
+    {
+      "key": "python",
+      "name": "Python 3.13",
+      "order": 30,
+      "strategy": "winget",
+      "wingetId": "Python.Python.3.13",
+      "fallback": {
+        "localFile": "packages/python-manager-26.0.msix",
+        "installerType": "msix",
+        "silentArgs": []
+      }
+    },
+    {
+      "key": "vscode",
+      "name": "Visual Studio Code",
+      "order": 40,
+      "strategy": "winget",
+      "wingetId": "Microsoft.VisualStudioCode",
+      "fallback": {
+        "localFile": "packages/VSCodeUserSetup-x64-1.112.0.exe",
+        "installerType": "exe",
+        "silentArgs": [
+          "/VERYSILENT",
+          "/NORESTART",
+          "/MERGETASKS=!runcode"
+        ]
+      }
+    },
+    {
+      "key": "codex",
+      "name": "Codex",
+      "order": 50,
+      "strategy": "winget",
+      "wingetId": "OpenAI.Codex",
+      "fallback": {
+        "localFile": "packages/Codex-26.325.31654.Setup.exe",
+        "installerType": "exe",
+        "silentArgs": [
+          "/S"
+        ]
+      }
+    },
+    {
+      "key": "chatgpt",
+      "name": "ChatGPT (Pake)",
+      "order": 60,
+      "strategy": "direct-url",
+      "url": "https://github.com/tw93/Pake/releases/latest/download/ChatGPT_x64.msi",
+      "fallback": {
+        "localFile": "packages/ChatGPT_x64.msi",
+        "installerType": "msi",
+        "silentArgs": []
+      }
+    },
+    {
+      "key": "cc-switch",
+      "name": "CC Switch",
+      "order": 70,
+      "strategy": "github-latest-tag",
+      "repo": "farion1231/cc-switch",
+      "assetTemplate": "CC-Switch-{tag}-Windows.msi",
+      "fallback": {
+        "localFile": "packages/CC-Switch-v3.11.1-Windows.msi",
+        "installerType": "msi",
+        "silentArgs": []
+      }
+    },
+    {
+      "key": "skills-manager",
+      "name": "Skills Manager",
+      "order": 80,
+      "strategy": "github-latest-tag",
+      "repo": "xingkongliang/skills-manager",
+      "assetTemplate": "skills-manager_{version}_x64-setup.exe",
+      "fallback": {
+        "localFile": "packages/skills-manager_1.9.0_x64-setup.exe",
+        "installerType": "exe",
+        "silentArgs": [
+          "/VERYSILENT",
+          "/NORESTART"
+        ]
+      }
+    }
+  ]
+}
