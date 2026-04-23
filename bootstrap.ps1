@@ -4,6 +4,7 @@ param(
     [string[]]$Only,
     [switch]$SkipCcSwitch,
     [switch]$SkipSkills,
+    [switch]$PauseOnExit,
     [string]$BootstrapSourceRoot,
     [string]$BootstrapAssetsRepo = 'indieark/vibe-coding-setup',
     [string]$BootstrapAssetsTag = 'bootstrap-assets',
@@ -20,6 +21,39 @@ function Write-BootstrapMessage {
     )
 
     Write-Host ('[bootstrap] {0}' -f $Message)
+}
+
+function Get-CurrentPowerShellExecutable {
+    try {
+        $currentProcess = Get-Process -Id $PID -ErrorAction Stop
+        if (-not [string]::IsNullOrWhiteSpace($currentProcess.Path)) {
+            return $currentProcess.Path
+        }
+    }
+    catch {
+    }
+
+    return 'powershell.exe'
+}
+
+function Invoke-BootstrapExit {
+    param(
+        [Parameter(Mandatory)]
+        [int]$Code
+    )
+
+    if ($PauseOnExit) {
+        Write-Host ''
+        Write-Host 'Installation finished. Press any key to close this window...'
+        try {
+            [void][System.Console]::ReadKey($true)
+        }
+        catch {
+            [void](Read-Host 'Press Enter to close this window')
+        }
+    }
+
+    exit $Code
 }
 
 function Test-HttpSourceRoot {
@@ -191,8 +225,8 @@ if (-not $DryRun -and -not (Test-IsAdministrator)) {
     ) + $relaunchArgs
 
     Write-Host 'Administrator privileges are required. Requesting UAC elevation...'
-    Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $argumentList | Out-Null
-    exit 0
+    Start-Process -FilePath (Get-CurrentPowerShellExecutable) -Verb RunAs -ArgumentList $argumentList | Out-Null
+    Invoke-BootstrapExit -Code 0
 }
 
 $manifestPath = Join-Path $root 'manifest\apps.json'
@@ -273,7 +307,16 @@ if (-not $SkipSkills -and ($selectedApps | Where-Object { $_.key -eq 'skills-man
 
 if (-not $SkipCcSwitch -and $providerInfo -and ($selectedApps | Where-Object { $_.key -eq 'cc-switch' })) {
     try {
-        $ccResult = Import-CcSwitchCodexProvider -ProviderInfo $providerInfo -DryRun:$DryRun
+        $ccSwitchInstallResult = @($results | Where-Object { $_.Key -eq 'cc-switch' } | Select-Object -Last 1)
+        $ccSwitchInstalledThisRun = $false
+        if ($ccSwitchInstallResult.Count -gt 0) {
+            $ccSwitchInstalledThisRun = ($ccSwitchInstallResult[0].Status -eq 'ok' -and $ccSwitchInstallResult[0].Source -ne 'precheck-skip')
+        }
+
+        $ccResult = Import-CcSwitchCodexProvider `
+            -ProviderInfo $providerInfo `
+            -ForceWarmup:$ccSwitchInstalledThisRun `
+            -DryRun:$DryRun
         $results.Add($ccResult)
     }
     catch {
@@ -294,7 +337,7 @@ $results | Select-Object Name, Status, Source, Detail | Format-Table -AutoSize
 
 $failed = @($results | Where-Object { $_.Status -eq 'failed' })
 if ($failed.Count -gt 0) {
-    exit 1
+    Invoke-BootstrapExit -Code 1
 }
 
-exit 0
+Invoke-BootstrapExit -Code 0

@@ -762,42 +762,84 @@ function Get-InstalledCommandVersion {
         [pscustomobject]$DetectConfig
     )
 
-    $commandName = [string](Get-ObjectPropertyValue -Object $DetectConfig -Name 'command')
-    if ([string]::IsNullOrWhiteSpace($commandName)) {
+    $primaryCommandName = [string](Get-ObjectPropertyValue -Object $DetectConfig -Name 'command')
+    if ([string]::IsNullOrWhiteSpace($primaryCommandName)) {
         return $null
     }
 
-    if (-not (Get-Command $commandName -ErrorAction SilentlyContinue)) {
+    $commandSpecs = New-Object System.Collections.Generic.List[object]
+    $commandSpecs.Add([pscustomobject]@{
+            command = $primaryCommandName
+            args = @((Get-ObjectPropertyValue -Object $DetectConfig -Name 'args' -Default @()))
+            regex = [string](Get-ObjectPropertyValue -Object $DetectConfig -Name 'regex')
+        })
+
+    foreach ($fallbackSpec in @((Get-ObjectPropertyValue -Object $DetectConfig -Name 'fallbackCommands' -Default @()))) {
+        $commandSpecs.Add($fallbackSpec)
+    }
+
+    $lastFailure = $null
+    foreach ($commandSpec in $commandSpecs) {
+        $commandName = [string](Get-ObjectPropertyValue -Object $commandSpec -Name 'command')
+        if ([string]::IsNullOrWhiteSpace($commandName)) {
+            continue
+        }
+
+        if (-not (Get-Command $commandName -ErrorAction SilentlyContinue)) {
+            $lastFailure = [pscustomobject]@{
+                Found = $false
+                Version = $null
+                Source = 'command'
+                Detail = $commandName
+            }
+            continue
+        }
+
+        $arguments = @((Get-ObjectPropertyValue -Object $commandSpec -Name 'args' -Default @()))
+        $pattern = [string](Get-ObjectPropertyValue -Object $commandSpec -Name 'regex')
+        try {
+            $outputLines = @(& $commandName @arguments 2>&1)
+        }
+        catch {
+            $lastFailure = [pscustomobject]@{
+                Found = $false
+                Version = $null
+                Source = 'command'
+                Detail = '{0} invocation failed: {1}' -f $commandName, $_.Exception.Message
+            }
+            continue
+        }
+
+        $outputText = ($outputLines | Out-String)
+        $version = $null
+        if (-not [string]::IsNullOrWhiteSpace($pattern)) {
+            $match = [regex]::Match($outputText, $pattern, [System.Text.RegularExpressions.RegexOptions]::Multiline)
+            if ($match.Success -and $match.Groups['version'].Success) {
+                $version = $match.Groups['version'].Value
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($version)) {
+            $version = Get-NormalizedVersionString -VersionText $outputText
+        }
+
         return [pscustomobject]@{
-            Found = $false
-            Version = $null
+            Found = $true
+            Version = $version
             Source = 'command'
             Detail = $commandName
         }
     }
 
-    $arguments = @((Get-ObjectPropertyValue -Object $DetectConfig -Name 'args' -Default @()))
-    $pattern = [string](Get-ObjectPropertyValue -Object $DetectConfig -Name 'regex')
-    $outputLines = @(& $commandName @arguments 2>&1)
-    $outputText = ($outputLines | Out-String)
-
-    $version = $null
-    if (-not [string]::IsNullOrWhiteSpace($pattern)) {
-        $match = [regex]::Match($outputText, $pattern, [System.Text.RegularExpressions.RegexOptions]::Multiline)
-        if ($match.Success -and $match.Groups['version'].Success) {
-            $version = $match.Groups['version'].Value
-        }
-    }
-
-    if ([string]::IsNullOrWhiteSpace($version)) {
-        $version = Get-NormalizedVersionString -VersionText $outputText
+    if ($null -ne $lastFailure) {
+        return $lastFailure
     }
 
     return [pscustomobject]@{
-        Found = $true
-        Version = $version
+        Found = $false
+        Version = $null
         Source = 'command'
-        Detail = $commandName
+        Detail = $primaryCommandName
     }
 }
 
@@ -1564,12 +1606,17 @@ function Import-CcSwitchCodexProvider {
     param(
         [Parameter(Mandatory)]
         [pscustomobject]$ProviderInfo,
+        [switch]$ForceWarmup,
         [switch]$DryRun
     )
 
     $link = New-CcSwitchCodexDeepLink -ProviderInfo $ProviderInfo
 
     if ($DryRun) {
+        if ($ForceWarmup) {
+            Write-Log -Message '[DryRun] Would warm up CC Switch once before provider import because it was installed or updated in this run'
+        }
+
         Write-Log -Message ('[DryRun] Would import provider via ccswitch:// deep link: {0} -> {1}' -f $ProviderInfo.Name, $ProviderInfo.BaseUrl)
         return [pscustomobject]@{
             Name = 'CC Switch Provider Import'
@@ -1580,15 +1627,20 @@ function Import-CcSwitchCodexProvider {
         }
     }
 
-    if (-not (Test-CcSwitchProtocolRegistered)) {
+    $protocolRegistered = Test-CcSwitchProtocolRegistered
+    if ($ForceWarmup -or -not $protocolRegistered) {
         $ccSwitchExe = Get-InstalledCcSwitchExecutable
         if ($ccSwitchExe) {
-            Write-Log -Message ('CC Switch protocol is not registered yet; launching app once: {0}' -f $ccSwitchExe)
+            $warmupReason = if ($ForceWarmup) { 'fresh install or update detected' } else { 'protocol not registered yet' }
+            Write-Log -Message ('Launching CC Switch before provider import ({0}): {1}' -f $warmupReason, $ccSwitchExe)
             Start-Process -FilePath $ccSwitchExe | Out-Null
+            Start-Sleep -Seconds 3
 
             if (-not (Wait-CcSwitchProtocolRegistration -TimeoutSeconds 15)) {
                 throw 'ccswitch:// protocol is not registered after launching CC Switch. Retry once manually if Windows is still finalizing app registration.'
             }
+
+            Start-Sleep -Seconds 2
         }
         else {
             throw 'ccswitch:// protocol is not registered and CC Switch executable was not found. Launch CC Switch once, then retry.'

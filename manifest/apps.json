@@ -87,7 +87,16 @@
         "args": [
           "-V"
         ],
-        "regex": "Python (?<version>[0-9][0-9A-Za-z.\\-]*)"
+        "regex": "Python (?<version>[0-9][0-9A-Za-z.\\-]*)",
+        "fallbackCommands": [
+          {
+            "command": "python",
+            "args": [
+              "--version"
+            ],
+            "regex": "Python (?<version>[0-9][0-9A-Za-z.\\-]*)"
+          }
+        ]
       },
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
