@@ -2152,11 +2152,8 @@ function Install-SkillBundle {
             $sourcePath = $skillDir
             $centralPath = Join-Path $centralRoot $skillName
             $skillTargets = New-Object System.Collections.Generic.List[object]
-            $needsImport = $false
-
-            if (-not (Test-SkillDirectoryInSync -SourcePath $sourcePath -DestinationPath $centralPath)) {
-                $needsImport = $true
-            }
+            $centralNeedsImport = (-not (Test-SkillDirectoryInSync -SourcePath $sourcePath -DestinationPath $centralPath))
+            $targetsNeedingSync = New-Object System.Collections.Generic.List[string]
 
             foreach ($target in $targets | Where-Object { $_.Enabled }) {
                 $targetPath = Join-Path $target.Path $skillName
@@ -2166,21 +2163,24 @@ function Install-SkillBundle {
                     })
 
                 if (-not (Test-SkillDirectoryInSync -SourcePath $sourcePath -DestinationPath $targetPath)) {
-                    $needsImport = $true
+                    $targetsNeedingSync.Add($targetPath)
                 }
             }
 
-            if (-not $needsImport) {
+            if ((-not $centralNeedsImport) -and $targetsNeedingSync.Count -eq 0) {
                 Write-Log -Message ('Skill already synchronized, skip: {0}' -f $skillName)
                 continue
             }
 
-            Copy-SkillDirectory -SourcePath $sourcePath -DestinationPath $centralPath -DryRun:$DryRun
+            if ($centralNeedsImport) {
+                Copy-SkillDirectory -SourcePath $sourcePath -DestinationPath $centralPath -DryRun:$DryRun
+            }
 
             foreach ($target in $targets | Where-Object { $_.Enabled }) {
                 $targetPath = Join-Path $target.Path $skillName
-                if (-not (Test-SkillDirectoryInSync -SourcePath $sourcePath -DestinationPath $targetPath)) {
-                    Copy-SkillDirectory -SourcePath $sourcePath -DestinationPath $targetPath -DryRun:$DryRun
+                if ($targetsNeedingSync -contains $targetPath) {
+                    $copySourcePath = if (Test-Path -LiteralPath $centralPath) { $centralPath } else { $sourcePath }
+                    Copy-SkillDirectory -SourcePath $copySourcePath -DestinationPath $targetPath -DryRun:$DryRun
                 }
             }
 
