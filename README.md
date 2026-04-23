@@ -24,7 +24,7 @@
 - `Node.js`
 - `Python 3.13`
 - `Visual Studio Code`
-- `Codex`
+- `Codex Desktop`
 - `ChatGPT (Pake)`
 - `CC Switch`
 - `Skills Manager`
@@ -143,15 +143,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 
 ### Skills Manager
 
-当前脚本通过文件层导入：
+当前脚本会执行两层导入：
 
 1. 解压 `skills.zip`
 2. 识别包含 `SKILL.md` 的目录
 3. 复制到 `~/.skills-manager/skills/<skill-name>`
 4. 复制到 `~/.codex/skills/<skill-name>`
 5. 如果检测到其它工具目录，也同步过去
+6. 同步写入 `skills-manager.db` 的 `skills`、`scenario_skills`、`scenario_skill_tools`、`skill_targets`
 
-这个方案的前提是 `skills-manager` 以技能文件目录为中心仓库，SQLite 主要保存元数据。
+这样既满足文件目录，也满足 `skills-manager` 的数据库索引。
 
 ## 已验证的外部来源
 
@@ -159,10 +160,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 - `OpenJS.NodeJS`
 - `Python.Python.3.13`
 - `Microsoft.VisualStudioCode`
-- `OpenAI.Codex`
+- `Codex Desktop` fallback release asset
 - `tw93/pake` latest release asset
 - `farion1231/cc-switch` latest release asset
-- `xingkongliang/skills-manager` latest release asset
+- `xingkongliang/skills-manager` latest MSI release asset
 
 ## 建议后续
 
@@ -174,4 +175,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 2. 增加安装结果 JSON 报告
 3. 增加 checksum / 版本校验
 4. 研究 `CC Switch` 是否支持无 URI 暴露的更安全导入方式
-5. 研究 `Skills Manager` 是否存在稳定 CLI 或显式 rescan 命令
+5. 继续观察 `Skills Manager` 后续是否提供稳定 CLI 或显式 rescan 命令

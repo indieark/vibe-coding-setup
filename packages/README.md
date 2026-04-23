@@ -26,14 +26,14 @@
 - `VSCodeUserSetup-x64-1.112.0.exe`
   - 主路径：`winget` (`Microsoft.VisualStudioCode`)
 - `Codex-26.325.31654.Setup.exe`
-  - 主路径：`winget` (`OpenAI.Codex`)
+  - 主路径：当前仓库 `bootstrap-assets` Release 中的桌面端安装包
 - `ChatGPT_x64.msi`
   - 主路径：GitHub latest direct download
   - URL：`https://github.com/tw93/Pake/releases/latest/download/ChatGPT_x64.msi`
 - `CC-Switch-v3.11.1-Windows.msi`
   - 主路径：GitHub latest tag download
   - Repo：`farion1231/cc-switch`
-- `skills-manager_1.9.0_x64-setup.exe`
+- `skills-manager_1.14.3_x64_en-US.msi`
   - 主路径：GitHub latest tag download
   - Repo：`xingkongliang/skills-manager`
 

@@ -71,10 +71,16 @@
     },
     {
       "key": "codex",
-      "name": "Codex",
+      "name": "Codex Desktop",
       "order": 50,
-      "strategy": "winget",
-      "wingetId": "OpenAI.Codex",
+      "strategy": "release-asset",
+      "repo": "indieark/vibe-coding-setup",
+      "tag": "bootstrap-assets",
+      "assetName": "Codex-26.325.31654.Setup.exe",
+      "installerType": "exe",
+      "silentArgs": [
+        "/S"
+      ],
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
@@ -123,17 +129,14 @@
       "order": 80,
       "strategy": "github-latest-tag",
       "repo": "xingkongliang/skills-manager",
-      "assetTemplate": "skills-manager_{version}_x64-setup.exe",
+      "assetTemplate": "skills-manager_{version}_x64_en-US.msi",
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "skills-manager_1.9.0_x64-setup.exe",
-        "localFile": "packages/skills-manager_1.9.0_x64-setup.exe",
-        "installerType": "exe",
-        "silentArgs": [
-          "/VERYSILENT",
-          "/NORESTART"
-        ]
+        "releaseAsset": "skills-manager_1.14.3_x64_en-US.msi",
+        "localFile": "packages/skills-manager_1.14.3_x64_en-US.msi",
+        "installerType": "msi",
+        "silentArgs": []
       }
     }
   ]

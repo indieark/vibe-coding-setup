@@ -103,6 +103,14 @@ function Ensure-Directory {
     }
 }
 
+function Get-UserHomeDirectory {
+    if (-not [string]::IsNullOrWhiteSpace($env:HOME)) {
+        return $env:HOME
+    }
+
+    return $HOME
+}
+
 function Ensure-CodexWorkspaceDirectory {
     param(
         [switch]$DryRun
@@ -245,6 +253,36 @@ function Invoke-DownloadFile {
     return $DestinationPath
 }
 
+function Invoke-ProcessWithProgress {
+    param(
+        [Parameter(Mandatory)]
+        [string]$FilePath,
+        [Parameter(Mandatory)]
+        [string[]]$ArgumentList,
+        [Parameter(Mandatory)]
+        [string]$Activity,
+        [Parameter(Mandatory)]
+        [string]$Status
+    )
+
+    $process = Start-Process -FilePath $FilePath -ArgumentList $ArgumentList -PassThru -WindowStyle Hidden
+    $tick = 0
+
+    try {
+        while (-not $process.HasExited) {
+            $percent = (($tick % 20) + 1) * 5
+            Write-Progress -Activity $Activity -Status $Status -PercentComplete $percent
+            Start-Sleep -Milliseconds 750
+            $tick++
+        }
+    }
+    finally {
+        Write-Progress -Activity $Activity -Completed
+    }
+
+    return $process.ExitCode
+}
+
 function Get-GitHubReleaseAssetDownloadUrl {
     param(
         [Parameter(Mandatory)]
@@ -282,8 +320,7 @@ function Invoke-WingetAction {
         '--exact',
         '--accept-package-agreements',
         '--accept-source-agreements',
-        '--disable-interactivity',
-        '--silent'
+        '--disable-interactivity'
     )
 
     if ($DryRun) {
@@ -292,8 +329,11 @@ function Invoke-WingetAction {
     }
 
     Write-Log -Message ('Running winget {0}: {1}' -f $Action, $PackageId)
-    & winget @args
-    $exitCode = $LASTEXITCODE
+    $exitCode = Invoke-ProcessWithProgress `
+        -FilePath 'winget' `
+        -ArgumentList $args `
+        -Activity ('winget {0}' -f $Action) `
+        -Status $PackageId
 
     if ($exitCode -ne 0) {
         if ($Action -eq 'upgrade') {
@@ -437,6 +477,30 @@ function Install-AppFromDefinition {
             }
             catch {
                 Write-Log -Level 'WARN' -Message ('GitHub release path failed, falling back to release or local package: {0}' -f $Definition.name)
+            }
+        }
+        'release-asset' {
+            try {
+                $assetName = $Definition.assetName
+                $url = Get-GitHubReleaseAssetDownloadUrl -Repo $Definition.repo -Tag $Definition.tag -AssetName $assetName
+                $destination = Join-Path $downloadsRoot $assetName
+                Invoke-DownloadFile -Url $url -DestinationPath $destination -DryRun:$DryRun | Out-Null
+                Install-DownloadedPackage `
+                    -PackagePath $destination `
+                    -InstallerType $Definition.installerType `
+                    -SilentArgs $Definition.silentArgs `
+                    -DryRun:$DryRun
+
+                return [pscustomobject]@{
+                    Name = $Definition.name
+                    Key = $Definition.key
+                    Status = 'ok'
+                    Source = 'release-asset'
+                    Detail = '{0}@{1}/{2}' -f $Definition.repo, $Definition.tag, $assetName
+                }
+            }
+            catch {
+                Write-Log -Level 'WARN' -Message ('Release asset path failed, falling back to release or local package: {0}' -f $Definition.name)
             }
         }
         'direct-url' {
@@ -598,32 +662,14 @@ function New-CcSwitchCodexDeepLink {
         [pscustomobject]$ProviderInfo
     )
 
-    $configToml = @"
-model_provider = "custom"
-model = "$($ProviderInfo.Model)"
-
-[model_providers]
-[model_providers.custom]
-name = "custom"
-wire_api = "responses"
-requires_openai_auth = true
-base_url = "$($ProviderInfo.BaseUrl)"
-"@
-
-    $payload = @{
-        auth = @{
-            OPENAI_API_KEY = $ProviderInfo.ApiKey
-        }
-        config = $configToml
-    } | ConvertTo-Json -Compress -Depth 6
-
-    $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($payload))
     $queryPairs = @(
         'resource=provider',
         'app=codex',
         ('name={0}' -f [uri]::EscapeDataString($ProviderInfo.Name)),
-        'configFormat=json',
-        ('config={0}' -f [uri]::EscapeDataString($encoded))
+        ('endpoint={0}' -f [uri]::EscapeDataString($ProviderInfo.BaseUrl)),
+        ('apiKey={0}' -f [uri]::EscapeDataString($ProviderInfo.ApiKey)),
+        ('model={0}' -f [uri]::EscapeDataString($ProviderInfo.Model)),
+        'enabled=true'
     )
 
     return 'ccswitch://v1/import?{0}' -f ($queryPairs -join '&')
@@ -710,7 +756,7 @@ function Get-SkillDirectoriesFromExtractedRoot {
         throw "No SKILL.md files were found in: $RootPath"
     }
 
-    return $skillFiles | ForEach-Object { $_.Directory.FullName } | Sort-Object -Unique
+    return @($skillFiles | ForEach-Object { $_.Directory.FullName } | Sort-Object -Unique)
 }
 
 function Get-SkillDirectoriesFromZip {
@@ -722,16 +768,18 @@ function Get-SkillDirectoriesFromZip {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $archive = [System.IO.Compression.ZipFile]::OpenRead($ZipPath)
     try {
-        $entries = $archive.Entries |
+        $entries = @(
+            $archive.Entries |
             Where-Object { $_.FullName -match '(^|/|\\)SKILL\.md$' } |
             ForEach-Object { [IO.Path]::GetDirectoryName($_.FullName.Replace('/', '\')) } |
             Sort-Object -Unique
+        )
 
         if (-not $entries -or $entries.Count -eq 0) {
             throw "No SKILL.md files were found in: $ZipPath"
         }
 
-        return $entries
+        return @($entries)
     }
     finally {
         $archive.Dispose()
@@ -739,19 +787,21 @@ function Get-SkillDirectoriesFromZip {
 }
 
 function Get-OptionalSkillTargets {
+    $homeDir = Get-UserHomeDirectory
     $targets = New-Object System.Collections.Generic.List[object]
 
     $targets.Add([pscustomobject]@{
             Name = 'codex'
-            Path = Join-Path $HOME '.codex\skills'
+            Path = Join-Path $homeDir '.codex\skills'
             Enabled = $true
         })
 
     foreach ($target in @(
-            @{ Name = 'claude_code'; Root = Join-Path $HOME '.claude'; Path = Join-Path $HOME '.claude\skills' },
-            @{ Name = 'cursor'; Root = Join-Path $HOME '.cursor'; Path = Join-Path $HOME '.cursor\skills' },
-            @{ Name = 'gemini_cli'; Root = Join-Path $HOME '.gemini'; Path = Join-Path $HOME '.gemini\skills' },
-            @{ Name = 'github_copilot'; Root = Join-Path $HOME '.copilot'; Path = Join-Path $HOME '.copilot\skills' }
+            @{ Name = 'claude_code'; Root = Join-Path $homeDir '.claude'; Path = Join-Path $homeDir '.claude\skills' },
+            @{ Name = 'cursor'; Root = Join-Path $homeDir '.cursor'; Path = Join-Path $homeDir '.cursor\skills' },
+            @{ Name = 'antigravity'; Root = Join-Path $homeDir '.gemini\antigravity'; Path = Join-Path $homeDir '.gemini\antigravity\global_skills' },
+            @{ Name = 'gemini_cli'; Root = Join-Path $homeDir '.gemini'; Path = Join-Path $homeDir '.gemini\skills' },
+            @{ Name = 'github_copilot'; Root = Join-Path $homeDir '.copilot'; Path = Join-Path $homeDir '.copilot\skills' }
         )) {
         $targets.Add([pscustomobject]@{
                 Name = $target.Name
@@ -761,6 +811,177 @@ function Get-OptionalSkillTargets {
     }
 
     return $targets
+}
+
+function Get-PythonLauncher {
+    foreach ($candidate in @('python', 'py')) {
+        if (Get-Command $candidate -ErrorAction SilentlyContinue) {
+            return $candidate
+        }
+    }
+
+    return $null
+}
+
+function Get-InstalledSkillsManagerExecutable {
+    $candidates = @(
+        (Join-Path $env:LOCALAPPDATA 'skills-manager\skills-manager.exe'),
+        (Join-Path $env:ProgramFiles 'skills-manager\skills-manager.exe')
+    )
+
+    if ($env:ProgramFiles -and $env:ProgramFiles -ne ${env:ProgramFiles(x86)}) {
+        $candidates += Join-Path ${env:ProgramFiles(x86)} 'skills-manager\skills-manager.exe'
+    }
+
+    return $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
+}
+
+function Sync-SkillsManagerRegistry {
+    param(
+        [Parameter(Mandatory)]
+        [object[]]$ImportedSkills,
+        [switch]$DryRun
+    )
+
+    if ($ImportedSkills.Count -eq 0) {
+        return
+    }
+
+    if ($DryRun) {
+        foreach ($skill in $ImportedSkills) {
+            Write-Log -Message ('[DryRun] Register skill in skills-manager DB: {0}' -f $skill.Name)
+        }
+        return
+    }
+
+    $python = Get-PythonLauncher
+    if (-not $python) {
+        throw 'Python is required to register imported skills in skills-manager.db'
+    }
+
+    $homeDir = Get-UserHomeDirectory
+    $dbPath = Join-Path $homeDir '.skills-manager\skills-manager.db'
+    $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ('skills-registry-' + [guid]::NewGuid().ToString('N'))
+    Ensure-Directory -Path $tempRoot
+
+    $payloadPath = Join-Path $tempRoot 'skills.json'
+    $scriptPath = Join-Path $tempRoot 'sync_skills_manager_registry.py'
+    $payloadJson = @{ skills = $ImportedSkills } | ConvertTo-Json -Depth 8
+    $scriptContent = @'
+import json
+import os
+import sqlite3
+import sys
+import time
+import uuid
+
+payload_path = sys.argv[1]
+db_path = sys.argv[2]
+
+with open(payload_path, 'r', encoding='utf-8') as fh:
+    payload = json.load(fh)
+
+conn = sqlite3.connect(db_path)
+cur = conn.cursor()
+now = int(time.time() * 1000)
+
+active = cur.execute("SELECT scenario_id FROM active_scenario WHERE key='current'").fetchone()
+if active:
+    scenario_id = active[0]
+else:
+    first = cur.execute("SELECT id FROM scenarios ORDER BY created_at ASC LIMIT 1").fetchone()
+    if not first:
+        raise RuntimeError('No scenario found in skills-manager.db')
+    scenario_id = first[0]
+
+for skill in payload['skills']:
+    existing = cur.execute(
+        "SELECT id FROM skills WHERE central_path=? OR name=? LIMIT 1",
+        (skill['CentralPath'], skill['Name'])
+    ).fetchone()
+    skill_id = existing[0] if existing else str(uuid.uuid4())
+
+    if existing:
+        cur.execute(
+            '''
+            UPDATE skills
+            SET name=?, description=?, source_type='local', source_ref=?, source_ref_resolved=NULL,
+                source_subpath=?, source_branch=NULL, source_revision=NULL, remote_revision=NULL,
+                central_path=?, enabled=1, updated_at=?, status='ok', update_status='unknown',
+                last_checked_at=NULL, last_check_error=NULL
+            WHERE id=?
+            ''',
+            (
+                skill['Name'],
+                skill.get('Description') or '',
+                skill.get('SourceRef') or skill['CentralPath'],
+                skill.get('SourceSubpath'),
+                skill['CentralPath'],
+                now,
+                skill_id,
+            )
+        )
+    else:
+        cur.execute(
+            '''
+            INSERT INTO skills (
+                id, name, description, source_type, source_ref, source_ref_resolved,
+                source_subpath, source_branch, source_revision, remote_revision,
+                central_path, content_hash, enabled, created_at, updated_at,
+                status, update_status, last_checked_at, last_check_error
+            ) VALUES (?, ?, ?, 'local', ?, NULL, ?, NULL, NULL, NULL, ?, NULL, 1, ?, ?, 'ok', 'unknown', NULL, NULL)
+            ''',
+            (
+                skill_id,
+                skill['Name'],
+                skill.get('Description') or '',
+                skill.get('SourceRef') or skill['CentralPath'],
+                skill.get('SourceSubpath'),
+                skill['CentralPath'],
+                now,
+                now,
+            )
+        )
+
+    cur.execute(
+        "INSERT OR REPLACE INTO scenario_skills (scenario_id, skill_id, added_at) VALUES (?, ?, ?)",
+        (scenario_id, skill_id, now)
+    )
+
+    cur.execute("DELETE FROM scenario_skill_tools WHERE scenario_id=? AND skill_id=?", (scenario_id, skill_id))
+    cur.execute("DELETE FROM skill_targets WHERE skill_id=?", (skill_id,))
+
+    for target in skill.get('Targets', []):
+        cur.execute(
+            "INSERT INTO scenario_skill_tools (scenario_id, skill_id, tool, enabled, updated_at) VALUES (?, ?, ?, 1, ?)",
+            (scenario_id, skill_id, target['Tool'], now)
+        )
+        cur.execute(
+            '''
+            INSERT INTO skill_targets (id, skill_id, tool, target_path, mode, status, synced_at, last_error)
+            VALUES (?, ?, ?, ?, 'copy', 'ok', ?, NULL)
+            ''',
+            (str(uuid.uuid4()), skill_id, target['Tool'], target['Path'], now)
+        )
+
+conn.commit()
+conn.close()
+'@
+
+    [System.IO.File]::WriteAllText($payloadPath, $payloadJson, [System.Text.UTF8Encoding]::new($false))
+    [System.IO.File]::WriteAllText($scriptPath, $scriptContent, [System.Text.UTF8Encoding]::new($false))
+
+    try {
+        & $python $scriptPath $payloadPath $dbPath
+        if ($LASTEXITCODE -ne 0) {
+            throw ('skills-manager registry sync failed, exit={0}' -f $LASTEXITCODE)
+        }
+    }
+    finally {
+        if (Test-Path -LiteralPath $tempRoot) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force
+        }
+    }
 }
 
 function Install-SkillBundle {
@@ -774,9 +995,11 @@ function Install-SkillBundle {
         throw "Skill bundle not found: $ZipPath"
     }
 
-    $centralRoot = Join-Path $HOME '.skills-manager\skills'
+    $homeDir = Get-UserHomeDirectory
+    $centralRoot = Join-Path $homeDir '.skills-manager\skills'
     $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ('skills-bundle-' + [guid]::NewGuid().ToString('N'))
     $targets = Get-OptionalSkillTargets
+    $importedSkills = New-Object System.Collections.Generic.List[object]
 
     try {
         if (-not $DryRun) {
@@ -785,10 +1008,10 @@ function Install-SkillBundle {
         }
 
         if ($DryRun) {
-            $skillDirs = Get-SkillDirectoriesFromZip -ZipPath $ZipPath
+            $skillDirs = @(Get-SkillDirectoriesFromZip -ZipPath $ZipPath)
         }
         else {
-            $skillDirs = Get-SkillDirectoriesFromExtractedRoot -RootPath $tempRoot
+            $skillDirs = @(Get-SkillDirectoriesFromExtractedRoot -RootPath $tempRoot)
         }
 
         Write-Log -Message ('Discovered {0} skill directories' -f $skillDirs.Count)
@@ -796,17 +1019,36 @@ function Install-SkillBundle {
         foreach ($skillDir in $skillDirs) {
             $skillName = Split-Path -Leaf $skillDir
             $sourcePath = if ($DryRun) { $skillDir } else { $skillDir }
-            Copy-SkillDirectory -SourcePath $sourcePath -DestinationPath (Join-Path $centralRoot $skillName) -DryRun:$DryRun
+            $centralPath = Join-Path $centralRoot $skillName
+            Copy-SkillDirectory -SourcePath $sourcePath -DestinationPath $centralPath -DryRun:$DryRun
+
+            $skillTargets = New-Object System.Collections.Generic.List[object]
 
             foreach ($target in $targets | Where-Object { $_.Enabled }) {
-                Copy-SkillDirectory -SourcePath $sourcePath -DestinationPath (Join-Path $target.Path $skillName) -DryRun:$DryRun
+                $targetPath = Join-Path $target.Path $skillName
+                Copy-SkillDirectory -SourcePath $sourcePath -DestinationPath $targetPath -DryRun:$DryRun
+                $skillTargets.Add([pscustomobject]@{
+                        Tool = $target.Name
+                        Path = $targetPath
+                    })
             }
+
+            $importedSkills.Add([pscustomobject]@{
+                    Name = $skillName
+                    Description = ''
+                    SourceRef = $centralPath
+                    SourceSubpath = $null
+                    CentralPath = $centralPath
+                    Targets = $skillTargets
+                })
         }
 
+        Sync-SkillsManagerRegistry -ImportedSkills $importedSkills -DryRun:$DryRun
+
         if (-not $DryRun) {
-            $skillsManagerExe = Join-Path $env:LOCALAPPDATA 'skills-manager\skills-manager.exe'
-            if (Test-Path -LiteralPath $skillsManagerExe) {
-                Write-Log -Message 'Imported central skills; launching Skills Manager to encourage a rescan'
+            $skillsManagerExe = Get-InstalledSkillsManagerExecutable
+            if ($skillsManagerExe) {
+                Write-Log -Message 'Imported skills and synced skills-manager DB; launching Skills Manager'
                 Start-Process -FilePath $skillsManagerExe | Out-Null
             }
         }
