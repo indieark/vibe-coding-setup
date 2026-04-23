@@ -119,6 +119,26 @@ function Get-UserHomeDirectory {
     return $HOME
 }
 
+function Get-UserLocalAppDataDirectory {
+    $homeDir = Get-UserHomeDirectory
+    if (-not [string]::IsNullOrWhiteSpace($homeDir)) {
+        $candidate = Join-Path $homeDir 'AppData\Local'
+        if (Test-Path -LiteralPath $candidate) {
+            return $candidate
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+        return $env:LOCALAPPDATA
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($homeDir)) {
+        return Join-Path $homeDir 'AppData\Local'
+    }
+
+    return $null
+}
+
 function Ensure-CodexWorkspaceDirectory {
     param(
         [switch]$DryRun
@@ -1902,8 +1922,14 @@ function Get-PythonLauncher {
 }
 
 function Get-InstalledSkillsManagerExecutable {
+    $userLocalAppData = Get-UserLocalAppDataDirectory
+    $userInstallCandidate = $null
+    if (-not [string]::IsNullOrWhiteSpace($userLocalAppData)) {
+        $userInstallCandidate = Join-Path $userLocalAppData 'skills-manager\skills-manager.exe'
+    }
+
     $candidates = @(
-        (Join-Path $env:LOCALAPPDATA 'skills-manager\skills-manager.exe'),
+        $userInstallCandidate,
         (Join-Path $env:ProgramFiles 'skills-manager\skills-manager.exe')
     )
 
@@ -2141,6 +2167,7 @@ function Install-SkillBundle {
     $importedSkills = New-Object System.Collections.Generic.List[object]
 
     try {
+        Write-Log -Message ('Skill source-of-truth root: {0}' -f $centralRoot)
         Ensure-Directory -Path $tempRoot
         Expand-Archive -LiteralPath $ZipPath -DestinationPath $tempRoot -Force
         $skillDirs = @(Get-SkillDirectoriesFromExtractedRoot -RootPath $tempRoot)
