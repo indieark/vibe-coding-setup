@@ -5,6 +5,7 @@ param(
     [switch]$SkipCcSwitch,
     [switch]$SkipSkills,
     [switch]$PauseOnExit,
+    [string]$UserHomeOverride,
     [string]$CcSwitchProviderName,
     [string]$CcSwitchBaseUrl,
     [string]$CcSwitchModel,
@@ -38,6 +39,22 @@ function Get-CurrentPowerShellExecutable {
     }
 
     return 'powershell.exe'
+}
+
+function Get-OriginalUserHomeDirectory {
+    if (-not [string]::IsNullOrWhiteSpace($UserHomeOverride)) {
+        return $UserHomeOverride
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:USERPROFILE)) {
+        return $env:USERPROFILE
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:HOME)) {
+        return $env:HOME
+    }
+
+    return $HOME
 }
 
 function Invoke-BootstrapExit {
@@ -226,7 +243,16 @@ Sync-BootstrapDependencies `
 
 Import-Module (Join-Path $root 'modules\common.psm1') -Force
 
+$effectiveUserHome = Get-OriginalUserHomeDirectory
+if (-not [string]::IsNullOrWhiteSpace($effectiveUserHome)) {
+    $env:VIBE_CODING_USER_HOME = $effectiveUserHome
+}
+
 if (-not $DryRun -and -not (Test-IsAdministrator)) {
+    if (-not $PSBoundParameters.ContainsKey('UserHomeOverride') -and -not [string]::IsNullOrWhiteSpace($effectiveUserHome)) {
+        $PSBoundParameters['UserHomeOverride'] = $effectiveUserHome
+    }
+
     $relaunchArgs = ConvertTo-ArgumentTokens -BoundParameters $PSBoundParameters
     $argumentList = @(
         '-NoProfile',

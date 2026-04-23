@@ -104,6 +104,14 @@ function Ensure-Directory {
 }
 
 function Get-UserHomeDirectory {
+    if (-not [string]::IsNullOrWhiteSpace($env:VIBE_CODING_USER_HOME)) {
+        return $env:VIBE_CODING_USER_HOME
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:USERPROFILE)) {
+        return $env:USERPROFILE
+    }
+
     if (-not [string]::IsNullOrWhiteSpace($env:HOME)) {
         return $env:HOME
     }
