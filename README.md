@@ -1,6 +1,6 @@
 # Windows 一键部署脚本
 
-这个仓库用于在 Windows 上一键拉起开发环境、桌面工具和技能包，主入口是 `bootstrap.ps1`，`bootstrap.cmd` 只是它的本地启动壳，`run-remote-bootstrap.cmd` 是远程自举入口。
+这个仓库用于在 Windows 上一键拉起开发环境、桌面工具和技能包，主入口是 `bootstrap.ps1`，`bootstrap.cmd` 只是它的本地启动壳，`vibe-coding-setup.cmd` 是远程自举入口。
 
 当前仓库的设计重点不是“纯离线安装”，而是把安装来源分成两层：
 
@@ -395,7 +395,7 @@ Set-Location "D:\AI Coding\Vibe Coding Setup"
 
 ```powershell
 Set-Location "D:\AI Coding\Vibe Coding Setup"
-.\run-remote-bootstrap.cmd
+.\vibe-coding-setup.cmd
 ```
 
 它也会优先尝试 `pwsh.exe`，不存在时再退回 `powershell.exe`。
