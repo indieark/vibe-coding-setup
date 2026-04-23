@@ -1906,6 +1906,50 @@ function Get-InstalledSkillsManagerExecutable {
     return $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
 }
 
+function Ensure-SkillsManagerDatabase {
+    param(
+        [Parameter(Mandatory)]
+        [string]$DbPath,
+        [string]$SkillsManagerExe,
+        [int]$TimeoutSeconds = 20,
+        [switch]$DryRun
+    )
+
+    if (Test-Path -LiteralPath $DbPath) {
+        return [pscustomobject]@{
+            Available = $true
+            LaunchedSkillsManager = $false
+        }
+    }
+
+    if ($DryRun -or [string]::IsNullOrWhiteSpace($SkillsManagerExe)) {
+        return [pscustomobject]@{
+            Available = $false
+            LaunchedSkillsManager = $false
+        }
+    }
+
+    Write-Log -Message ('skills-manager DB not found yet; launching Skills Manager to initialize it: {0}' -f $SkillsManagerExe)
+    Start-Process -FilePath $SkillsManagerExe | Out-Null
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        if (Test-Path -LiteralPath $DbPath) {
+            return [pscustomobject]@{
+                Available = $true
+                LaunchedSkillsManager = $true
+            }
+        }
+
+        Start-Sleep -Milliseconds 500
+    } while ((Get-Date) -lt $deadline)
+
+    return [pscustomobject]@{
+        Available = (Test-Path -LiteralPath $DbPath)
+        LaunchedSkillsManager = $true
+    }
+}
+
 function Sync-SkillsManagerRegistry {
     param(
         [Parameter(Mandatory)]
@@ -1933,9 +1977,14 @@ function Sync-SkillsManagerRegistry {
 
     $homeDir = Get-UserHomeDirectory
     $dbPath = Join-Path $homeDir '.skills-manager\skills-manager.db'
-    if (-not (Test-Path -LiteralPath $dbPath)) {
+    $skillsManagerExe = Get-InstalledSkillsManagerExecutable
+    $dbState = Ensure-SkillsManagerDatabase -DbPath $dbPath -SkillsManagerExe $skillsManagerExe -DryRun:$DryRun
+    if (-not $dbState.Available) {
         Write-Log -Level 'WARN' -Message ('skills-manager DB not found, skip registry sync: {0}' -f $dbPath)
-        return
+        return [pscustomobject]@{
+            Synchronized = $false
+            LaunchedSkillsManager = $dbState.LaunchedSkillsManager
+        }
     }
 
     $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ('skills-registry-' + [guid]::NewGuid().ToString('N'))
@@ -2059,6 +2108,11 @@ conn.close()
             Remove-Item -LiteralPath $tempRoot -Recurse -Force
         }
     }
+
+    return [pscustomobject]@{
+        Synchronized = $true
+        LaunchedSkillsManager = $dbState.LaunchedSkillsManager
+    }
 }
 
 function Install-SkillBundle {
@@ -2132,13 +2186,15 @@ function Install-SkillBundle {
                 })
         }
 
+        $registrySyncResult = $null
         if ($importedSkills.Count -gt 0) {
-            Sync-SkillsManagerRegistry -ImportedSkills $importedSkills -DryRun:$DryRun
+            $registrySyncResult = Sync-SkillsManagerRegistry -ImportedSkills $importedSkills -DryRun:$DryRun
         }
 
         if (-not $DryRun -and $importedSkills.Count -gt 0) {
             $skillsManagerExe = Get-InstalledSkillsManagerExecutable
-            if ($skillsManagerExe) {
+            $alreadyLaunchedForDbInit = ($null -ne $registrySyncResult -and $registrySyncResult.LaunchedSkillsManager)
+            if ($skillsManagerExe -and -not $alreadyLaunchedForDbInit) {
                 Write-Log -Message 'Imported skills and synced skills-manager DB; launching Skills Manager'
                 Start-Process -FilePath $skillsManagerExe | Out-Null
             }
