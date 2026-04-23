@@ -959,6 +959,25 @@ function Get-WingetPackageLatestVersion {
     return $version
 }
 
+function Get-FallbackReleaseAssetVersion {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Definition
+    )
+
+    $fallback = Get-ObjectPropertyValue -Object $Definition -Name 'fallback'
+    if ($null -eq $fallback) {
+        return $null
+    }
+
+    $releaseAsset = [string](Get-ObjectPropertyValue -Object $fallback -Name 'releaseAsset')
+    if ([string]::IsNullOrWhiteSpace($releaseAsset)) {
+        return $null
+    }
+
+    return Get-NormalizedVersionString -VersionText $releaseAsset
+}
+
 function Get-DesiredAppVersion {
     param(
         [Parameter(Mandatory)]
@@ -983,6 +1002,15 @@ function Get-DesiredAppVersion {
                     Found = $true
                     Version = $version
                     Source = 'winget-show'
+                }
+            }
+
+            $fallbackVersion = Get-FallbackReleaseAssetVersion -Definition $Definition
+            if (-not [string]::IsNullOrWhiteSpace($fallbackVersion)) {
+                return [pscustomobject]@{
+                    Found = $true
+                    Version = $fallbackVersion
+                    Source = 'fallback-release-asset'
                 }
             }
         }

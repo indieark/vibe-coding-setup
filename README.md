@@ -99,6 +99,7 @@
 
 - 如果 manifest 里显式写了 `targetVersion`，优先用它
 - `strategy = winget` 时，优先用 `winget show --id ...` 解析最新版本
+- 如果 `winget show` 暂时拿不到版本，但 manifest 的 `fallback.releaseAsset` 文件名里带版本号，就退回用这个版本做比较
 - `strategy = github-latest-tag` 时，用 GitHub `/releases/latest` 跳转结果解析 tag
 - `strategy = release-asset` 时，从资产文件名里提取版本号
 - 其它策略如果没有可比较版本，就会进入“目标版本不可比较”分支
