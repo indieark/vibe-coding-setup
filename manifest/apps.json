@@ -43,7 +43,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "Git-2.53.0.2-64-bit.exe",
+        "releaseAsset": "Git-2.54.0-64-bit.exe",
         "installerType": "exe",
         "silentArgs": [
           "/VERYSILENT",
@@ -71,7 +71,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "node-v24.14.0-x64.msi",
+        "releaseAsset": "node-v25.9.0-x64.msi",
         "installerType": "msi",
         "silentArgs": []
       }
@@ -92,9 +92,15 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "python-manager-26.0.msix",
-        "installerType": "msix",
-        "silentArgs": []
+        "releaseAsset": "python-3.13.13-amd64.exe",
+        "installerType": "exe",
+        "silentArgs": [
+          "/quiet",
+          "InstallAllUsers=1",
+          "PrependPath=1",
+          "Include_test=0",
+          "Include_launcher=1"
+        ]
       }
     },
     {
@@ -115,7 +121,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "VSCodeUserSetup-x64-1.112.0.exe",
+        "releaseAsset": "VSCodeUserSetup-x64-1.117.0.exe",
         "installerType": "exe",
         "silentArgs": [
           "/VERYSILENT",
@@ -177,7 +183,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "CC-Switch-v3.11.1-Windows.msi",
+        "releaseAsset": "CC-Switch-v3.14.0-Windows.msi",
         "installerType": "msi",
         "silentArgs": []
       }

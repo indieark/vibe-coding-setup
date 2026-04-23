@@ -1,25 +1,11 @@
 # Windows 一键部署脚本
 
-这个项目用于给同事在 Windows 上一键安装开发环境、桌面工具和技能包。
+这个仓库用于在 Windows 上一键拉起开发环境、桌面工具和技能包，主入口是 `bootstrap.ps1`，`bootstrap.cmd` 只是它的本地启动壳，`run-remote-bootstrap.cmd` 是远程自举入口。
 
-当前实现策略：
+当前仓库的设计重点不是“纯离线安装”，而是把安装来源分成两层：
 
-- 基础工具优先走 `winget`
-- 开源桌面工具优先走 GitHub Releases 最新版
-- 安装前会先做本机版本门禁：
-  - 未安装：安装
-  - 低于目标版本：更新
-  - 已是目标版本：跳过
-- 自动创建 `D:\Vibe Coding\Chat`，如果没有 `D:` 盘则回退到 `C:\Vibe Coding\Chat`，作为 `Codex` 的默认工作目录
-- 支持远程自举：即使用户只拿到 `bootstrap.ps1`，脚本也会自动拉取 `modules/common.psm1`、`manifest/apps.json`，并从 `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release 获取 `skills.zip`
-- `CC Switch` 的 Provider 导入优先走官方 `ccswitch://` deep link
-- `skills.zip` 自动解包到 `~/.skills-manager/skills`，并同步到 `~/.codex/skills`
-- 如果本机已存在 `.claude`、`.cursor`、`.gemini`、`.copilot`，也会顺带同步过去
-
-目录约定：
-
-- `.local/unused/`：本地未使用安装包暂存目录
-- `downloads/`：脚本运行时临时下载的安装包与 `skills.zip`，已加入 `.gitignore`
+- 主来源：`winget`、上游 GitHub Releases、固定直链
+- 回退来源：统一退到 `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release 资产
 
 ## 当前包含
 
@@ -33,11 +19,253 @@
 - `CC Switch`
 - `Skills Manager`
 
-## 安装时会额外创建
+## 主脚本逻辑
 
-- `D:\Vibe Coding\Chat`
-  - 如果没有 `D:` 盘，则自动回退到 `C:\Vibe Coding\Chat`
-  - 用途：作为 `Codex` 的默认工作目录
+下面是 `bootstrap.ps1` 的实际执行顺序，按代码路径整理。
+
+### 1. 先决定自举来源
+
+脚本先确认 `modules/common.psm1` 和 `manifest/apps.json` 从哪里来：
+
+- 如果当前目录已经有这两个文件，`BootstrapSourceRoot` 默认就是本地仓库根目录
+- 如果当前目录不完整，默认改为：
+  - `https://raw.githubusercontent.com/indieark/vibe-coding-setup/main`
+
+然后同步这两个依赖：
+
+- `modules/common.psm1`
+- `manifest/apps.json`
+
+`-RefreshBootstrapDependencies` 会强制刷新；远程 HTTP 源也会默认刷新。
+
+### 2. 导入模块并处理管理员权限
+
+`bootstrap.ps1` 导入 `modules/common.psm1` 后，如果不是 `-DryRun` 且当前没有管理员权限，会保留原参数并自动用 UAC 重新拉起自身。
+
+### 3. 读取安装清单并过滤目标
+
+脚本从 `manifest/apps.json` 读取全部应用定义，然后根据：
+
+- `-Only git,nodejs,...`
+
+过滤出本次要处理的应用集合，最后按 `order` 字段顺序执行。
+
+### 4. 预取 `skills.zip`
+
+如果本次选择了 `skills-manager`，且没有传 `-SkipSkills`，脚本会先下载：
+
+- `downloads/skills.zip`
+
+来源固定为：
+
+- `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release
+
+这一步在正式安装应用前执行。
+
+### 5. 可选读取 CC Switch Provider 输入
+
+如果本次选择了 `cc-switch`，且没有传 `-SkipCcSwitch`，脚本会先读取用户输入：
+
+- Provider 名称，默认 `IndieArk API 2`
+- `base_url`，默认 `https://api2.indieark.tech/v1`
+- 默认模型，默认 `gpt-5.4`
+- `api_key`
+
+### 6. 创建 Codex 默认工作目录
+
+脚本会创建工作目录：
+
+- 优先 `D:\Vibe Coding\Chat`
+- 如果没有 `D:` 盘，则回退到 `C:\Vibe Coding\Chat`
+
+### 7. 每个应用都会先做版本门禁
+
+`Install-AppFromDefinition` 不会无脑安装，而是先执行 precheck：
+
+- 先检测当前是否已安装
+- 再解析目标版本
+- 决定是 `skip` 还是继续安装/更新
+
+当前安装检测顺序是：
+
+1. `command` 检测
+2. `appx` 检测
+3. 卸载注册表检测
+
+也就是说，一个应用如果同时定义了多种检测方式，命令行检测优先，找不到再看 Appx，再看注册表。
+
+目标版本来源规则如下：
+
+- 如果 manifest 里显式写了 `targetVersion`，优先用它
+- `strategy = winget` 时，优先用 `winget show --id ...` 解析最新版本
+- `strategy = github-latest-tag` 时，用 GitHub `/releases/latest` 跳转结果解析 tag
+- `strategy = release-asset` 时，从资产文件名里提取版本号
+- 其它策略如果没有可比较版本，就会进入“目标版本不可比较”分支
+
+precheck 决策规则：
+
+- 未安装：安装
+- 已安装但版本低于目标：更新
+- 已安装且版本不低于目标：跳过
+- 已安装但当前版本或目标版本无法比较：继续安装，让上游来源自行处理
+
+### 8. 应用安装的主来源与回退逻辑
+
+当前代码支持这些安装策略：
+
+- `winget`
+- `direct-url`
+- `github-latest-tag`
+- `github-release`
+- `release-asset`
+
+这个仓库当前实际用到的是前三种。
+
+统一逻辑是：
+
+1. 先走主策略
+2. 主策略失败则记录 warning
+3. 如果 manifest 定义了 `fallback.releaseAsset`，再退到 `bootstrap-assets` Release 资产
+4. 回退也失败，则该应用标记为失败
+
+下载的安装包统一落到：
+
+- `downloads/`
+
+安装器执行方式：
+
+- `msi` 走 `msiexec.exe /i ... /qn /norestart`
+- `exe` 直接静默参数启动
+- `msix` 走 `Add-AppxPackage`
+
+### 9. 安装完应用后再导入 `skills.zip`
+
+如果本次安装包含 `skills-manager` 且没有 `-SkipSkills`，脚本会在应用安装阶段结束后执行 `Install-SkillBundle`：
+
+1. 解压 `downloads/skills.zip`
+2. 递归查找所有包含 `SKILL.md` 的目录
+3. 复制到 `~/.skills-manager/skills/<skill-name>`
+4. 同步复制到 `~/.codex/skills/<skill-name>`
+5. 如果本机存在以下目录，也会一起同步：
+   - `~/.claude/skills`
+   - `~/.cursor/skills`
+   - `~/.gemini/antigravity/global_skills`
+   - `~/.gemini/skills`
+   - `~/.copilot/skills`
+6. 如果不是 `-DryRun`，再写入 `~/.skills-manager/skills-manager.db`
+7. 如果找到 `skills-manager.exe`，最后会自动拉起它
+
+### 10. 最后导入 CC Switch Provider
+
+`CC Switch` 的 Provider 导入不直接写 SQLite，而是调用官方 deep link：
+
+- `ccswitch://v1/import?...`
+
+执行前会先检查 `ccswitch://` 协议是否已注册；未注册时会报错，提示先启动一次 `CC Switch`。
+
+### 11. 汇总结果并决定退出码
+
+脚本最后会输出 Summary 表，字段包括：
+
+- `Name`
+- `Status`
+- `Source`
+- `Detail`
+
+只要有任意一项 `Status = failed`，脚本退出码就是 `1`；否则退出码为 `0`。
+
+## 安装来源与回退来源总表
+
+下面这张表按当前 `manifest/apps.json` 精确整理。
+
+| 应用 | 主来源 | 目标版本来源 | 安装检测 | 回退来源 |
+| --- | --- | --- | --- | --- |
+| `PowerShell 7` | `winget install --id 9MZ1SNWT0N5D --source msstore` | manifest 固定 `7.6.1` | `Get-AppxPackage -Name Microsoft.PowerShell` | `indieark/vibe-coding-setup@bootstrap-assets/PowerShell-7.6.1-win-x64.msi` |
+| `Git` | `winget install --id Git.Git` | `winget show Git.Git` | `git --version`，失败后看注册表 `^Git$` | `indieark/vibe-coding-setup@bootstrap-assets/Git-2.54.0-64-bit.exe` |
+| `Node.js` | `winget install --id OpenJS.NodeJS` | `winget show OpenJS.NodeJS` | `node --version`，失败后看注册表 `Node.js` | `indieark/vibe-coding-setup@bootstrap-assets/node-v25.9.0-x64.msi` |
+| `Python 3.13` | `winget install --id Python.Python.3.13` | `winget show Python.Python.3.13` | `py -V` | `indieark/vibe-coding-setup@bootstrap-assets/python-3.13.13-amd64.exe` |
+| `Visual Studio Code` | `winget install --id Microsoft.VisualStudioCode` | `winget show Microsoft.VisualStudioCode` | `code --version`，失败后看注册表 `Microsoft Visual Studio Code` | `indieark/vibe-coding-setup@bootstrap-assets/VSCodeUserSetup-x64-1.117.0.exe` |
+| `Codex Desktop` | `winget install --id 9PLM9XGG6VKS --source msstore` | `winget show 9PLM9XGG6VKS --source msstore` | `Get-AppxPackage -Name OpenAI.Codex` | `indieark/vibe-coding-setup@bootstrap-assets/Codex-26.325.31654.Setup.exe` |
+| `ChatGPT (Pake)` | `https://github.com/tw93/Pake/releases/latest/download/ChatGPT_x64.msi` | 无稳定可比较目标版本 | 注册表精确匹配 `ChatGPT` | `indieark/vibe-coding-setup@bootstrap-assets/ChatGPT_x64.msi` |
+| `CC Switch` | `farion1231/cc-switch` 的 latest tag，对应资产模板 `CC-Switch-{tag}-Windows.msi` | GitHub latest tag | 注册表精确匹配 `CC Switch` | `indieark/vibe-coding-setup@bootstrap-assets/CC-Switch-v3.14.0-Windows.msi` |
+| `Skills Manager` | `xingkongliang/skills-manager` 的 latest tag，对应资产模板 `skills-manager_{version}_x64_en-US.msi` | GitHub latest tag | 注册表精确匹配 `Skills Manager` | `indieark/vibe-coding-setup@bootstrap-assets/skills-manager_1.14.3_x64_en-US.msi` |
+
+补充两个“非应用安装项”：
+
+| 项目 | 主来源 | 回退来源 |
+| --- | --- | --- |
+| `modules/common.psm1`、`manifest/apps.json` 自举依赖 | 当前完整仓库；否则 `https://raw.githubusercontent.com/indieark/vibe-coding-setup/main` | 无单独二级回退 |
+| `skills.zip` | `indieark/vibe-coding-setup@bootstrap-assets/skills.zip` | 无单独二级回退 |
+
+## 特殊行为说明
+
+### ChatGPT (Pake) 的版本门禁是弱的
+
+因为它当前走的是固定直链：
+
+- `https://github.com/tw93/Pake/releases/latest/download/ChatGPT_x64.msi`
+
+但 manifest 里没有可比较的 `targetVersion`，所以一旦机器上已经安装了它，precheck 仍然会进入：
+
+- `unknown-target-version`
+
+也就是不会稳定命中“已是最新版本就跳过”。
+
+### Python fallback 现在改为真正的运行时安装包
+
+之前 fallback 指向 `python-manager-26.0.msix`，更接近 Python 安装管理器，而不是 `Python 3.13` 本体。
+
+现在改为官方：
+
+- `python-3.13.13-amd64.exe`
+
+并补了静默安装参数，保证 fallback 仍然符合一键安装语义。
+
+### CC Switch Provider 导入没有回退实现
+
+当前只支持官方 deep link：
+
+- `ccswitch://v1/import`
+
+如果协议没注册，脚本不会退回到 SQLite 直写。
+
+### `skills.zip` 也没有第二来源
+
+当前 `skills.zip` 的来源只有：
+
+- `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release
+
+如果这个资产不存在或下载失败，技能导入阶段会直接失败。
+
+### 本地 `packages/` 目录已经不再使用
+
+当前回退安装不走仓库内 `packages/`，统一依赖：
+
+- `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release
+
+### 当前 fallback 资产更新状态
+
+截至本次整理，`bootstrap-assets` Release 已补齐这些新版安装包：
+
+- `PowerShell-7.6.1-win-x64.msi`
+- `Git-2.54.0-64-bit.exe`
+- `node-v25.9.0-x64.msi`
+- `python-3.13.13-amd64.exe`
+- `VSCodeUserSetup-x64-1.117.0.exe`
+- `CC-Switch-v3.14.0-Windows.msi`
+- `skills-manager_1.14.3_x64_en-US.msi`
+- `ChatGPT_x64.msi`
+- `skills.zip`
+
+当前仍未完成统一升级的只有：
+
+- `Codex Desktop`
+
+原因不是版本号拿不到，而是当前只确认到了 Microsoft Store 包和本机已装版本，尚未确认稳定、公开、可验证的官方 `Setup.exe` 下载来源，因此暂时保留：
+
+- `Codex-26.325.31654.Setup.exe`
+
+另外，当前 release 中新旧资产是并存的，没有自动清理旧文件；脚本只会按 `manifest/apps.json` 当前指向的新文件名走 fallback。
 
 ## 使用方式
 
@@ -50,7 +278,7 @@ Set-Location "D:\AI Coding\Vibe Coding Setup"
 .\bootstrap.cmd
 ```
 
-双击运行版本（新电脑只需要这一个文件）：
+远程自举入口：
 
 ```powershell
 Set-Location "D:\AI Coding\Vibe Coding Setup"
@@ -85,7 +313,7 @@ Set-Location "D:\AI Coding\Vibe Coding Setup"
 
 目标仓库：
 
-- `https://github.com/indieark/vibe-coding-setup`
+- [indieark/vibe-coding-setup](https://github.com/indieark/vibe-coding-setup)
 
 推荐入口命令：
 
@@ -93,96 +321,29 @@ Set-Location "D:\AI Coding\Vibe Coding Setup"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githubusercontent.com/indieark/vibe-coding-setup/main'; $script=Join-Path $env:TEMP 'vibe-bootstrap.ps1'; iwr ($root + '/bootstrap.ps1') -OutFile $script; & $script -BootstrapSourceRoot $root -RefreshBootstrapDependencies"
 ```
 
-这个命令只负责：
+这个命令只做两件事：
 
 1. 下载 `bootstrap.ps1`
-2. 执行它
+2. 执行 `bootstrap.ps1`
 
-后续依赖文件与安装流程由脚本自己完成。
+后续依赖同步、版本门禁、安装和回退都由脚本自己处理。
 
-公开仓库发布说明：
-
-- 公开 GitHub 仓库默认只提交脚本、清单和文档，不提交安装包或 `skills.zip`
-- 远程一键启动模式依赖：
-  - `winget`
-  - 上游 GitHub Releases
-  - `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release
-- 如果你需要真正离线分发，应单独维护一份安装包归档，或维护这个 Release 里的 fallback 安装包和 `skills.zip`
-
-## 远程模式说明
-
-当用户不是从完整仓库运行，而是只运行远程下载的 `bootstrap.ps1` 时：
-
-- `bootstrap.ps1` 会自动拉取：
-  - `modules/common.psm1`
-  - `manifest/apps.json`
-- `skills.zip` 会下载到 `downloads/skills.zip`
-- 软件安装仍优先使用：
-  - `winget`
-  - 上游 GitHub 最新版
-- 当在线主路径失败时，脚本会退回到 `indieark/vibe-coding-setup` 的 `bootstrap-assets` Release 资产
-- 当前仓库不再保留本地 `packages/` 目录，fallback 统一依赖 Release 资产
-
-## 已确认的自动化入口
-
-### CC Switch
-
-优先走官方 deep link 导入，而不是直接改 SQLite。
-
-原因：
-
-- 官方文档明确支持 `ccswitch://v1/import`
-- 对版本演进更稳
-- 不依赖内部表结构
-
-当前脚本会要求用户手动输入：
-
-- Provider 名称
-- `base_url`
-- `api_key`
-- 默认模型名
-
-默认值现在是：
-
-- Provider：`IndieArk API 2`
-- `base_url`：`https://api2.indieark.tech/v1`
-- 模型：`gpt-5.4`
-
-然后自动生成并触发 Codex Provider 导入。
-
-### Skills Manager
-
-当前脚本会执行两层导入：
-
-1. 解压 `skills.zip`
-2. 识别包含 `SKILL.md` 的目录
-3. 复制到 `~/.skills-manager/skills/<skill-name>`
-4. 复制到 `~/.codex/skills/<skill-name>`
-5. 如果检测到其它工具目录，也同步过去
-6. 同步写入 `skills-manager.db` 的 `skills`、`scenario_skills`、`scenario_skill_tools`、`skill_targets`
-
-这样既满足文件目录，也满足 `skills-manager` 的数据库索引。
-
-## 已验证的外部来源
+## 当前确认过的外部来源
 
 - `Git.Git`
 - `OpenJS.NodeJS`
 - `Python.Python.3.13`
 - `Microsoft.VisualStudioCode`
-- `PowerShell` Microsoft Store package `9MZ1SNWT0N5D`
-- `Codex Desktop` Microsoft Store package `9PLM9XGG6VKS`
-- `tw93/pake` latest release asset
+- `PowerShell` Microsoft Store 包 `9MZ1SNWT0N5D`
+- `Codex Desktop` Microsoft Store 包 `9PLM9XGG6VKS`
+- `tw93/Pake` latest release asset
 - `farion1231/cc-switch` latest release asset
 - `xingkongliang/skills-manager` latest MSI release asset
 
 ## 建议后续
 
-建议把这个目录初始化成 Git 仓库并推到 GitHub。
-
-推荐下一步：
-
-1. 增加日志落盘
-2. 增加安装结果 JSON 报告
-3. 增加 checksum / 版本校验
-4. 研究 `CC Switch` 是否支持无 URI 暴露的更安全导入方式
-5. 继续观察 `Skills Manager` 后续是否提供稳定 CLI 或显式 rescan 命令
+- 增加日志落盘
+- 增加安装结果 JSON 报告
+- 为直链或 Release 资产增加 checksum / 版本校验
+- 为 `ChatGPT (Pake)` 增加稳定版本来源，避免每次都进入重新安装路径
+- 继续观察 `Skills Manager` 后续是否提供稳定 CLI 或显式 rescan 命令
