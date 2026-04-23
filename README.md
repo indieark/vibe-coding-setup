@@ -80,7 +80,7 @@
 - Provider 名称，直接回车使用默认值 `IndieArk API 2`
 - `base_url`，直接回车使用默认值 `https://api2.indieark.tech/v1`
 - 默认模型，直接回车使用默认值 `gpt-5.4`
-- `SK`，直接回车会保留为空，方便后续在 `CC Switch` 里手动补
+- `SK`，直接回车会自动写入默认值 `sk-`，避免 `CC Switch` 因为空值导入失败
 
 ### 6. 创建 Codex 默认工作目录
 

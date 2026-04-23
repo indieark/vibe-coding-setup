@@ -1777,7 +1777,7 @@ function Read-CodexProviderInput {
 
     $apiKey = $PresetApiKey
     if ([string]::IsNullOrWhiteSpace($apiKey)) {
-        $secureApiKey = Read-Host 'SK (leave blank to skip, input hidden)' -AsSecureString
+        $secureApiKey = Read-Host 'SK (leave blank to use default sk-, input hidden)' -AsSecureString
         $apiKey = ConvertFrom-SecureStringPlainText -SecureString $secureApiKey
     }
 
@@ -1785,7 +1785,7 @@ function Read-CodexProviderInput {
         Name = $name.Trim()
         BaseUrl = $baseUrl.Trim()
         Model = $model.Trim()
-        ApiKey = if ([string]::IsNullOrWhiteSpace($apiKey)) { '' } else { $apiKey.Trim() }
+        ApiKey = if ([string]::IsNullOrWhiteSpace($apiKey)) { 'sk-' } else { $apiKey.Trim() }
     }
 }
 
