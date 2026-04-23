@@ -270,6 +270,67 @@ function Test-WingetInstalled {
     return $null -ne (Get-Command winget -ErrorAction SilentlyContinue)
 }
 
+function Get-AppendedTextLines {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path,
+        [Parameter(Mandatory)]
+        [ref]$Offset
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return @()
+    }
+
+    $text = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
+    if ($null -eq $text) {
+        return @()
+    }
+
+    $safeOffset = [Math]::Min([int]$Offset.Value, $text.Length)
+    if ($safeOffset -ge $text.Length) {
+        return @()
+    }
+
+    $delta = $text.Substring($safeOffset)
+    $Offset.Value = $text.Length
+    if ([string]::IsNullOrWhiteSpace($delta)) {
+        return @()
+    }
+
+    $normalized = $delta -replace "`r", "`n"
+    return @(
+        $normalized -split "`n" |
+        ForEach-Object { $_.Trim() } |
+        Where-Object {
+            -not [string]::IsNullOrWhiteSpace($_) -and
+            $_ -notmatch '^[\-/\\|]+$'
+        }
+    )
+}
+
+function Test-WingetNoApplicableUpgradeOutput {
+    param(
+        [string]$OutputText
+    )
+
+    if ([string]::IsNullOrWhiteSpace($OutputText)) {
+        return $false
+    }
+
+    foreach ($pattern in @(
+            'No available upgrade found\.',
+            'No newer package versions are available from the configured sources\.',
+            'No installed package found matching input criteria\.'
+        )) {
+        if ($OutputText -match $pattern) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Invoke-WingetAction {
     param(
         [Parameter(Mandatory)]
@@ -304,10 +365,76 @@ function Invoke-WingetAction {
     }
 
     Write-Log -Message ('Running winget {0}: {1}' -f $Action, $PackageId)
-    & winget @args
-    $exitCode = $LASTEXITCODE
+    if ($Source -eq 'msstore') {
+        Write-Log -Message ('winget {0} for Store package {1} may pause without progress output while Microsoft Store resolves the request' -f $Action, $PackageId)
+    }
+
+    $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ('winget-' + [guid]::NewGuid().ToString('N'))
+    Ensure-Directory -Path $tempRoot
+    $stdoutPath = Join-Path $tempRoot 'stdout.log'
+    $stderrPath = Join-Path $tempRoot 'stderr.log'
+    $stdoutOffset = 0
+    $stderrOffset = 0
+    $lastHeartbeat = Get-Date
+
+    try {
+        $process = Start-Process -FilePath 'winget.exe' -ArgumentList $args -PassThru -NoNewWindow `
+            -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+
+        do {
+            $sawOutput = $false
+            foreach ($entry in @(
+                    @{ Path = $stdoutPath; Offset = ([ref]$stdoutOffset) },
+                    @{ Path = $stderrPath; Offset = ([ref]$stderrOffset) }
+                )) {
+                $lines = @(Get-AppendedTextLines -Path $entry.Path -Offset $entry.Offset)
+                foreach ($line in $lines) {
+                    Write-Log -Message ('winget> {0}' -f $line)
+                    $sawOutput = $true
+                }
+            }
+
+            if ($sawOutput) {
+                $lastHeartbeat = Get-Date
+            }
+            elseif (((Get-Date) - $lastHeartbeat).TotalSeconds -ge 15) {
+                Write-Log -Message ('winget {0} for {1} is still running...' -f $Action, $PackageId)
+                $lastHeartbeat = Get-Date
+            }
+
+            if (-not $process.HasExited) {
+                Start-Sleep -Milliseconds 500
+                $process.Refresh()
+            }
+        } while (-not $process.HasExited)
+
+        foreach ($entry in @(
+                @{ Path = $stdoutPath; Offset = ([ref]$stdoutOffset) },
+                @{ Path = $stderrPath; Offset = ([ref]$stderrOffset) }
+            )) {
+            $lines = @(Get-AppendedTextLines -Path $entry.Path -Offset $entry.Offset)
+            foreach ($line in $lines) {
+                Write-Log -Message ('winget> {0}' -f $line)
+            }
+        }
+
+        $stdoutText = if (Test-Path -LiteralPath $stdoutPath) { Get-Content -LiteralPath $stdoutPath -Raw -Encoding UTF8 -ErrorAction SilentlyContinue } else { '' }
+        $stderrText = if (Test-Path -LiteralPath $stderrPath) { Get-Content -LiteralPath $stderrPath -Raw -Encoding UTF8 -ErrorAction SilentlyContinue } else { '' }
+        $combinedOutput = @($stdoutText, $stderrText) -join "`n"
+        $exitCode = $process.ExitCode
+    }
+    finally {
+        if (Test-Path -LiteralPath $tempRoot) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
 
     if ($exitCode -ne 0) {
+        if (Test-WingetNoApplicableUpgradeOutput -OutputText $combinedOutput) {
+            Write-Log -Message ('winget {0} reported no applicable update for {1}; treating as current' -f $Action, $PackageId)
+            return
+        }
+
         if ($Action -eq 'upgrade') {
             Write-Log -Level 'WARN' -Message ('winget upgrade {0} returned {1}; continuing' -f $PackageId, $exitCode)
             return
