@@ -275,7 +275,9 @@ function Get-AppendedTextLines {
         [Parameter(Mandatory)]
         [string]$Path,
         [Parameter(Mandatory)]
-        [ref]$Offset
+        [ref]$Offset,
+        [ref]$PendingLine,
+        [switch]$Flush
     )
 
     if (-not (Test-Path -LiteralPath $Path)) {
@@ -294,13 +296,30 @@ function Get-AppendedTextLines {
 
     $delta = $text.Substring($safeOffset)
     $Offset.Value = $text.Length
-    if ([string]::IsNullOrWhiteSpace($delta)) {
+    if ([string]::IsNullOrEmpty($delta) -and -not $Flush) {
         return @()
     }
 
-    $normalized = $delta -replace "`r", "`n"
+    $combined = '{0}{1}' -f ([string]$PendingLine.Value), $delta
+    $normalized = $combined -replace "`r`n", "`n" -replace "`r", "`n"
+    $segments = @($normalized -split "`n", 0, 'SimpleMatch')
+    $pending = ''
+
+    if (-not $Flush -and $normalized.Length -gt 0 -and -not $normalized.EndsWith("`n")) {
+        if ($segments.Count -gt 0) {
+            $pending = [string]$segments[-1]
+            if ($segments.Count -gt 1) {
+                $segments = $segments[0..($segments.Count - 2)]
+            }
+            else {
+                $segments = @()
+            }
+        }
+    }
+
+    $PendingLine.Value = $pending
     return @(
-        $normalized -split "`n" |
+        $segments |
         ForEach-Object { $_.Trim() } |
         Where-Object {
             -not [string]::IsNullOrWhiteSpace($_) -and
@@ -338,16 +357,48 @@ function Write-WingetOutputLines {
         [Parameter(Mandatory)]
         [ref]$LastLine,
         [Parameter(Mandatory)]
+        [ref]$LastProgressPercent,
+        [Parameter(Mandatory)]
         [ref]$Emitted
     )
 
     foreach ($line in $Lines) {
-        if ($line -eq [string]$LastLine.Value) {
+        $normalizedLine = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($normalizedLine)) {
             continue
         }
 
-        Write-Log -Message ('winget> {0}' -f $line)
-        $LastLine.Value = $line
+        if ($normalizedLine -match '[█▒]' -and $normalizedLine -match '(?<percent>\d{1,3})%') {
+            $progressPercent = [int]$Matches['percent']
+            if ($progressPercent -eq [int]$LastProgressPercent.Value) {
+                continue
+            }
+
+            Write-Log -Message ('winget progress: {0}%' -f $progressPercent)
+            $LastProgressPercent.Value = $progressPercent
+            $LastLine.Value = 'progress:{0}' -f $progressPercent
+            $Emitted.Value = $true
+            continue
+        }
+
+        if ($normalizedLine -match '[█▒]' -or $normalizedLine -match '^\d{1,3}%$') {
+            continue
+        }
+
+        if ($normalizedLine -match '^(版本|发布者|发布服务器 URL|发布服务器支持 URL|许可证|隐私 URL|版权所有|协议|Category|Pricing|Free Trial|Terms of Transaction|Seizure Warning|Store License Terms|Publisher|Publisher Url|Publisher Support Url|License|Privacy Url|Copyright|Agreements|Installer|Installer Type|Store Product Id|Offline Distribution Supported)\s*[:：]') {
+            continue
+        }
+
+        if ($normalizedLine -match 'Microsoft Store 提供的' -or $normalizedLine -match 'from Microsoft Store') {
+            continue
+        }
+
+        if ($normalizedLine -eq [string]$LastLine.Value) {
+            continue
+        }
+
+        Write-Log -Message ('winget> {0}' -f $normalizedLine)
+        $LastLine.Value = $normalizedLine
         $Emitted.Value = $true
     }
 }
@@ -396,8 +447,11 @@ function Invoke-WingetAction {
     $stderrPath = Join-Path $tempRoot 'stderr.log'
     $stdoutOffset = 0
     $stderrOffset = 0
+    $stdoutPending = ''
+    $stderrPending = ''
     $lastHeartbeat = Get-Date
     $lastWingetLine = $null
+    $lastWingetProgressPercent = -1
 
     try {
         $process = Start-Process -FilePath 'winget.exe' -ArgumentList $args -PassThru -NoNewWindow `
@@ -406,11 +460,11 @@ function Invoke-WingetAction {
         do {
             $sawOutput = $false
             foreach ($entry in @(
-                    @{ Path = $stdoutPath; Offset = ([ref]$stdoutOffset) },
-                    @{ Path = $stderrPath; Offset = ([ref]$stderrOffset) }
+                    @{ Path = $stdoutPath; Offset = ([ref]$stdoutOffset); Pending = ([ref]$stdoutPending) },
+                    @{ Path = $stderrPath; Offset = ([ref]$stderrOffset); Pending = ([ref]$stderrPending) }
                 )) {
-                $lines = @(Get-AppendedTextLines -Path $entry.Path -Offset $entry.Offset)
-                Write-WingetOutputLines -Lines $lines -LastLine ([ref]$lastWingetLine) -Emitted ([ref]$sawOutput)
+                $lines = @(Get-AppendedTextLines -Path $entry.Path -Offset $entry.Offset -PendingLine $entry.Pending)
+                Write-WingetOutputLines -Lines $lines -LastLine ([ref]$lastWingetLine) -LastProgressPercent ([ref]$lastWingetProgressPercent) -Emitted ([ref]$sawOutput)
             }
 
             if ($sawOutput) {
@@ -428,12 +482,12 @@ function Invoke-WingetAction {
         } while (-not $process.HasExited)
 
         foreach ($entry in @(
-                @{ Path = $stdoutPath; Offset = ([ref]$stdoutOffset) },
-                @{ Path = $stderrPath; Offset = ([ref]$stderrOffset) }
+                @{ Path = $stdoutPath; Offset = ([ref]$stdoutOffset); Pending = ([ref]$stdoutPending) },
+                @{ Path = $stderrPath; Offset = ([ref]$stderrOffset); Pending = ([ref]$stderrPending) }
             )) {
-            $lines = @(Get-AppendedTextLines -Path $entry.Path -Offset $entry.Offset)
+            $lines = @(Get-AppendedTextLines -Path $entry.Path -Offset $entry.Offset -PendingLine $entry.Pending -Flush)
             $emittedFinal = $false
-            Write-WingetOutputLines -Lines $lines -LastLine ([ref]$lastWingetLine) -Emitted ([ref]$emittedFinal)
+            Write-WingetOutputLines -Lines $lines -LastLine ([ref]$lastWingetLine) -LastProgressPercent ([ref]$lastWingetProgressPercent) -Emitted ([ref]$emittedFinal)
         }
 
         $stdoutText = if (Test-Path -LiteralPath $stdoutPath) { Get-Content -LiteralPath $stdoutPath -Raw -Encoding UTF8 -ErrorAction SilentlyContinue } else { '' }
