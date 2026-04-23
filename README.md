@@ -219,6 +219,17 @@ precheck 决策规则：
 - 只要检测到已安装，就直接 `precheck-skip`
 - 不再因为“目标版本不可比较”而每次强行重装
 
+### Python 现在支持命令检测回退
+
+`Python 3.13` 的安装检测仍然优先走命令行版本探测，但不再只依赖单一的 `py -V`。
+
+现在的顺序是：
+
+- 先尝试 `py -V`
+- 如果该命令不存在，或者调用阶段直接抛错，再尝试 `python --version`
+
+这样可以避免某些机器上 `py.exe` 本身异常时，整条 `Python` precheck 直接失败。
+
 ### Python fallback 现在改为真正的运行时安装包
 
 之前 fallback 指向 `python-manager-26.0.msix`，更接近 Python 安装管理器，而不是 `Python 3.13` 本体。
@@ -235,7 +246,11 @@ precheck 决策规则：
 
 - `ccswitch://v1/import`
 
-如果协议没注册，脚本不会退回到 SQLite 直写；当前仍需要先手动启动一次 `CC Switch`，让 `ccswitch://` 协议完成注册后再重试。
+如果协议没注册，脚本不会退回到 SQLite 直写。
+
+不过现在脚本在首次安装或更新 `CC Switch` 后，会先自动 warm up 一次应用，再等待 `ccswitch://` 协议完成注册，然后继续导入 provider。
+
+如果 Windows 还没完成应用初始化，仍可能需要手动再打开一次 `CC Switch` 后重试。
 
 ### Codex Provider Sync 直接走自托管 release
 
@@ -340,12 +355,16 @@ Set-Location "D:\AI Coding\Vibe Coding Setup"
 .\bootstrap.cmd
 ```
 
+`bootstrap.cmd` 现在会优先使用本机 `pwsh.exe`；如果不存在，再退回 `powershell.exe`。安装结束后会停留在窗口里，方便查看最后的错误或 summary。
+
 远程自举入口：
 
 ```powershell
 Set-Location "D:\AI Coding\Vibe Coding Setup"
 .\run-remote-bootstrap.cmd
 ```
+
+它也会优先尝试 `pwsh.exe`，不存在时再退回 `powershell.exe`。
 
 只安装部分工具：
 
