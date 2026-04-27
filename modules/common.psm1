@@ -1768,7 +1768,7 @@ function Read-CodexProviderInput {
         $model = $env:VIBE_CODING_MODEL
     }
     if ([string]::IsNullOrWhiteSpace($model)) {
-        $model = 'gpt-5.4'
+        $model = 'gpt-5.5'
     }
 
     $name = Read-HostWithDefaultValue -Prompt 'CC Switch provider name' -DefaultValue $name
