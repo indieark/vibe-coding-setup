@@ -222,9 +222,9 @@ precheck 决策规则：
 | `Visual Studio Code` | `winget install --id Microsoft.VisualStudioCode` | `winget show Microsoft.VisualStudioCode` | `code --version`，失败后看注册表 `Microsoft Visual Studio Code` | `indieark/vibe-coding-setup@bootstrap-assets/VSCodeUserSetup-x64-1.117.0.exe` |
 | `Codex Desktop` | `winget install --id 9PLM9XGG6VKS --source msstore` | `winget show 9PLM9XGG6VKS --source msstore`；但实际按 presence-only 预检，检测到已安装即跳过 | `Get-AppxPackage -Name OpenAI.Codex` | 官方 Microsoft Store：优先 `ms-windows-store://pdp/?ProductId=9PLM9XGG6VKS`，失败再开 `https://apps.microsoft.com/detail/9PLM9XGG6VKS` |
 | `ChatGPT (Pake)` | `https://github.com/tw93/Pake/releases/latest/download/ChatGPT_x64.msi` | 无稳定可比较目标版本；实际按 presence-only 预检 | 注册表精确匹配 `ChatGPT` | `indieark/vibe-coding-setup@bootstrap-assets/ChatGPT_x64.msi` |
-| `CC Switch` | `farion1231/cc-switch` 的 latest tag，对应资产模板 `CC-Switch-{tag}-Windows.msi` | GitHub latest tag | 注册表精确匹配 `CC Switch` | `indieark/vibe-coding-setup@bootstrap-assets/CC-Switch-v3.14.0-Windows.msi` |
-| `Codex Provider Sync` | `indieark/vibe-coding-setup@bootstrap-assets/Codex.Provider.Sync_0.1.4_x64-setup.exe` | 从 release 资产文件名提取版本 | 注册表包含匹配 `Codex Provider Sync` | 无单独二级回退；主来源就是自托管 release 资产 |
-| `Skills Manager` | `xingkongliang/skills-manager` 的 latest tag，对应资产模板 `skills-manager_{version}_x64_en-US.msi` | GitHub latest tag | 注册表正则匹配 `^(Skills Manager|skills-manager)$`；检测到后按 presence-only 跳过 | `indieark/vibe-coding-setup@bootstrap-assets/skills-manager_1.14.3_x64_en-US.msi` |
+| `CC Switch` | `farion1231/cc-switch` 的 latest tag，对应资产模板 `CC-Switch-{tag}-Windows.msi` | GitHub latest tag | 注册表精确匹配 `CC Switch` | `indieark/vibe-coding-setup@bootstrap-assets/CC-Switch-v3.14.1-Windows.msi` |
+| `Codex Provider Sync` | `indieark/vibe-coding-setup@bootstrap-assets/Codex.Provider.Sync_0.2.0_x64-setup.exe` | 从 release 资产文件名提取版本 | 注册表包含匹配 `Codex Provider Sync` | 无单独二级回退；主来源就是自托管 release 资产 |
+| `Skills Manager` | `xingkongliang/skills-manager` 的 latest tag，对应资产模板 `skills-manager_{version}_x64_en-US.msi` | GitHub latest tag | 注册表正则匹配 `^(Skills Manager|skills-manager)$`；检测到后按 presence-only 跳过 | `indieark/vibe-coding-setup@bootstrap-assets/skills-manager_1.15.0_x64_en-US.msi` |
 
 补充两个“非应用安装项”：
 
@@ -288,7 +288,7 @@ precheck 决策规则：
 
 当前 manifest 直接把主来源指向：
 
-- `indieark/vibe-coding-setup@bootstrap-assets/Codex.Provider.Sync_0.1.4_x64-setup.exe`
+- `indieark/vibe-coding-setup@bootstrap-assets/Codex.Provider.Sync_0.2.0_x64-setup.exe`
 
 这样远程自举时不需要拥有私有仓库访问权限，也不会因为上游 release 不可见而在主路径上失败。
 
@@ -360,9 +360,9 @@ precheck 决策规则：
 - `node-v25.9.0-x64.msi`
 - `python-3.13.13-amd64.exe`
 - `VSCodeUserSetup-x64-1.117.0.exe`
-- `CC-Switch-v3.14.0-Windows.msi`
-- `Codex.Provider.Sync_0.1.4_x64-setup.exe`
-- `skills-manager_1.14.3_x64_en-US.msi`
+- `CC-Switch-v3.14.1-Windows.msi`
+- `Codex.Provider.Sync_0.2.0_x64-setup.exe`
+- `skills-manager_1.15.0_x64_en-US.msi`
 - `ChatGPT_x64.msi`
 - `skills.zip`
 

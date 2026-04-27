@@ -167,7 +167,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "CC-Switch-v3.14.0-Windows.msi",
+        "releaseAsset": "CC-Switch-v3.14.1-Windows.msi",
         "installerType": "msi",
         "silentArgs": []
       }
@@ -179,7 +179,7 @@
       "strategy": "release-asset",
       "repo": "indieark/vibe-coding-setup",
       "tag": "bootstrap-assets",
-      "assetName": "Codex.Provider.Sync_0.1.4_x64-setup.exe",
+      "assetName": "Codex.Provider.Sync_0.2.0_x64-setup.exe",
       "installerType": "exe",
       "silentArgs": [
         "/S"
@@ -204,7 +204,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "skills-manager_1.14.3_x64_en-US.msi",
+        "releaseAsset": "skills-manager_1.15.0_x64_en-US.msi",
         "installerType": "msi",
         "silentArgs": []
       }
