@@ -165,9 +165,14 @@ function Initialize-CodexWorkspaceDirectory {
         }
     }
 
-    Initialize-Directory -Path $workspaceRoot
-    Initialize-Directory -Path $chatPath
-    Write-Log -Message ('Created Codex workspace directory: {0}' -f $chatPath)
+    if (Test-Path -LiteralPath $chatPath -PathType Container) {
+        Write-Log -Message ('Codex workspace directory already exists, skip creation: {0}' -f $chatPath)
+    }
+    else {
+        Initialize-Directory -Path $workspaceRoot
+        Initialize-Directory -Path $chatPath
+        Write-Log -Message ('Created Codex workspace directory: {0}' -f $chatPath)
+    }
 
     return [pscustomobject]@{
         Name = 'Codex Workspace'
