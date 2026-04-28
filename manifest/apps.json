@@ -193,7 +193,7 @@
       "key": "skills-manager",
       "name": "Skills Manager",
       "order": 80,
-      "installIfMissingOnly": true,
+      "installIfMissingOnly": false,
       "strategy": "github-latest-tag",
       "repo": "xingkongliang/skills-manager",
       "assetTemplate": "skills-manager_{version}_x64_en-US.msi",
