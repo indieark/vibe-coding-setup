@@ -179,7 +179,7 @@
       "strategy": "release-asset",
       "repo": "indieark/vibe-coding-setup",
       "tag": "bootstrap-assets",
-      "assetName": "Codex.Provider.Sync_0.2.0_x64-setup.exe",
+      "assetName": "Codex.Provider.Sync_0.1.4_x64-setup.exe",
       "installerType": "exe",
       "silentArgs": [
         "/S"
