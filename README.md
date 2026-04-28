@@ -377,6 +377,37 @@ precheck 决策规则：
 
 另外，当前 release 中如果仍有旧资产，脚本只会按 `manifest/apps.json` 当前指向的新来源走 fallback。
 
+### Release 资产自动刷新
+
+仓库新增 GitHub Actions：
+
+- `.github/workflows/refresh-bootstrap-assets.yml`
+
+它会每天 02:23（北京时间）运行一次，也可以在 GitHub Actions 页面手动触发。执行内容是：
+
+1. 检查可公开追踪上游版本的安装包是否已有新版
+2. 如果新版资产不存在于 `bootstrap-assets` Release，就下载并上传新版
+3. 新版上传成功后，删除同类旧 fallback 资产
+4. 同步更新 `manifest/apps.json` 里的 `fallback.releaseAsset`
+5. 如果 `manifest` 有变化，自动提交 `chore: refresh bootstrap release assets`
+
+当前自动维护这些资产：
+
+- `Git`
+- `Node.js`
+- `Python 3.13`
+- `Visual Studio Code`
+- `ChatGPT (Pake)`
+- `CC Switch`
+- `Skills Manager`
+
+这些资产暂不自动维护：
+
+- `Codex Provider Sync`：来源是私有仓库镜像资产，没有公开稳定上游
+- `skills.zip`：是自托管技能包，没有可直接判断“最新版”的公开来源
+
+也就是说，安装代码里的 fallback 会跟着自动更新后的 Release 最新文件名走；但无法可靠判断来源的自托管资产仍需要手动发布。
+
 ## 使用方式
 
 ### 本地仓库运行

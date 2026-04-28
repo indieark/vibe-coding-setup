@@ -1,0 +1,56 @@
+name: Refresh bootstrap release assets
+
+on:
+  schedule:
+    - cron: '23 18 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Check only; do not upload assets or commit manifest changes'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-bootstrap-assets
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Refresh release assets
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          $dryRun = $env:DRY_RUN -eq 'true'
+          ./scripts/Update-BootstrapAssets.ps1 `
+            -Repo '${{ github.repository }}' `
+            -ReleaseTag 'bootstrap-assets' `
+            -ManifestPath 'manifest/apps.json' `
+            -DryRun:$dryRun
+
+      - name: Commit manifest updates
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+        shell: bash
+        run: |
+          if git diff --quiet -- manifest/apps.json; then
+            echo "No manifest changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest/apps.json
+          git commit -m "chore: refresh bootstrap release assets"
+          git push
