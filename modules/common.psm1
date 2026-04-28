@@ -52,6 +52,19 @@ function ConvertTo-ArgumentTokens {
     return $tokens.ToArray()
 }
 
+function ConvertTo-WindowsProcessArgument {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Value
+    )
+
+    if ($Value -notmatch '[\s"]') {
+        return $Value
+    }
+
+    return '"{0}"' -f ($Value -replace '"', '\"')
+}
+
 function Get-AppManifest {
     param(
         [Parameter(Mandatory)]
@@ -1250,13 +1263,14 @@ function Install-DownloadedPackage {
     switch ($InstallerType) {
         'msi' {
             $args = @('/i', $PackagePath, '/qn', '/norestart') + $SilentArgs
+            $argumentLine = (($args | ForEach-Object { ConvertTo-WindowsProcessArgument -Value ([string]$_) }) -join ' ')
             if ($DryRun) {
-                Write-Log -Message ('[DryRun] msiexec.exe {0}' -f ($args -join ' '))
+                Write-Log -Message ('[DryRun] msiexec.exe {0}' -f $argumentLine)
                 return
             }
 
             Write-Log -Message ('Installing MSI: {0}' -f (Split-Path -Leaf $PackagePath))
-            $proc = Start-Process -FilePath 'msiexec.exe' -ArgumentList $args -Wait -PassThru
+            $proc = Start-Process -FilePath 'msiexec.exe' -ArgumentList $argumentLine -Wait -PassThru
             if ($proc.ExitCode -ne 0) {
                 throw ('MSI install failed, exit={0}' -f $proc.ExitCode)
             }
@@ -1264,13 +1278,14 @@ function Install-DownloadedPackage {
             Reset-InstallDetectionState
         }
         'exe' {
+            $argumentLine = (($SilentArgs | ForEach-Object { ConvertTo-WindowsProcessArgument -Value ([string]$_) }) -join ' ')
             if ($DryRun) {
-                Write-Log -Message ('[DryRun] {0} {1}' -f $PackagePath, ($SilentArgs -join ' '))
+                Write-Log -Message ('[DryRun] {0} {1}' -f $PackagePath, $argumentLine)
                 return
             }
 
             Write-Log -Message ('Installing EXE: {0}' -f (Split-Path -Leaf $PackagePath))
-            $proc = Start-Process -FilePath $PackagePath -ArgumentList $SilentArgs -Wait -PassThru
+            $proc = Start-Process -FilePath $PackagePath -ArgumentList $argumentLine -Wait -PassThru
             if ($proc.ExitCode -ne 0) {
                 throw ('EXE install failed, exit={0}' -f $proc.ExitCode)
             }
