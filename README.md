@@ -383,7 +383,7 @@ precheck 决策规则：
 
 - `.github/workflows/refresh-bootstrap-assets.yml`
 
-它会每天 02:23（北京时间）运行一次，也可以在 GitHub Actions 页面手动触发。执行内容是：
+它会每天 09:00（北京时间）运行一次，也可以在 GitHub Actions 页面手动触发。执行内容是：
 
 1. 检查可公开追踪上游版本的安装包是否已有新版
 2. 如果新版资产不存在于 `bootstrap-assets` Release，就下载并上传新版
