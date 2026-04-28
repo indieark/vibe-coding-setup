@@ -189,11 +189,21 @@ function Find-AssetByRegex {
 function Save-UrlToFile {
     param(
         [Parameter(Mandatory=$true)][string]$Uri,
-        [Parameter(Mandatory=$true)][string]$Path
+        [Parameter(Mandatory=$true)][string]$Path,
+        [hashtable]$Headers
     )
 
     Write-Step ('Downloading {0}' -f $Uri)
-    Invoke-WebRequest -Uri $Uri -OutFile $Path
+    $params = @{
+        Uri = $Uri
+        OutFile = $Path
+    }
+
+    if ($null -ne $Headers -and $Headers.Count -gt 0) {
+        $params.Headers = $Headers
+    }
+
+    Invoke-WebRequest @params
 }
 
 function Get-FileSha256 {
@@ -317,7 +327,8 @@ function Get-GitHubInstaller {
     param(
         [Parameter(Mandatory=$true)][string]$SourceRepo,
         [Parameter(Mandatory=$true)][string]$AssetPattern,
-        [string]$Token = $GitHubToken
+        [string]$Token = $GitHubToken,
+        [switch]$AuthenticatedDownload
     )
 
     $release = Get-LatestGitHubRelease -SourceRepo $SourceRepo -Token $Token
@@ -327,9 +338,18 @@ function Get-GitHubInstaller {
     }
 
     $sourceAsset = $asset | Select-Object -First 1
+    $downloadUrl = $sourceAsset.browser_download_url
+    $downloadHeaders = $null
+    if ($AuthenticatedDownload) {
+        $downloadUrl = $sourceAsset.url
+        $downloadHeaders = Get-ApiHeaders -Token $Token
+        $downloadHeaders.Accept = 'application/octet-stream'
+    }
+
     return [pscustomobject]@{
         Name = $sourceAsset.name
-        DownloadUrl = $sourceAsset.browser_download_url
+        DownloadUrl = $downloadUrl
+        DownloadHeaders = $downloadHeaders
         SourceAsset = $sourceAsset
     }
 }
@@ -412,7 +432,7 @@ $managedAssets = @(
         Key = 'codex-provider-sync'
         ManifestPath = 'assetName'
         ExistingAssetPattern = '^Codex\.Provider\.Sync_[0-9][0-9A-Za-z.\-]*_x64-setup\.exe$'
-        Resolve = { Get-GitHubInstaller -SourceRepo 'indieark/codex-provider-sync' -AssetPattern '^Codex\.Provider\.Sync_[0-9][0-9A-Za-z.\-]*_x64-setup\.exe$' -Token $SourceGitHubToken }
+        Resolve = { Get-GitHubInstaller -SourceRepo 'indieark/codex-provider-sync' -AssetPattern '^Codex\.Provider\.Sync_[0-9][0-9A-Za-z.\-]*_x64-setup\.exe$' -Token $SourceGitHubToken -AuthenticatedDownload }
     },
     @{
         Key = 'skills-manager'
@@ -460,7 +480,8 @@ try {
 
         if ($needsUpload) {
             $downloadPath = Join-Path $tempDir $desiredName
-            Save-UrlToFile -Uri $desired.DownloadUrl -Path $downloadPath
+            $downloadHeaders = if ($desired.PSObject.Properties.Name -contains 'DownloadHeaders') { $desired.DownloadHeaders } else { $null }
+            Save-UrlToFile -Uri $desired.DownloadUrl -Path $downloadPath -Headers $downloadHeaders
             Upload-ReleaseAsset -Release $release -AssetPath $downloadPath -AssetName $desiredName
             $updatedCount++
         }
