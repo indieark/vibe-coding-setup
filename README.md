@@ -389,7 +389,8 @@ precheck 决策规则：
 2. 如果新版资产不存在于 `bootstrap-assets` Release，就下载并上传新版
 3. 新版上传成功后，删除同类旧 fallback 资产
 4. 同步更新 `manifest/apps.json` 里的 `fallback.releaseAsset` 或主 `assetName`
-5. 如果 `manifest` 有变化，自动提交 `chore: refresh bootstrap release assets`
+5. 同步替换 `README.md` 里对应的 release 资产文件名
+6. 如果 `manifest` 或 `README` 有变化，自动提交 `chore: refresh bootstrap release assets`
 
 当前自动维护这些资产：
 
