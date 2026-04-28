@@ -224,7 +224,7 @@ precheck 决策规则：
 | `ChatGPT (Pake)` | `https://github.com/tw93/Pake/releases/latest/download/ChatGPT_x64.msi` | 无稳定可比较目标版本；实际按 presence-only 预检 | 注册表精确匹配 `ChatGPT` | `indieark/vibe-coding-setup@bootstrap-assets/ChatGPT_x64.msi` |
 | `CC Switch` | `farion1231/cc-switch` 的 latest tag，对应资产模板 `CC-Switch-{tag}-Windows.msi` | GitHub latest tag | 注册表精确匹配 `CC Switch` | `indieark/vibe-coding-setup@bootstrap-assets/CC-Switch-v3.14.1-Windows.msi` |
 | `Codex Provider Sync` | `indieark/vibe-coding-setup@bootstrap-assets/Codex.Provider.Sync_0.2.0_x64-setup.exe` | 从 release 资产文件名提取版本 | 注册表包含匹配 `Codex Provider Sync` | 无单独二级回退；主来源就是自托管 release 资产 |
-| `Skills Manager` | `xingkongliang/skills-manager` 的 latest tag，对应资产模板 `skills-manager_{version}_x64_en-US.msi` | GitHub latest tag | 注册表正则匹配 `^(Skills Manager|skills-manager)$`；检测到旧版本时按 GitHub latest tag 升级 | `indieark/vibe-coding-setup@bootstrap-assets/skills-manager_1.15.0_x64_en-US.msi` |
+| `Skills Manager` | `xingkongliang/skills-manager` 的 latest tag，对应资产模板 `skills-manager_{version}_x64_en-US.msi` | GitHub latest tag | 注册表正则匹配 `^(Skills Manager|skills-manager)$`；检测到旧版本时按 GitHub latest tag 升级 | `indieark/vibe-coding-setup@bootstrap-assets/skills-manager_1.15.1_x64_en-US.msi` |
 
 补充两个“非应用安装项”：
 
@@ -364,7 +364,7 @@ precheck 决策规则：
 - `VSCodeUserSetup-x64-1.117.0.exe`
 - `CC-Switch-v3.14.1-Windows.msi`
 - `Codex.Provider.Sync_0.2.0_x64-setup.exe`
-- `skills-manager_1.15.0_x64_en-US.msi`
+- `skills-manager_1.15.1_x64_en-US.msi`
 - `ChatGPT_x64.msi`
 - `skills.zip`
 
