@@ -223,8 +223,8 @@ precheck 决策规则：
 | `Codex Desktop` | `winget install --id 9PLM9XGG6VKS --source msstore` | `winget show 9PLM9XGG6VKS --source msstore`；但实际按 presence-only 预检，检测到已安装即跳过 | `Get-AppxPackage -Name OpenAI.Codex` | 官方 Microsoft Store：优先 `ms-windows-store://pdp/?ProductId=9PLM9XGG6VKS`，失败再开 `https://apps.microsoft.com/detail/9PLM9XGG6VKS` |
 | `ChatGPT (Pake)` | `https://github.com/tw93/Pake/releases/latest/download/ChatGPT_x64.msi` | 无稳定可比较目标版本；实际按 presence-only 预检 | 注册表精确匹配 `ChatGPT` | `indieark/vibe-coding-setup@bootstrap-assets/ChatGPT_x64.msi` |
 | `CC Switch` | `farion1231/cc-switch` 的 latest tag，对应资产模板 `CC-Switch-{tag}-Windows.msi` | GitHub latest tag | 注册表精确匹配 `CC Switch` | `indieark/vibe-coding-setup@bootstrap-assets/CC-Switch-v3.14.1-Windows.msi` |
-| `Codex Provider Sync` | `indieark/vibe-coding-setup@bootstrap-assets/Codex.Provider.Sync_0.2.0_x64-setup.exe` | 从 release 资产文件名提取版本 | 注册表包含匹配 `Codex Provider Sync` | 无单独二级回退；主来源就是自托管 release 资产 |
-| `Skills Manager` | `xingkongliang/skills-manager` 的 latest tag，对应资产模板 `skills-manager_{version}_x64_en-US.msi` | GitHub latest tag | 注册表正则匹配 `^(Skills Manager|skills-manager)$`；检测到旧版本时按 GitHub latest tag 升级 | `indieark/vibe-coding-setup@bootstrap-assets/skills-manager_1.15.1_x64_en-US.msi` |
+| `Codex Provider Sync` | 当前仓库镜像资产：`indieark/vibe-coding-setup@bootstrap-assets/Codex.Provider.Sync_0.2.0_x64-setup.exe` | 从当前仓库 release 资产文件名提取版本 | 注册表包含匹配 `Codex Provider Sync` | 无；主来源已经是当前仓库的自托管镜像资产 |
+| `Skills Manager` | 上游 `xingkongliang/skills-manager` latest tag，对应资产模板 `skills-manager_{version}_x64_en-US.msi` | GitHub latest tag | 注册表正则匹配 `^(Skills Manager|skills-manager)$`；检测到旧版本时按 GitHub latest tag 升级 | 当前仓库镜像资产：`indieark/vibe-coding-setup@bootstrap-assets/skills-manager_1.15.1_x64_en-US.msi` |
 
 补充两个“非应用安装项”：
 
@@ -407,6 +407,8 @@ precheck 决策规则：
 - `skills.zip`：是自托管技能包，没有可直接判断“最新版”的公开来源
 
 `Codex Provider Sync` 的安装主来源仍然是当前仓库的 `bootstrap-assets` Release；但每日自动化会去上游 `indieark/codex-provider-sync` 的 latest release 查找 `Codex.Provider.Sync_*_x64-setup.exe`，把新版镜像到当前仓库的 release，并同步更新 manifest 的主 `assetName`。
+
+`Skills Manager` 安装时优先走公开上游 `xingkongliang/skills-manager` latest release；如果该路径失败，再回退到当前仓库 `bootstrap-assets` Release 里的镜像 MSI。每日自动化同样会检查上游 latest MSI，把新版镜像到当前仓库 release，并同步更新 manifest 的 `fallback.releaseAsset`。
 
 因为 `indieark/codex-provider-sync` 是私有仓库，Actions 需要配置一个可读取该私库 release 的仓库 secret：
 
