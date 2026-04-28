@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$ManifestPath = 'manifest/apps.json',
+    [string]$ReadmePath = 'README.md',
     [string]$Repo = $env:GITHUB_REPOSITORY,
     [string]$ReleaseTag = 'bootstrap-assets',
     [string]$GitHubToken = $env:GITHUB_TOKEN,
@@ -32,6 +33,12 @@ $manifestFullPath = if ([System.IO.Path]::IsPathRooted($ManifestPath)) {
 }
 else {
     Join-Path $workspaceRoot $ManifestPath
+}
+$readmeFullPath = if ([System.IO.Path]::IsPathRooted($ReadmePath)) {
+    $ReadmePath
+}
+else {
+    Join-Path $workspaceRoot $ReadmePath
 }
 
 $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
@@ -390,6 +397,38 @@ function Set-ManifestAssetName {
     return $false
 }
 
+function Set-ReadmeAssetName {
+    param(
+        [Parameter(Mandatory=$true)][ref]$ReadmeText,
+        [Parameter(Mandatory=$true)][string]$AssetPattern,
+        [Parameter(Mandatory=$true)][string]$AssetName
+    )
+
+    if ($null -eq $ReadmeText.Value) {
+        return $false
+    }
+
+    $pattern = $AssetPattern.TrimStart('^').TrimEnd('$')
+    $matches = [regex]::Matches([string]$ReadmeText.Value, $pattern)
+    $oldNames = @(
+        $matches |
+            ForEach-Object { $_.Value } |
+            Where-Object { $_ -ne $AssetName } |
+            Sort-Object -Unique
+    )
+
+    if ($oldNames.Count -eq 0) {
+        return $false
+    }
+
+    foreach ($oldName in $oldNames) {
+        Write-Step ('README asset: {0} -> {1}' -f $oldName, $AssetName)
+    }
+
+    $ReadmeText.Value = [regex]::Replace([string]$ReadmeText.Value, $pattern, $AssetName)
+    return $true
+}
+
 $managedAssets = @(
     @{
         Key = 'git'
@@ -443,12 +482,19 @@ $managedAssets = @(
 )
 
 $manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath $manifestFullPath | ConvertFrom-Json
+$readmeText = if (Test-Path -LiteralPath $readmeFullPath) {
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $readmeFullPath
+}
+else {
+    $null
+}
 $release = Get-ReleaseByTag -Tag $ReleaseTag
 $assets = @(Get-ReleaseAssets -Release $release)
 $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ('bootstrap-assets-{0}' -f ([guid]::NewGuid().ToString('N')))
 New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
 $manifestChanged = $false
+$readmeChanged = $false
 $updatedCount = 0
 
 try {
@@ -496,6 +542,7 @@ try {
         }
 
         $manifestChanged = (Set-ManifestAssetName -Manifest $manifest -Key $item['Key'] -PropertyPath $item['ManifestPath'] -AssetName $desiredName) -or $manifestChanged
+        $readmeChanged = (Set-ReadmeAssetName -ReadmeText ([ref]$readmeText) -AssetPattern $existingAssetPattern -AssetName $desiredName) -or $readmeChanged
     }
 }
 finally {
@@ -513,5 +560,15 @@ if ($manifestChanged) {
     }
 }
 
-Write-Step ('Finished. Uploaded or replaced assets: {0}; manifest changed: {1}' -f $updatedCount, $manifestChanged)
+if ($readmeChanged) {
+    if ($DryRun) {
+        Write-Step 'Dry run: README would be updated.'
+    }
+    else {
+        [System.IO.File]::WriteAllText($readmeFullPath, $readmeText, $utf8NoBom)
+        Write-Step ('Updated README: {0}' -f $readmeFullPath)
+    }
+}
+
+Write-Step ('Finished. Uploaded or replaced assets: {0}; manifest changed: {1}; README changed: {2}' -f $updatedCount, $manifestChanged, $readmeChanged)
 
