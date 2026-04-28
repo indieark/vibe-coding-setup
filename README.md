@@ -224,7 +224,7 @@ precheck 决策规则：
 | `ChatGPT (Pake)` | `https://github.com/tw93/Pake/releases/latest/download/ChatGPT_x64.msi` | 无稳定可比较目标版本；实际按 presence-only 预检 | 注册表精确匹配 `ChatGPT` | `indieark/vibe-coding-setup@bootstrap-assets/ChatGPT_x64.msi` |
 | `CC Switch` | `farion1231/cc-switch` 的 latest tag，对应资产模板 `CC-Switch-{tag}-Windows.msi` | GitHub latest tag | 注册表精确匹配 `CC Switch` | `indieark/vibe-coding-setup@bootstrap-assets/CC-Switch-v3.14.1-Windows.msi` |
 | `Codex Provider Sync` | `indieark/vibe-coding-setup@bootstrap-assets/Codex.Provider.Sync_0.2.0_x64-setup.exe` | 从 release 资产文件名提取版本 | 注册表包含匹配 `Codex Provider Sync` | 无单独二级回退；主来源就是自托管 release 资产 |
-| `Skills Manager` | `xingkongliang/skills-manager` 的 latest tag，对应资产模板 `skills-manager_{version}_x64_en-US.msi` | GitHub latest tag | 注册表正则匹配 `^(Skills Manager|skills-manager)$`；检测到后按 presence-only 跳过 | `indieark/vibe-coding-setup@bootstrap-assets/skills-manager_1.15.0_x64_en-US.msi` |
+| `Skills Manager` | `xingkongliang/skills-manager` 的 latest tag，对应资产模板 `skills-manager_{version}_x64_en-US.msi` | GitHub latest tag | 注册表正则匹配 `^(Skills Manager|skills-manager)$`；检测到旧版本时按 GitHub latest tag 升级 | `indieark/vibe-coding-setup@bootstrap-assets/skills-manager_1.15.1_x64_en-US.msi` |
 
 补充两个“非应用安装项”：
 
@@ -327,19 +327,21 @@ precheck 决策规则：
 
 - `All skills already synchronized`
 
-### Skills Manager 按 presence-only 处理
+### Skills Manager 按 GitHub latest tag 自动升级
 
 `Skills Manager` 当前安装后的注册表元数据并不稳定：
 
 - 实际 `DisplayName` 可能是 `skills-manager`
 - 实际 `DisplayVersion` 可能不会跟 GitHub release tag 对齐
 
-因此脚本现在对它采用 presence-only 预检：
+因此脚本对它的检测和升级拆开处理：
 
 - 先用正则同时匹配 `Skills Manager` / `skills-manager`
-- 只要检测到已经安装，就不再按 GitHub latest tag 做版本升级判断
+- 再解析 `xingkongliang/skills-manager` 的 GitHub latest tag
+- 如果已安装版本低于 latest tag，则下载 `skills-manager_{version}_x64_en-US.msi` 并安装升级
+- 如果已安装版本不低于 latest tag，才会 `precheck-skip`
 
-这样可以避免同一台机器在第二次、第三次运行时反复重装 `Skills Manager`。
+如果注册表版本号无法比较，脚本会保守地重新安装 latest MSI，避免长期停留在旧版本。
 
 ### 本地 `packages/` 目录已经不再使用
 
@@ -362,7 +364,7 @@ precheck 决策规则：
 - `VSCodeUserSetup-x64-1.117.0.exe`
 - `CC-Switch-v3.14.1-Windows.msi`
 - `Codex.Provider.Sync_0.2.0_x64-setup.exe`
-- `skills-manager_1.15.0_x64_en-US.msi`
+- `skills-manager_1.15.1_x64_en-US.msi`
 - `ChatGPT_x64.msi`
 - `skills.zip`
 
@@ -374,6 +376,37 @@ precheck 决策规则：
 这样不再需要维护会过期的 `Codex-*.Setup.exe` 文件名。
 
 另外，当前 release 中如果仍有旧资产，脚本只会按 `manifest/apps.json` 当前指向的新来源走 fallback。
+
+### Release 资产自动刷新
+
+仓库新增 GitHub Actions：
+
+- `.github/workflows/refresh-bootstrap-assets.yml`
+
+它会每天 09:00（北京时间）运行一次，也可以在 GitHub Actions 页面手动触发。执行内容是：
+
+1. 检查可公开追踪上游版本的安装包是否已有新版
+2. 如果新版资产不存在于 `bootstrap-assets` Release，就下载并上传新版
+3. 新版上传成功后，删除同类旧 fallback 资产
+4. 同步更新 `manifest/apps.json` 里的 `fallback.releaseAsset`
+5. 如果 `manifest` 有变化，自动提交 `chore: refresh bootstrap release assets`
+
+当前自动维护这些资产：
+
+- `Git`
+- `Node.js`
+- `Python 3.13`
+- `Visual Studio Code`
+- `ChatGPT (Pake)`
+- `CC Switch`
+- `Skills Manager`
+
+这些资产暂不自动维护：
+
+- `Codex Provider Sync`：来源是私有仓库镜像资产，没有公开稳定上游
+- `skills.zip`：是自托管技能包，没有可直接判断“最新版”的公开来源
+
+也就是说，安装代码里的 fallback 会跟着自动更新后的 Release 最新文件名走；但无法可靠判断来源的自托管资产仍需要手动发布。
 
 ## 使用方式
 
