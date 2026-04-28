@@ -4,6 +4,7 @@ param(
     [string]$Repo = $env:GITHUB_REPOSITORY,
     [string]$ReleaseTag = 'bootstrap-assets',
     [string]$GitHubToken = $env:GITHUB_TOKEN,
+    [string]$SourceGitHubToken = $env:SOURCE_GITHUB_TOKEN,
     [switch]$DryRun
 )
 
@@ -41,13 +42,15 @@ function Write-Step {
 }
 
 function Get-ApiHeaders {
+    param([string]$Token = $GitHubToken)
+
     $headers = @{
         Accept = 'application/vnd.github+json'
         'X-GitHub-Api-Version' = '2022-11-28'
     }
 
-    if (-not [string]::IsNullOrWhiteSpace($GitHubToken)) {
-        $headers.Authorization = ('Bearer {0}' -f $GitHubToken)
+    if (-not [string]::IsNullOrWhiteSpace($Token)) {
+        $headers.Authorization = ('Bearer {0}' -f $Token)
     }
 
     return $headers
@@ -58,13 +61,14 @@ function Invoke-GitHubApi {
         [Parameter(Mandatory=$true)][string]$Uri,
         [ValidateSet('GET', 'POST', 'DELETE')]
         [string]$Method = 'GET',
-        [object]$Body
+        [object]$Body,
+        [string]$Token = $GitHubToken
     )
 
     $params = @{
         Uri = $Uri
         Method = $Method
-        Headers = Get-ApiHeaders
+        Headers = Get-ApiHeaders -Token $Token
     }
 
     if ($PSBoundParameters.ContainsKey('Body')) {
@@ -76,8 +80,11 @@ function Invoke-GitHubApi {
 }
 
 function Get-LatestGitHubRelease {
-    param([Parameter(Mandatory=$true)][string]$SourceRepo)
-    return Invoke-GitHubApi -Uri ('https://api.github.com/repos/{0}/releases/latest' -f $SourceRepo)
+    param(
+        [Parameter(Mandatory=$true)][string]$SourceRepo,
+        [string]$Token = $GitHubToken
+    )
+    return Invoke-GitHubApi -Uri ('https://api.github.com/repos/{0}/releases/latest' -f $SourceRepo) -Token $Token
 }
 
 function Get-ReleaseByTag {
@@ -309,10 +316,11 @@ function Get-VSCodeInstaller {
 function Get-GitHubInstaller {
     param(
         [Parameter(Mandatory=$true)][string]$SourceRepo,
-        [Parameter(Mandatory=$true)][string]$AssetPattern
+        [Parameter(Mandatory=$true)][string]$AssetPattern,
+        [string]$Token = $GitHubToken
     )
 
-    $release = Get-LatestGitHubRelease -SourceRepo $SourceRepo
+    $release = Get-LatestGitHubRelease -SourceRepo $SourceRepo -Token $Token
     $asset = @(Find-AssetByRegex -Assets @($release.assets) -Pattern $AssetPattern)
     if ($asset.Count -eq 0) {
         throw ('Could not find asset matching {0} in {1}@{2}.' -f $AssetPattern, $SourceRepo, $release.tag_name)
@@ -399,6 +407,12 @@ $managedAssets = @(
         ManifestPath = 'fallback.releaseAsset'
         ExistingAssetPattern = '^CC-Switch-v?[0-9][0-9A-Za-z.\-]*-Windows\.msi$'
         Resolve = { Get-GitHubInstaller -SourceRepo 'farion1231/cc-switch' -AssetPattern '^CC-Switch-v?[0-9][0-9A-Za-z.\-]*-Windows\.msi$' }
+    },
+    @{
+        Key = 'codex-provider-sync'
+        ManifestPath = 'assetName'
+        ExistingAssetPattern = '^Codex\.Provider\.Sync_[0-9][0-9A-Za-z.\-]*_x64-setup\.exe$'
+        Resolve = { Get-GitHubInstaller -SourceRepo 'indieark/codex-provider-sync' -AssetPattern '^Codex\.Provider\.Sync_[0-9][0-9A-Za-z.\-]*_x64-setup\.exe$' -Token $SourceGitHubToken }
     },
     @{
         Key = 'skills-manager'

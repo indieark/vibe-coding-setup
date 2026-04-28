@@ -31,6 +31,7 @@ jobs:
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_GITHUB_TOKEN: ${{ secrets.CODEX_PROVIDER_SYNC_TOKEN }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
         run: |
           $dryRun = $env:DRY_RUN -eq 'true'

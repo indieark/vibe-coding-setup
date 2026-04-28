@@ -282,15 +282,15 @@ precheck 决策规则：
 
 如果 Windows 还没完成应用初始化，仍可能需要手动再打开一次 `CC Switch` 后重试。
 
-### Codex Provider Sync 直接走自托管 release
+### Codex Provider Sync 安装时直接走自托管 release
 
-因为 `indieark/codex-provider-sync` 是私有仓库，这里没有再走“先访问上游、失败后 fallback”的双层策略。
+安装脚本不会直接从上游安装 `Codex Provider Sync`，而是只访问当前仓库的公开镜像资产。
 
 当前 manifest 直接把主来源指向：
 
 - `indieark/vibe-coding-setup@bootstrap-assets/Codex.Provider.Sync_0.2.0_x64-setup.exe`
 
-这样远程自举时不需要拥有私有仓库访问权限，也不会因为上游 release 不可见而在主路径上失败。
+这样远程自举时不需要拥有 `indieark/codex-provider-sync` 的访问权限，也不会因为上游 release 不可见而在安装路径上失败。
 
 ### `skills.zip` 也没有第二来源
 
@@ -388,7 +388,7 @@ precheck 决策规则：
 1. 检查可公开追踪上游版本的安装包是否已有新版
 2. 如果新版资产不存在于 `bootstrap-assets` Release，就下载并上传新版
 3. 新版上传成功后，删除同类旧 fallback 资产
-4. 同步更新 `manifest/apps.json` 里的 `fallback.releaseAsset`
+4. 同步更新 `manifest/apps.json` 里的 `fallback.releaseAsset` 或主 `assetName`
 5. 如果 `manifest` 有变化，自动提交 `chore: refresh bootstrap release assets`
 
 当前自动维护这些资产：
@@ -399,14 +399,22 @@ precheck 决策规则：
 - `Visual Studio Code`
 - `ChatGPT (Pake)`
 - `CC Switch`
+- `Codex Provider Sync`
 - `Skills Manager`
 
 这些资产暂不自动维护：
 
-- `Codex Provider Sync`：来源是私有仓库镜像资产，没有公开稳定上游
 - `skills.zip`：是自托管技能包，没有可直接判断“最新版”的公开来源
 
-也就是说，安装代码里的 fallback 会跟着自动更新后的 Release 最新文件名走；但无法可靠判断来源的自托管资产仍需要手动发布。
+`Codex Provider Sync` 的安装主来源仍然是当前仓库的 `bootstrap-assets` Release；但每日自动化会去上游 `indieark/codex-provider-sync` 的 latest release 查找 `Codex.Provider.Sync_*_x64-setup.exe`，把新版镜像到当前仓库的 release，并同步更新 manifest 的主 `assetName`。
+
+因为 `indieark/codex-provider-sync` 是私有仓库，Actions 需要配置一个可读取该私库 release 的仓库 secret：
+
+- `CODEX_PROVIDER_SYNC_TOKEN`
+
+workflow 会把它注入为 `SOURCE_GITHUB_TOKEN`，只用于读取上游私库 release；当前仓库 release 的上传、删除和 manifest 提交仍使用默认 `GITHUB_TOKEN`。
+
+也就是说，安装代码里的 fallback 或自托管主资产会跟着自动更新后的 Release 最新文件名走；但 `skills.zip` 这种没有可追踪上游的自托管资产仍需要手动发布。
 
 ## 使用方式
 
