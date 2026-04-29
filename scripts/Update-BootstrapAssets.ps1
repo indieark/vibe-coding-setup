@@ -487,7 +487,7 @@ $managedAssets = @(
 
             Get-GitHubInstaller `
                 -SourceRepo 'indieark/00000-model' `
-                -AssetPattern '^skills_[0-9][0-9A-Za-z.\-]*\.zip$' `
+                -AssetPattern '^(?:bundle|skills)_[0-9][0-9A-Za-z.\-]*\.zip$' `
                 -OutputName 'skills.zip' `
                 -Token $Model00000Token `
                 -AuthenticatedDownload
