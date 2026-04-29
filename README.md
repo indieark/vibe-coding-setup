@@ -223,7 +223,7 @@ precheck 决策规则：
 | `Codex Desktop` | `winget install --id 9PLM9XGG6VKS --source msstore` | `winget show 9PLM9XGG6VKS --source msstore`；但实际按 presence-only 预检，检测到已安装即跳过 | `Get-AppxPackage -Name OpenAI.Codex` | 官方 Microsoft Store：优先 `ms-windows-store://pdp/?ProductId=9PLM9XGG6VKS`，失败再开 `https://apps.microsoft.com/detail/9PLM9XGG6VKS` |
 | `ChatGPT (Pake)` | `https://github.com/tw93/Pake/releases/latest/download/ChatGPT_x64.msi` | 无稳定可比较目标版本；实际按 presence-only 预检 | 注册表精确匹配 `ChatGPT` | `indieark/vibe-coding-setup@bootstrap-assets/ChatGPT_x64.msi` |
 | `CC Switch` | `farion1231/cc-switch` 的 latest tag，对应资产模板 `CC-Switch-{tag}-Windows.msi` | GitHub latest tag | 注册表精确匹配 `CC Switch` | `indieark/vibe-coding-setup@bootstrap-assets/CC-Switch-v3.14.1-Windows.msi` |
-| `Codex Provider Sync` | 当前仓库镜像资产：`indieark/vibe-coding-setup@bootstrap-assets/Codex.Provider.Sync_0.2.0_x64-setup.exe` | 从当前仓库 release 资产文件名提取版本 | 注册表包含匹配 `Codex Provider Sync` | 无；主来源已经是当前仓库的自托管镜像资产 |
+| `Codex Provider Sync` | 当前仓库镜像资产：`indieark/vibe-coding-setup@bootstrap-assets/Codex.Provider.Sync_0.3.0_x64-setup.exe` | 从当前仓库 release 资产文件名提取版本 | 注册表包含匹配 `Codex Provider Sync` | 无；主来源已经是当前仓库的自托管镜像资产 |
 | `Skills Manager` | 上游 `xingkongliang/skills-manager` latest tag，对应资产模板 `skills-manager_{version}_x64_en-US.msi` | GitHub latest tag | 注册表正则匹配 `^(Skills Manager&#124;skills-manager)$`；检测到旧版本时按 GitHub latest tag 升级 | 当前仓库镜像资产：`indieark/vibe-coding-setup@bootstrap-assets/skills-manager_1.15.1_x64_en-US.msi` |
 
 补充两个“非应用安装项”：
@@ -288,7 +288,7 @@ precheck 决策规则：
 
 当前 manifest 直接把主来源指向：
 
-- `indieark/vibe-coding-setup@bootstrap-assets/Codex.Provider.Sync_0.2.0_x64-setup.exe`
+- `indieark/vibe-coding-setup@bootstrap-assets/Codex.Provider.Sync_0.3.0_x64-setup.exe`
 
 这样远程自举时不需要拥有 `indieark/codex-provider-sync` 的访问权限，也不会因为上游 release 不可见而在安装路径上失败。
 
@@ -363,7 +363,7 @@ precheck 决策规则：
 - `python-3.13.13-amd64.exe`
 - `VSCodeUserSetup-x64-1.117.0.exe`
 - `CC-Switch-v3.14.1-Windows.msi`
-- `Codex.Provider.Sync_0.2.0_x64-setup.exe`
+- `Codex.Provider.Sync_0.3.0_x64-setup.exe`
 - `skills-manager_1.15.1_x64_en-US.msi`
 - `ChatGPT_x64.msi`
 - `skills.zip`
