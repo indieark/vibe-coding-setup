@@ -6,6 +6,7 @@ param(
     [string]$ReleaseTag = 'bootstrap-assets',
     [string]$GitHubToken = $env:GITHUB_TOKEN,
     [string]$SourceGitHubToken = $env:SOURCE_GITHUB_TOKEN,
+    [string]$Model00000Token = $env:MODEL_00000_TOKEN,
     [switch]$DryRun
 )
 
@@ -334,6 +335,7 @@ function Get-GitHubInstaller {
     param(
         [Parameter(Mandatory=$true)][string]$SourceRepo,
         [Parameter(Mandatory=$true)][string]$AssetPattern,
+        [string]$OutputName,
         [string]$Token = $GitHubToken,
         [switch]$AuthenticatedDownload
     )
@@ -354,7 +356,7 @@ function Get-GitHubInstaller {
     }
 
     return [pscustomobject]@{
-        Name = $sourceAsset.name
+        Name = if ([string]::IsNullOrWhiteSpace($OutputName)) { $sourceAsset.name } else { $OutputName }
         DownloadUrl = $downloadUrl
         DownloadHeaders = $downloadHeaders
         SourceAsset = $sourceAsset
@@ -474,6 +476,24 @@ $managedAssets = @(
         Resolve = { Get-GitHubInstaller -SourceRepo 'indieark/codex-provider-sync' -AssetPattern '^Codex\.Provider\.Sync_[0-9][0-9A-Za-z.\-]*_x64-setup\.exe$' -Token $SourceGitHubToken -AuthenticatedDownload }
     },
     @{
+        Key = 'skills-bundle'
+        ManifestPath = $null
+        ExistingAssetPattern = '^skills\.zip$'
+        CompareContentOnSameName = $true
+        Resolve = {
+            if ([string]::IsNullOrWhiteSpace($Model00000Token)) {
+                throw 'MODEL_00000_TOKEN is required to mirror indieark/00000-model skills bundle.'
+            }
+
+            Get-GitHubInstaller `
+                -SourceRepo 'indieark/00000-model' `
+                -AssetPattern '^skills_[0-9][0-9A-Za-z.\-]*\.zip$' `
+                -OutputName 'skills.zip' `
+                -Token $Model00000Token `
+                -AuthenticatedDownload
+        }
+    },
+    @{
         Key = 'skills-manager'
         ManifestPath = 'fallback.releaseAsset'
         ExistingAssetPattern = '^skills-manager_[0-9][0-9A-Za-z.\-]*_x64_en-US\.msi$'
@@ -541,7 +561,9 @@ try {
             }
         }
 
-        $manifestChanged = (Set-ManifestAssetName -Manifest $manifest -Key $item['Key'] -PropertyPath $item['ManifestPath'] -AssetName $desiredName) -or $manifestChanged
+        if ($item.ContainsKey('ManifestPath') -and -not [string]::IsNullOrWhiteSpace([string]$item['ManifestPath'])) {
+            $manifestChanged = (Set-ManifestAssetName -Manifest $manifest -Key $item['Key'] -PropertyPath $item['ManifestPath'] -AssetName $desiredName) -or $manifestChanged
+        }
         $readmeChanged = (Set-ReadmeAssetName -ReadmeText ([ref]$readmeText) -AssetPattern $existingAssetPattern -AssetName $desiredName) -or $readmeChanged
     }
 }

@@ -2149,6 +2149,54 @@ function Initialize-SkillsManagerDatabase {
     }
 }
 
+function Read-SkillMetadata {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SkillPath,
+        [Parameter(Mandatory)]
+        [string]$SkillName,
+        [Parameter(Mandatory)]
+        [string]$CentralPath
+    )
+
+    $metaPath = Join-Path $SkillPath '.skill-meta.json'
+    $meta = $null
+    if (Test-Path -LiteralPath $metaPath) {
+        try {
+            $meta = Get-Content -Raw -Encoding UTF8 -LiteralPath $metaPath | ConvertFrom-Json
+        }
+        catch {
+            Write-Log -Level 'WARN' -Message ('Invalid .skill-meta.json for {0}; fall back to local source: {1}' -f $SkillName, $_.Exception.Message)
+        }
+    }
+
+    $sourceType = if ($null -ne $meta) { [string](Get-ObjectPropertyValue -Object $meta -Name 'source_type') } else { 'local' }
+    if ($sourceType -notin @('git', 'local')) {
+        $sourceType = 'local'
+    }
+
+    $sourceRef = if ($null -ne $meta) { [string](Get-ObjectPropertyValue -Object $meta -Name 'source_ref') } else { $CentralPath }
+    if ([string]::IsNullOrWhiteSpace($sourceRef)) {
+        $sourceRef = $CentralPath
+        $sourceType = 'local'
+    }
+
+    $sourceSubpath = if ($null -ne $meta) { Get-ObjectPropertyValue -Object $meta -Name 'source_subpath' } else { $null }
+    $sourceBranch = if ($null -ne $meta) { Get-ObjectPropertyValue -Object $meta -Name 'source_branch' } else { $null }
+    $sourceRevision = if ($null -ne $meta) { Get-ObjectPropertyValue -Object $meta -Name 'source_revision' } else { $null }
+
+    return [pscustomobject]@{
+        Name = $SkillName
+        Description = ''
+        SourceType = $sourceType
+        SourceRef = $sourceRef
+        SourceSubpath = $sourceSubpath
+        SourceBranch = $sourceBranch
+        SourceRevision = $sourceRevision
+        CentralPath = $CentralPath
+    }
+}
+
 function Sync-SkillsManagerRegistry {
     param(
         [Parameter(Mandatory)]
@@ -2220,6 +2268,15 @@ else:
     scenario_id = first[0]
 
 for skill in payload['skills']:
+    source_type = skill.get('SourceType') or 'local'
+    if source_type not in ('git', 'local'):
+        source_type = 'local'
+
+    source_ref = skill.get('SourceRef') or skill['CentralPath']
+    source_subpath = skill.get('SourceSubpath')
+    source_branch = skill.get('SourceBranch')
+    source_revision = skill.get('SourceRevision')
+
     existing = cur.execute(
         "SELECT id FROM skills WHERE central_path=? OR name=? LIMIT 1",
         (skill['CentralPath'], skill['Name'])
@@ -2230,8 +2287,8 @@ for skill in payload['skills']:
         cur.execute(
             '''
             UPDATE skills
-            SET name=?, description=?, source_type='local', source_ref=?, source_ref_resolved=NULL,
-                source_subpath=?, source_branch=NULL, source_revision=NULL, remote_revision=NULL,
+            SET name=?, description=?, source_type=?, source_ref=?, source_ref_resolved=NULL,
+                source_subpath=?, source_branch=?, source_revision=?, remote_revision=NULL,
                 central_path=?, enabled=1, updated_at=?, status='ok', update_status='unknown',
                 last_checked_at=NULL, last_check_error=NULL
             WHERE id=?
@@ -2239,8 +2296,11 @@ for skill in payload['skills']:
             (
                 skill['Name'],
                 skill.get('Description') or '',
-                skill.get('SourceRef') or skill['CentralPath'],
-                skill.get('SourceSubpath'),
+                source_type,
+                source_ref,
+                source_subpath,
+                source_branch,
+                source_revision,
                 skill['CentralPath'],
                 now,
                 skill_id,
@@ -2254,14 +2314,17 @@ for skill in payload['skills']:
                 source_subpath, source_branch, source_revision, remote_revision,
                 central_path, content_hash, enabled, created_at, updated_at,
                 status, update_status, last_checked_at, last_check_error
-            ) VALUES (?, ?, ?, 'local', ?, NULL, ?, NULL, NULL, NULL, ?, NULL, 1, ?, ?, 'ok', 'unknown', NULL, NULL)
+            ) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, NULL, ?, NULL, 1, ?, ?, 'ok', 'unknown', NULL, NULL)
             ''',
             (
                 skill_id,
                 skill['Name'],
                 skill.get('Description') or '',
-                skill.get('SourceRef') or skill['CentralPath'],
-                skill.get('SourceSubpath'),
+                source_type,
+                source_ref,
+                source_subpath,
+                source_branch,
+                source_revision,
                 skill['CentralPath'],
                 now,
                 now,
@@ -2330,6 +2393,7 @@ function Install-SkillBundle {
     $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ('skills-bundle-' + [guid]::NewGuid().ToString('N'))
     $targets = Get-OptionalSkillTargets
     $importedSkills = New-Object System.Collections.Generic.List[object]
+    $copiedSkillCount = 0
 
     try {
         Write-Log -Message ('Skill source-of-truth root: {0}' -f $centralRoot)
@@ -2359,10 +2423,16 @@ function Install-SkillBundle {
                 }
             }
 
+            $skillMetadata = Read-SkillMetadata -SkillPath $sourcePath -SkillName $skillName -CentralPath $centralPath
+            $skillMetadata | Add-Member -MemberType NoteProperty -Name 'Targets' -Value $skillTargets -Force
+            $importedSkills.Add($skillMetadata)
+
             if ((-not $centralNeedsImport) -and $targetsNeedingSync.Count -eq 0) {
                 Write-Log -Message ('Skill already synchronized, skip: {0}' -f $skillName)
                 continue
             }
+
+            $copiedSkillCount++
 
             if ($centralNeedsImport) {
                 Copy-SkillDirectory -SourcePath $sourcePath -DestinationPath $centralPath -DryRun:$DryRun
@@ -2381,14 +2451,6 @@ function Install-SkillBundle {
                 }
             }
 
-            $importedSkills.Add([pscustomobject]@{
-                    Name = $skillName
-                    Description = ''
-                    SourceRef = $centralPath
-                    SourceSubpath = $null
-                    CentralPath = $centralPath
-                    Targets = $skillTargets
-                })
         }
 
         $registrySyncResult = $null
@@ -2410,7 +2472,7 @@ function Install-SkillBundle {
             Key = 'skills-bundle'
             Status = 'ok'
             Source = 'local-zip'
-            Detail = if ($importedSkills.Count -eq 0) { 'All skills already synchronized' } else { '{0} skills imported' -f $importedSkills.Count }
+            Detail = if ($copiedSkillCount -eq 0) { 'All skills already synchronized' } else { '{0} skills imported' -f $copiedSkillCount }
         }
     }
     finally {
