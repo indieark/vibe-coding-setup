@@ -402,22 +402,42 @@ precheck 决策规则：
 - `CC Switch`
 - `Codex Provider Sync`
 - `Skills Manager`
-
-这些资产暂不自动维护：
-
-- `skills.zip`：是自托管技能包，没有可直接判断“最新版”的公开来源
+- `skills.zip`（从 `indieark/00000-model` 私库 `bundle-v*` release 镜像而来）
 
 `Codex Provider Sync` 的安装主来源仍然是当前仓库的 `bootstrap-assets` Release；但每日自动化会去上游 `indieark/codex-provider-sync` 的 latest release 查找 `Codex.Provider.Sync_*_x64-setup.exe`，把新版镜像到当前仓库的 release，并同步更新 manifest 的主 `assetName`。
 
 `Skills Manager` 安装时优先走公开上游 `xingkongliang/skills-manager` latest release；如果该路径失败，再回退到当前仓库 `bootstrap-assets` Release 里的镜像 MSI。每日自动化同样会检查上游 latest MSI，把新版镜像到当前仓库 release，并同步更新 manifest 的 `fallback.releaseAsset`。
 
-因为 `indieark/codex-provider-sync` 是私有仓库，Actions 需要配置一个可读取该私库 release 的仓库 secret：
+`skills.zip` 由 `indieark/00000-model` 的 `bundle_<semver>.zip` 重命名镜像而来。终端用户只访问当前仓库公开 `bootstrap-assets/skills.zip`，不需要私库 PAT。
 
-- `CODEX_PROVIDER_SYNC_TOKEN`
+### PAT / GitHub Secret 规范
 
-workflow 会把它注入为 `SOURCE_GITHUB_TOKEN`，只用于读取上游私库 release；当前仓库 release 的上传、删除和 manifest 提交仍使用默认 `GITHUB_TOKEN`。
+跨私有仓库读取 release asset 时，必须使用专用 GitHub Actions Secret；当前仓库 release 上传、删除和 manifest 提交仍使用默认 `GITHUB_TOKEN`。
 
-也就是说，安装代码里的 fallback 或自托管主资产会跟着自动更新后的 Release 最新文件名走；但 `skills.zip` 这种没有可追踪上游的自托管资产仍需要手动发布。
+| Secret | 注入变量 | 用途 | 最小权限 |
+|--------|----------|------|----------|
+| `CODEX_PROVIDER_SYNC_TOKEN` | `SOURCE_GITHUB_TOKEN` | 读取 `indieark/codex-provider-sync` 私库 release asset | fine-grained PAT；仅该 repo；`Contents: Read-only` |
+| `MODEL_00000_TOKEN` | `MODEL_00000_TOKEN` | 读取 `indieark/00000-model` 私库 `bundle-v*` release asset | fine-grained PAT；仅该 repo；`Contents: Read-only` |
+| `GITHUB_TOKEN` | `GITHUB_TOKEN` | 写当前仓库 `bootstrap-assets` release，提交 `manifest/apps.json` / `README.md` 更新 | Actions 自动注入；workflow `contents: write` |
+
+规范：
+
+1. 一条跨仓库读取链路一个专用 secret，不复用其它私库 PAT。
+2. 不把个人 `gh auth token` 当长期 secret；临时救火后必须替换为专用 PAT。
+3. 脚本缺少对应 secret 时必须 fail fast，不允许静默 fallback 到另一个 PAT。
+4. PAT 建议设置过期时间（优先 90 天，最长不超过 180 天），轮换后跑一次 dry-run 验证。
+5. 详细规则见 [`.agent/rules/pat-secret-governance.md`](.agent/rules/pat-secret-governance.md)。
+
+验证命令：
+
+```powershell
+gh secret list --repo indieark/vibe-coding-setup
+
+gh workflow run refresh-bootstrap-assets.yml --ref main -f dry_run=true
+gh run watch <run-id> --exit-status
+```
+
+也就是说，安装代码里的 fallback 或自托管主资产会跟着自动更新后的 Release 最新文件名走；`skills.zip` 现在由 `00000-model` bundle release 自动镜像，不再手动发布。
 
 ## 使用方式
 

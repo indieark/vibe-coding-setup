@@ -30,8 +30,11 @@ jobs:
       - name: Refresh release assets
         shell: pwsh
         env:
+          # Current repository writes use the short-lived Actions token only.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Dedicated read-only PAT for indieark/codex-provider-sync releases.
           SOURCE_GITHUB_TOKEN: ${{ secrets.CODEX_PROVIDER_SYNC_TOKEN }}
+          # Dedicated read-only PAT for indieark/00000-model bundle releases.
           MODEL_00000_TOKEN: ${{ secrets.MODEL_00000_TOKEN }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
         run: |

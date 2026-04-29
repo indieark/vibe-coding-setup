@@ -481,16 +481,15 @@ $managedAssets = @(
         ExistingAssetPattern = '^skills\.zip$'
         CompareContentOnSameName = $true
         Resolve = {
-            $modelToken = if ([string]::IsNullOrWhiteSpace($Model00000Token)) { $SourceGitHubToken } else { $Model00000Token }
-            if ([string]::IsNullOrWhiteSpace($modelToken)) {
-                throw 'MODEL_00000_TOKEN or SOURCE_GITHUB_TOKEN is required to mirror indieark/00000-model skills bundle.'
+            if ([string]::IsNullOrWhiteSpace($Model00000Token)) {
+                throw 'MODEL_00000_TOKEN is required to mirror indieark/00000-model skills bundle.'
             }
 
             Get-GitHubInstaller `
                 -SourceRepo 'indieark/00000-model' `
                 -AssetPattern '^(?:bundle|skills)_[0-9][0-9A-Za-z.\-]*\.zip$' `
                 -OutputName 'skills.zip' `
-                -Token $modelToken `
+                -Token $Model00000Token `
                 -AuthenticatedDownload
         }
     },
