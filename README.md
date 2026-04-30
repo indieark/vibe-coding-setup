@@ -1,72 +1,100 @@
-# Windows 一键部署脚本
+# Vibe Coding Setup
 
-> 给后续 AI / 维护者：先读本 README 的“文档地图”，再按专题进入 `docs/`。不要把同一套规则重复写在多个文件里。
+面向 Windows 的 IndieArk 一键装机器：安装开发工具、同步公开镜像资产，并按 Profile 导入可追更的 AI Skills。
 
-这个仓库用于在 Windows 上一键拉起开发环境、桌面工具和 Skill 包。主入口是 `bootstrap.ps1`，`bootstrap.cmd` 是本地启动壳，`vibe-coding-setup.cmd` 是远程自举入口。
+> 这个 README 是项目首页。详细流程、维护规则和路线图请从 [文档中心](docs/README.md) 进入，避免同一事实在多个文件里重复维护。
 
-## 当前定位
+## 为什么需要它
 
-安装器已经从“批量拷贝工具和技能”升级为“按需装机器”底座：
+新机器或重装环境时，手工安装工具、配置 CC Switch、同步 Skills 往往会遇到三个问题：
 
-- 应用安装以 `manifest/apps.json` 为唯一安装清单。
-- 主来源优先使用 `winget`、上游 GitHub Releases、固定直链或当前仓库自托管 Release 资产。
-- 回退来源主要使用 `indieark/vibe-coding-setup` 的公开 `bootstrap-assets` Release。
-- `skills.zip` 来自 `indieark/00000-model` registry bundle，经当前仓库镜像后分发。
-- Skill 导入支持 Profile 选择、`.skill-meta.json` 来源追踪、三态去重和 Skills Manager SQLite 注册。
+- 安装来源分散，某个上游 release 不可用时容易卡住。
+- 私库资产不能直接暴露给终端用户机器。
+- Skill 目录容易重复、覆盖或丢失上游来源，后续不可追更。
 
-## 文档地图
+本仓库把这些步骤收敛成一个可审计的 PowerShell 安装器。
 
-| 主题 | 唯一说明入口 | 说明 |
-| --- | --- | --- |
-| 安装执行顺序 | [`docs/installer-flow.md`](docs/installer-flow.md) | 自举、应用安装、fallback、summary 退出码 |
-| Skill 导入契约 | [`docs/skill-import.md`](docs/skill-import.md) | Profile、`.skill-meta.json`、三态判定、SQLite 注册 |
-| 资产刷新链路 | [`docs/asset-refresh.md`](docs/asset-refresh.md) | `bootstrap-assets` 自动刷新、私库资产镜像、workflow 边界 |
-| PAT / Secret 规则 | [`.agent/rules/pat-secret-governance.md`](.agent/rules/pat-secret-governance.md) | Secret 命名、最小权限、轮换与验证规则 |
-| 本机运行命令 | [`docs/operations.md`](docs/operations.md) | 本地运行、远程自举、安全 dry-run、常见参数 |
-| 后续路线 | [`docs/roadmap.md`](docs/roadmap.md) | 可观测、校验、报告和装机体验增强 |
-| 当前任务快照 | [`.ai_memory/2_active_task.md`](.ai_memory/2_active_task.md) | 当前状态、下一步、阻断 |
+## 它做什么
 
-## 单一信息源约定
-- 应用名称、安装策略、版本门禁和 fallback 文件名只在 `manifest/apps.json` 定义。
-- 安装执行行为以 `bootstrap.ps1` 和 `modules/common.psm1` 为准，文档只解释已实现行为。
-- PAT / Secret 治理只在 `.agent/rules/pat-secret-governance.md` 维护；其它文档只链接它。
-- Skill registry / Profile / bundle 来源以 `indieark/00000-model` 的 `registry/*.yaml` 和 bundle 构建结果为准。
-- `.ai_memory/` 只记录阶段状态和接手上下文，不作为用户手册或安装规则源。
-
+- 安装常用 Windows 开发工具：Git、Node.js、Python、VS Code、Codex Desktop、ChatGPT、CC Switch、Codex Provider Sync、Skills Manager。
+- 先走公开主来源，失败后按 `bootstrap-assets` fallback。
+- 从公开 `skills.zip` 按 Profile 导入 Skill。
+- 使用 `.skill-meta.json` 识别 Skill 来源，并写入 Skills Manager SQLite。
+- 对同名 Skill 做安全三态判定：已跟踪、旧孤儿、第三方同名。
 ## 快速开始
 
-本地仓库运行：
+### 本地仓库运行
 
 ```powershell
 Set-Location "C:\Vibe_Coding\IndieArk\gadget\vibe-coding-setup"
 .\bootstrap.cmd
 ```
 
-远程自举入口：
+### 远程自举运行
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githubusercontent.com/indieark/vibe-coding-setup/main'; $script=Join-Path $env:TEMP 'vibe-bootstrap.ps1'; iwr ($root + '/bootstrap.ps1') -OutFile $script; & $script -BootstrapSourceRoot $root -RefreshBootstrapDependencies"
 ```
 
-本机安全演练 Skill 导入，不替换旧目录、不拉起 UI：
+### 安全演练 Skill 导入
+
+先观察本机判定，不替换旧目录、不拉起 UI：
 
 ```powershell
 .\bootstrap.cmd -DryRun -SkipCcSwitch -Only git -SkillProfile "飞书办公套件" -NoReplaceOrphan -SkipSkillsManagerLaunch
 ```
 
-更多命令见 [`docs/operations.md`](docs/operations.md)。
+更多命令见 [运行命令](docs/operations.md)。
 
-## 当前关键状态
+## 核心能力
+
+| 能力 | 当前实现 |
+| --- | --- |
+| 应用安装 | `manifest/apps.json` 驱动，先 precheck，再安装或跳过 |
+| 失败回退 | 主来源失败后 post-check，仍失败才使用 fallback |
+| 资产镜像 | 私库资产只在 GitHub Actions 中读取，终端用户只访问公开 `bootstrap-assets` |
+| Skill 导入 | `skills.zip` 内置 registry 和 Profile，支持按需导入 |
+| 去重安全 | `Tracked / Orphan / Foreign` 三态判定，默认备份不删除 |
+| 可追更 | `.skill-meta.json` 字段透传到 Skills Manager DB |
+## 安全边界
+
+- 终端用户安装不需要 `indieark/00000-model` 或其它私库 PAT。
+- PAT 只用于 GitHub Actions 刷新公开镜像资产，规则见 [PAT / Secret 治理](.agent/rules/pat-secret-governance.md)。
+- Skill 默认不会覆盖第三方同名目录。
+- 旧版无来源标记 Skill 默认先备份为 `<name>.legacy.<时间>`，再导入 IndieArk 版本。
+- `-DryRun` 用于预览行为，不写入系统状态。
+
+## 文档中心
+
+| 你想做什么 | 去哪里看 |
+| --- | --- |
+| 第一次使用安装器 | [运行命令](docs/operations.md) |
+| 理解完整执行顺序 | [安装执行顺序](docs/installer-flow.md) |
+| 理解 Skill/Profile/三态去重 | [Skill 导入契约](docs/skill-import.md) |
+| 维护 release asset 和 `skills.zip` 镜像 | [资产刷新链路](docs/asset-refresh.md) |
+| 查看后续增强路线 | [后续路线](docs/roadmap.md) |
+| 了解文档如何维护 | [文档治理规则](.agent/rules/documentation-governance.md) |
+
+完整目录见 [文档中心首页](docs/README.md)。
+
+## 单一信息源
+
+- 应用名称、安装策略、版本门禁和 fallback 文件名只在 `manifest/apps.json` 定义。
+- 安装执行行为以 `bootstrap.ps1` 和 `modules/common.psm1` 为准。
+- Skill registry / Profile / bundle 来源以 `indieark/00000-model` 的 `registry/*.yaml` 和 bundle 构建结果为准。
+- PAT / Secret 规则只在 `.agent/rules/pat-secret-governance.md` 维护。
+- `.ai_memory/` 只记录接手上下文，不作为用户手册或规则源。
+## 当前状态
 
 - `main` 已包含按需装机器 Phase 1-4：私库 bundle 镜像、Profile 选择、Skill meta 透传、三态去重。
-- 终端用户安装不需要私库 PAT；PAT 只用于 GitHub Actions 刷新公开镜像资产。
-- Phase 5 飞书只读镜像仍在 `indieark/00000-model` 侧按计划推进。
+- Phase 5 飞书只读镜像在 `indieark/00000-model` 侧按计划推进。
+- 下一步安装器增强应优先围绕可观测、可校验、可回滚，而不是继续堆安装项。
 
-## 维护检查清单
+## 维护提示
 
-改动前后至少确认：
+改动前先判断事实源：
 
-- 修改应用安装项时，同步检查 `manifest/apps.json`，不要在 README 手写第二份应用清单。
-- 修改 Skill 导入行为时，同步更新 `docs/skill-import.md` 和 `.ai_memory/2_active_task.md`。
-- 修改跨仓库资产读取时，同步更新 `.agent/rules/pat-secret-governance.md`，不要只改 workflow。
-- 修改自举或 fallback 行为时，同步更新 `docs/installer-flow.md` 和 `docs/asset-refresh.md`。
+- 改应用安装项：先改 `manifest/apps.json`。
+- 改 Skill 导入行为：同步更新 [Skill 导入契约](docs/skill-import.md)。
+- 改资产刷新链路：同步更新 [资产刷新链路](docs/asset-refresh.md)。
+- 改文档结构：遵守 [文档治理规则](.agent/rules/documentation-governance.md)。

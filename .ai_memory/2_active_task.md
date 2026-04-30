@@ -3,8 +3,8 @@
 ## 当前状态
 
 - `vibe-coding-setup` 已完成按需装机器 Phase 1-4 主线合并。
-- 文档结构已收敛为 README 顶层入口 + `docs/` 专题说明 + `.agent/rules/` 规则源。
-- README 不再维护完整流程、PAT 表、应用来源表或后续路线细节，只做文档地图和快速开始。
+- 文档结构已收敛为 GitHub 首页型 README + `docs/README.md` 二级导航 + `docs/` 专题说明 + `.agent/rules/` 规则源。
+- README 不再维护完整流程、PAT 表、应用来源表或后续路线细节；它负责价值说明、快速开始、核心能力、安全边界和文档入口。
 - 新增 `.agent/rules/documentation-governance.md`，用于约束层层索引和单一信息源。
 - 本轮完成脚本中文化：自举提示、日志等级、预检查/安装/fallback/CC Switch/Skill 导入输出、错误信息和最终执行摘要已改为中文展示。
 - 为提升可读性，执行摘要将内部 source 值展示为“文件系统 / 预检查跳过 / Release 回退 / CC Switch 导入”等用户语义；内部状态值仍保持原样用于流程判断。

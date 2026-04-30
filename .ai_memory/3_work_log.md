@@ -36,3 +36,8 @@
 - 为兼容 Windows PowerShell 5.1，中文文案采用 UTF-8 base64 解码输出，保持脚本文件无 BOM。
 - 优化执行摘要可读性：日志等级显示为“信息 / 警告 / 错误”，内部 source 展示为“文件系统 / 预检查跳过 / Release 回退 / CC Switch 导入”等用户语义。
 - 验证通过：`powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only git`。
+
+## 2026-04-30
+
+- 参考 GitHub README 常见结构后，重写顶层 README 为项目首页型：补充问题背景、核心能力、安全边界、快速开始和文档中心入口。
+- 新增 `docs/README.md` 二级导航，按终端用户、维护者、后续 AI 三类读者分流。

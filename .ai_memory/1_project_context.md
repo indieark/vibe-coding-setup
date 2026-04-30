@@ -8,7 +8,8 @@
 
 - 安装执行逻辑：`bootstrap.ps1`、`modules/common.psm1`
 - 应用清单、版本门禁、fallback 文件名：`manifest/apps.json`
-- 顶层入口和文档地图：`README.md`
+- GitHub 项目首页：`README.md`
+- 二级文档导航：`docs/README.md`
 - 安装流程说明：`docs/installer-flow.md`
 - Skill 导入说明：`docs/skill-import.md`
 - 资产刷新说明：`docs/asset-refresh.md`
