@@ -981,6 +981,23 @@ function Set-BootstrapBoundSwitchParameter {
     }
 }
 
+function ConvertTo-BootstrapNonEmptyStringArray {
+    param(
+        [AllowNull()]
+        [object]$Value
+    )
+
+    return @(
+        $Value |
+        ForEach-Object {
+            if ($null -ne $_) {
+                [string]$_
+            }
+        } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+}
+
 function Test-BootstrapShouldUseTui {
     param(
         [Parameter(Mandatory)]
@@ -1082,14 +1099,15 @@ if ($shouldUseTui) {
         if ($SkipSkillsManagerLaunch) { [pscustomobject]@{ SwitchName = 'SkipSkillsManagerLaunch'; Enabled = $true } }
         if ($RefreshBootstrapDependencies) { [pscustomobject]@{ SwitchName = 'RefreshBootstrapDependencies'; Enabled = $true } }
     )
-    $tuiResult = Invoke-BootstrapTui -Apps $manifest.apps -SkillProfiles $tuiSkillProfiles -InitialOptions $tuiInitialOptions -InitialSkillProfiles $SkillProfile
+    $initialSkillProfiles = @(ConvertTo-BootstrapNonEmptyStringArray -Value $SkillProfile)
+    $tuiResult = Invoke-BootstrapTui -Apps $manifest.apps -SkillProfiles $tuiSkillProfiles -InitialOptions $tuiInitialOptions -InitialSkillProfiles $initialSkillProfiles
     if ($null -eq $tuiResult) {
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5Y+W5raI44CC')
         Invoke-BootstrapExit -Code 0
     }
 
     $Only = $tuiResult.Only
-    $SkillProfile = @($tuiResult.SkillProfile)
+    $SkillProfile = @(ConvertTo-BootstrapNonEmptyStringArray -Value $tuiResult.SkillProfile)
     $DryRun = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.DryRun)
     $SkipCcSwitch = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.SkipCcSwitch)
     $SkipSkills = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.SkipSkills)

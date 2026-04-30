@@ -71,3 +71,10 @@
 - 调整提权窗口与进度显示体验：UAC 后优先用 Windows Terminal 承载管理员 PowerShell；关闭 `Write-Progress`；总进度保留文字，应用内部下载和 winget 百分比显示自绘进度条，静默 MSI/EXE 显示运行中和耗时；进入 TUI 前 best-effort 切换英文键盘布局。
 - 精简 Profile 交互菜单提示：移除 `-SkillProfile` / `-AllSkills` / `-SkipSkills` 参数说明，只保留序号/名称、逗号多选和回车安装全部 Skill。
 - 最终归档闭环：补充 active task 最新状态和 archive 总结；验证脚本解析、dry-run、TUI 默认直接执行、`git diff --check` 和工作区状态后提交推送。
+
+## 2026-04-30
+
+- 修复默认 TUI 模式进入 UAC / Windows Terminal 后立刻报 `缺少参数“SkillProfile”的某个参数` 的问题。
+- 根因是未选择 Skill Profile 时仍可能把空数组或空元素带入提权重启参数，导致生成裸 `-SkillProfile`。
+- `bootstrap.ps1` 在 TUI 初始参数和结果写回时统一清洗空 Skill Profile；`modules/common.psm1` 的 `ConvertTo-ArgumentTokens` 也会跳过空数组和空字符串元素。
+- 验证通过：空/非空数组 token 单元验证、脚本解析、`-Only git` dry-run、`-Tui -DryRun -SkipSkills -SkipCcSwitch` 首屏默认 Enter 后完整执行、`git diff --check`。

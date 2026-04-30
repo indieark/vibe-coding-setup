@@ -85,8 +85,21 @@ function ConvertTo-ArgumentTokens {
         }
 
         if ($value -is [System.Array]) {
+            $items = @(
+                $value |
+                ForEach-Object {
+                    if ($null -ne $_) {
+                        [string]$_
+                    }
+                } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+            )
+            if ($items.Count -eq 0) {
+                continue
+            }
+
             $tokens.Add($name)
-            $tokens.Add(('"{0}"' -f (($value | ForEach-Object { [string]$_ }) -join ',')))
+            $tokens.Add(('"{0}"' -f ($items -join ',')))
             continue
         }
 

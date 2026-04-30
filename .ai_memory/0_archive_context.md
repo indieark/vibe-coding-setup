@@ -237,3 +237,11 @@ TUI 自定义流程新增 Skill Profile 复选页，运行时从 `downloads/skil
 本轮最终收敛为三组提交：恢复 TUI 默认安装的原逻辑、优化安装进度和提权终端体验、精简 Skill Profile 交互提示。关键用户可见行为：默认安装首屏确认后直接执行，不再展示“执行确认”；总进度只显示 `[当前/总数] 当前步骤`；应用内部下载和 winget 百分比才显示自绘进度条；UAC 后优先使用 Windows Terminal 承载管理员 PowerShell；Profile 交互菜单不再展示 `-SkillProfile` / `-AllSkills` / `-SkipSkills` 参数说明。
 
 最终验证覆盖脚本解析、模块导入、`-Only git` dry-run、`-Tui -DryRun -SkipSkills -SkipCcSwitch` 首屏默认执行、`git diff --check` 和 `git status --short --branch`。截至本归档，`main` 已推送且工作区干净。
+
+## 2026-04-30 — 默认模式空 SkillProfile 提权报错修复
+
+用户继续反馈默认模式打开 Windows Terminal 后立刻报 `缺少参数“SkillProfile”的某个参数`。这不是安装内核问题，而是 TUI 默认模式在未选择 Profile 时仍可能把空 SkillProfile 写回 `$PSBoundParameters`，提权重启时被拼成裸 `-SkillProfile`。
+
+本次修复增加双层兜底：`bootstrap.ps1` 在 TUI 初始参数和结果写回时清洗空 Skill Profile；`modules/common.psm1` 的 `ConvertTo-ArgumentTokens` 对所有数组参数过滤空元素，并在数组为空时不输出参数名。这样默认安装、空 Skill 选择和后续数组参数重启都不会再生成缺值参数。
+
+验证覆盖空数组 token、非空数组 token、脚本解析、`-Only git` dry-run、`-Tui -DryRun -SkipSkills -SkipCcSwitch` 首屏默认 Enter 后完整执行，以及 `git diff --check`。
