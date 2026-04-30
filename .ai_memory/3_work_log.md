@@ -98,3 +98,9 @@
 
 - 优化 `skills.zip` 获取时机：TUI 首屏不再预取 Skill bundle，只有进入 Skill 复选页或实际导入 Skill 时才按需获取。
 - 自举下载函数改为流式下载并显示脚本自绘进度条，Release 资产下载不再只显示一行“正在获取”。
+
+## 2026-04-30
+
+- 写入下一阶段 TUI 现代化工作台重做计划：顶层保留默认安装、TUI 模式、安全演练；TUI 内部聚焦状态检查、软件安装 / 更新、Skill 状态和 Skill 安装选择。
+- 修复 Skill bundle 解压进度：`Install-SkillBundle` 不再调用 `Expand-Archive`，改为 .NET ZipFile 流式解压并复用脚本自绘同一行进度，避免 PowerShell 宿主蓝色进度区域。
+- 解压路径加入 zip-slip 越界写出防护，避免恶意 zip 条目逃出临时解压目录。

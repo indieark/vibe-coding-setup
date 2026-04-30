@@ -1,5 +1,6 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$script:OperationProgressLineActive = $false
 
 function Write-Log {
     param(
@@ -8,6 +9,11 @@ function Write-Log {
         [ValidateSet('INFO', 'WARN', 'ERROR')]
         [string]$Level = 'INFO'
     )
+
+    if ($script:OperationProgressLineActive) {
+        Write-Host ''
+        $script:OperationProgressLineActive = $false
+    }
 
     $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
     $levelText = switch ($Level) {
@@ -42,6 +48,7 @@ function Write-OperationProgress {
     $suffix = if ([string]::IsNullOrWhiteSpace($Detail)) { '' } else { '  {0}' -f $Detail }
     if ($null -eq $Percent -and -not $Completed) {
         Write-Host ('  {0} {1}{2}' -f $Label, (ConvertFrom-Utf8Base64String -Value '6L+Q6KGM5Lit'), $suffix) -ForegroundColor Cyan
+        $script:OperationProgressLineActive = $false
         return
     }
 
@@ -57,7 +64,15 @@ function Write-OperationProgress {
     $bar = (([string]$filledChar) * $filled) + (([string]$emptyChar) * $empty)
     $percentText = if ($null -ne $Percent -or $Completed) { '{0,3}%' -f $percentValue } else { ConvertFrom-Utf8Base64String -Value '6L+Q6KGM5Lit' }
 
-    Write-Host ('  {0} {1} {2}{3}' -f $Label, $bar, $percentText, $suffix) -ForegroundColor Cyan
+    $line = ('  {0} {1} {2}{3}' -f $Label, $bar, $percentText, $suffix)
+    if ($Completed) {
+        Write-Host ("`r{0}" -f $line) -ForegroundColor Cyan
+        $script:OperationProgressLineActive = $false
+    }
+    else {
+        Write-Host ("`r{0}" -f $line) -ForegroundColor Cyan -NoNewline
+        $script:OperationProgressLineActive = $true
+    }
 }
 
 function Test-IsAdministrator {
@@ -2371,6 +2386,84 @@ function Get-SkillDirectoriesFromZip {
     }
 }
 
+function Expand-ZipArchiveWithProgress {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ZipPath,
+        [Parameter(Mandatory)]
+        [string]$DestinationPath
+    )
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    Initialize-Directory -Path $DestinationPath
+
+    $resolvedZipPath = (Resolve-Path -LiteralPath $ZipPath).ProviderPath
+    $destinationRoot = [IO.Path]::GetFullPath($DestinationPath)
+    if (-not $destinationRoot.EndsWith([IO.Path]::DirectorySeparatorChar.ToString())) {
+        $destinationRoot = $destinationRoot + [IO.Path]::DirectorySeparatorChar
+    }
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($resolvedZipPath)
+    try {
+        $entries = @($archive.Entries)
+        $totalBytes = [int64](($entries | Measure-Object -Property Length -Sum).Sum)
+        $processedBytes = [int64]0
+        $lastProgressPercent = -1
+        $label = ConvertFrom-Utf8Base64String -Value '6Kej5Y6L'
+        $detail = Split-Path -Leaf $ZipPath
+
+        foreach ($entry in $entries) {
+            $relativePath = $entry.FullName.Replace('/', [IO.Path]::DirectorySeparatorChar).Replace('\', [IO.Path]::DirectorySeparatorChar)
+            if ([string]::IsNullOrWhiteSpace($relativePath)) {
+                continue
+            }
+
+            $targetPath = [IO.Path]::GetFullPath((Join-Path $destinationRoot $relativePath))
+            if (-not $targetPath.StartsWith($destinationRoot, [StringComparison]::OrdinalIgnoreCase)) {
+                throw ((ConvertFrom-Utf8Base64String -Value 'WmlwIOadoeebrui2iueVjO+8jOaLkue7neino+WOi++8mnswfQ==') -f $entry.FullName)
+            }
+
+            $isDirectory = [string]::IsNullOrEmpty($entry.Name)
+            if ($isDirectory) {
+                Initialize-Directory -Path $targetPath
+                continue
+            }
+
+            Initialize-Directory -Path (Split-Path -Parent $targetPath)
+            $inputStream = $null
+            $outputStream = $null
+            try {
+                $inputStream = $entry.Open()
+                $outputStream = [IO.File]::Open($targetPath, [IO.FileMode]::Create, [IO.FileAccess]::Write, [IO.FileShare]::None)
+                $buffer = New-Object byte[] 1048576
+                do {
+                    $readBytes = $inputStream.Read($buffer, 0, $buffer.Length)
+                    if ($readBytes -gt 0) {
+                        $outputStream.Write($buffer, 0, $readBytes)
+                        $processedBytes += $readBytes
+
+                        if ($totalBytes -gt 0) {
+                            $progressPercent = [int](($processedBytes * 100) / $totalBytes)
+                            if ($progressPercent -lt 100 -and $progressPercent -ge ($lastProgressPercent + 5)) {
+                                Write-OperationProgress -Label $label -Percent $progressPercent -Detail $detail
+                                $lastProgressPercent = $progressPercent
+                            }
+                        }
+                    }
+                } while ($readBytes -gt 0)
+            }
+            finally {
+                if ($outputStream) { $outputStream.Dispose() }
+                if ($inputStream) { $inputStream.Dispose() }
+            }
+        }
+
+        Write-OperationProgress -Label $label -Percent 100 -Detail $detail -Completed
+    }
+    finally {
+        $archive.Dispose()
+    }
+}
+
 function Test-InteractiveConsole {
     return ([Environment]::UserInteractive -and -not [Console]::IsInputRedirected)
 }
@@ -3137,7 +3230,7 @@ function Install-SkillBundle {
     try {
         Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'U2tpbGwg5ZSv5LiA5p2l5rqQ55uu5b2V77yaezB9') -f $centralRoot)
         Initialize-Directory -Path $tempRoot
-        Expand-Archive -LiteralPath $ZipPath -DestinationPath $tempRoot -Force
+        Expand-ZipArchiveWithProgress -ZipPath $ZipPath -DestinationPath $tempRoot
         $allSkillDirs = @(Get-SkillDirectoriesFromExtractedRoot -RootPath $tempRoot)
         $registryRoot = Expand-BundleRegistryArchive -ExtractedBundleRoot $tempRoot -DestinationPath (Join-Path $tempRoot 'registry')
         $profiles = if ($registryRoot) { @(Read-SkillProfilesFromRegistry -RegistryRoot $registryRoot) } else { @() }

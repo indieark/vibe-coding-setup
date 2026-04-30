@@ -382,7 +382,7 @@ function Invoke-BootstrapDownloadFile {
 
                 if ($totalBytes -gt 0) {
                     $progressPercent = [int](($downloadedBytes * 100) / $totalBytes)
-                    if ($progressPercent -ge 100 -or $progressPercent -ge ($lastProgressPercent + 5)) {
+                    if ($progressPercent -lt 100 -and $progressPercent -ge ($lastProgressPercent + 5)) {
                         Write-BootstrapDownloadProgress -Label $downloadLabel -Percent $progressPercent -Detail $detail
                         $lastProgressPercent = $progressPercent
                     }

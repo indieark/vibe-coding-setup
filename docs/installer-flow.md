@@ -27,7 +27,7 @@
 15. 最后导入 CC Switch Provider deep link。
 16. 输出 Summary；任一项失败则退出码为 `1`，否则为 `0`。
 
-安装阶段总进度输出简洁文字，例如 `[当前/总数] 当前步骤`；应用内部可量化进度才输出脚本自绘进度条，例如下载和 winget 百分比。不再调用 `Write-Progress` 绘制宿主进度条。自举依赖和 Release 资产下载同样使用脚本自绘进度条；如果服务器没有返回文件大小，则只显示完成状态。
+安装阶段总进度输出简洁文字，例如 `[当前/总数] 当前步骤`；应用内部可量化进度才输出脚本自绘进度条，例如下载、winget 百分比和 Skill bundle 解压。不再调用 `Write-Progress` 绘制宿主进度条，也不使用会触发宿主进度区域的 `Expand-Archive`。自举依赖和 Release 资产下载同样使用脚本自绘进度条；如果服务器没有返回文件大小，则只显示完成状态。
 
 `PauseOnExit`、`KeepShellOpen`、`UserHomeOverride`、`BootstrapSourceRoot`、`BootstrapAssetsRepo`、`BootstrapAssetsTag`、`RefreshBootstrapDependencies` 属于启动或自举参数，不会单独触发命令模式。
 
@@ -68,7 +68,7 @@ fallback 安装包统一下载到仓库内 `downloads/`，再根据 `installerTy
 
 ## 进度展示
 
-执行阶段会计算总步骤，并显示 `[当前/总数] 当前步骤` 文本进度，便于复制、截图和远程排障。应用内部下载和 winget 百分比会显示脚本自绘进度条；静默 MSI/EXE 无法读取真实百分比时显示运行中和耗时。脚本不调用 PowerShell 原生 `Write-Progress`，避免不同宿主额外绘制独立进度区域。
+执行阶段会计算总步骤，并显示 `[当前/总数] 当前步骤` 文本进度，便于复制、截图和远程排障。应用内部下载、winget 百分比和 Skill bundle 解压会显示脚本自绘进度条；静默 MSI/EXE 无法读取真实百分比时显示运行中和耗时。脚本不调用 PowerShell 原生 `Write-Progress`，Skill bundle 解压也不再调用 `Expand-Archive`，避免不同宿主额外绘制独立进度区域。
 
 计入总步骤的项目包括：
 

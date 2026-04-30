@@ -16,28 +16,25 @@
 - 命令模式启动时会输出“选中的安装应用清单”，按行列出应用名称与 key，便于确认本次实际安装范围。
 - 安装执行阶段总进度使用 `[当前/总数] 当前步骤` 文字；应用内部下载和 winget 百分比使用脚本自绘进度条，静默 MSI/EXE 无真实百分比时显示运行中和耗时；不再调用 `Write-Progress` 绘制独立宿主进度区域。
 - 自举依赖和 Release 资产下载也使用脚本自绘进度条，避免 `downloads/skills.zip` 这类大资产下载时看起来卡住。
+- Skill bundle 解压已从 `Expand-Archive` 改为 .NET `ZipFile` 流式解压，并复用脚本自绘同一行进度；同时加入 zip-slip 越界路径防护，避免 PowerShell 宿主蓝色进度区域。
 - 真实安装触发 UAC 时会优先用 Windows Terminal 承载管理员 PowerShell；系统没有 `wt.exe` 时才回退经典 PowerShell 窗口。
 - 进入 TUI 前会 best-effort 切换到英文键盘布局，并向前台终端窗口发送输入语言切换请求，减少中文输入法干扰方向键和快捷键。
 - Skill 导入日志已从逐目标长路径明细收敛为按 skill 聚合的进度与结果，正常流程不再刷屏；警告和失败仍保留明确路径与原因。
 - Profile 交互菜单提示已收敛为“可输入序号/名称，多个可用英文逗号、中文逗号或顿号分隔；直接回车安装全部 Skill”，不再在交互菜单里展示命令行参数说明。
 - TUI 默认安装在未选择 Skill Profile 时不会再把空 `-SkillProfile` 带入 UAC / Windows Terminal 重启参数；空数组会被清洗并跳过。
-- 本轮安装器体验修复已提交并推送到 `main`；最近提交覆盖默认安装逻辑、进度/终端体验、Skill 选择提示、空 `SkillProfile`、中文多选分隔符、TUI 英文输入布局增强和 Skill bundle 按需获取。
+- 本轮安装器体验修复已提交并推送到 `main`；最近提交覆盖默认安装逻辑、进度/终端体验、Skill 选择提示、空 `SkillProfile`、中文多选分隔符、TUI 英文输入布局增强和 Skill bundle 按需获取。当前 Skill bundle 解压进度修复和 TUI 现代化计划文档已完成验证。
 
 ## 当前未完成项
 
 - Phase 5 飞书只读镜像尚未实现；`00000-model` 已有执行计划分支 `plan/feishu-readonly-mirror`。
 - 安装器仍缺少日志落盘、JSON 报告、bundle 签名 / checksum 等增强项。
 - 当前 TUI 是 PowerShell 控制台拟似 TUI，不是独立 GUI；后续如需 GUI，应继续复用 `bootstrap.ps1` 的参数和安装内核。
+- TUI 现代化工作台重做计划已写入 `plans/2026-04-30-tui-modernization-workbench.md`，但尚未实施；下一阶段应按该计划重做信息架构。
 
 ## 立即下一步
 
-1. 快速验证旧命令模式：`powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only git`。
-2. 快速验证默认安装绕过 TUI 后仍走原默认全量逻辑：`powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -BootstrapTuiResolved`。
-3. 快速验证内部自举参数仍进入 TUI：`powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -BootstrapSourceRoot . -BootstrapAssetsRepo indieark/vibe-coding-setup -BootstrapAssetsTag bootstrap-assets`。
-4. 快速验证数组参数逗号形式：`powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only "git,nodejs,cc-switch"`。
-5. 快速验证 Profile 选择命令模式：`powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -DryRun -SkipCcSwitch -Only git -SkillProfile "飞书办公套件"`。
-6. 若继续增强安装器，优先做 `-ReportPath` / JSON summary 和 bundle manifest 校验；GUI 可作为后续独立阶段处理。
-7. 若继续现代化 TUI，优先重做 TUI 信息架构：顶层保留默认安装和安全演练，TUI 内聚焦状态检查、软件安装/更新、Skill 安装选择，避免把应用和行为都做成同一类复选项。
+1. 若继续现代化 TUI，按 `plans/2026-04-30-tui-modernization-workbench.md` 重做信息架构：顶层保留默认安装和安全演练，TUI 内聚焦状态检查、软件安装/更新、Skill 安装选择，避免把应用和行为都做成同一类复选项。
+2. 若继续增强安装器，优先做 `-ReportPath` / JSON summary 和 bundle manifest 校验；GUI 可作为后续独立阶段处理。
 
 ## 阻断
 
@@ -54,5 +51,10 @@
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -Tui -DryRun -SkipSkills -SkipCcSwitch` 首屏可进入并退出，用于验证增强后的输入布局切换不会阻断 TUI。
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -Tui -DryRun -SkipSkills -SkipCcSwitch` 首屏退出未触发 `skills.zip` 获取。
 - TUI 自定义流程进入 Skill 复选页时才读取已缓存的 `downloads/skills.zip`。
+- `powershell -NoProfile -Command '$tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path .\bootstrap.ps1), [ref]$tokens, [ref]$errors) | Out-Null; if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }; "bootstrap.ps1 parse ok"'`
+- `powershell -NoProfile -Command '$tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path .\modules\common.psm1), [ref]$tokens, [ref]$errors) | Out-Null; if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }; Import-Module .\modules\common.psm1 -Force; "common.psm1 parse/import ok"'`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -DryRun -SkipCcSwitch -Only git -SkillProfile "飞书办公套件" -NoReplaceOrphan -SkipSkillsManagerLaunch -BootstrapTuiResolved`，验证 Skill bundle 解压显示脚本自绘同一行进度；Codex 捕获输出中会展开 `\r`，真实终端为单行刷新。
+- 临时恶意 zip 演练：`Install-SkillBundle -ZipPath bad.zip -AllSkills -DryRun -SkipSkillsManagerLaunch` 会拦截 `../evil.txt`，输出 `zip-slip guard ok`。
+- 文档入口路径检查：README、docs、规则文档、`.ai_memory/2_active_task.md` 和 TUI 计划文件均存在。
 - `git diff --check`
 - `git status --short --branch` 当前为 `main...origin/main` 干净。

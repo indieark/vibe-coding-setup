@@ -285,3 +285,13 @@ TUI 自定义流程新增 Skill Profile 复选页，运行时从 `downloads/skil
 同时把 `Invoke-BootstrapDownloadFile` 从 `Invoke-WebRequest -OutFile` 改为流式下载，按 `ContentLength` 输出脚本自绘进度条。这样 Release 资产下载会显示百分比；如果服务器没有返回文件大小，则至少会显示完成状态。这个改动不引入 PowerShell `Write-Progress`，保持终端输出风格统一。
 
 验证覆盖脚本解析、TUI 首屏退出不触发 `skills.zip` 获取、自定义流程进入 Skill 复选页才读取缓存 bundle、旧命令模式 dry-run 和 `git diff --check`。
+
+## 2026-04-30 — TUI 现代化计划与 Skill bundle 解压进度修复
+
+用户重新收敛下一阶段目标：把现有“自定义选择”改名并重做为 TUI 模式 / 控制台工作台；默认安装和安全演练保持顶层入口，TUI 内部不再把软件、行为和 Skill 都做成同一种复选。复选主要用于 Skill / Profile，软件和行为应改成任务式菜单，支持检查当前版本、判断新增内容或可更新内容，并选择安装或更新。
+
+本次先把该方向写入 `plans/2026-04-30-tui-modernization-workbench.md`，不立即展开大重构。计划明确不新增入口文件，继续复用 `bootstrap.ps1` / `bootstrap.cmd` 和现有安装内核；TUI 首屏仍不预取 `skills.zip`，只有 Skill 状态检查或 Skill 安装选择需要时才按需获取。
+
+同时修复当前最影响观感的问题：Skill bundle 下载已有脚本自绘进度，但解压仍走 `Expand-Archive`，会触发 PowerShell 宿主蓝色进度区域。`Install-SkillBundle` 现在改为调用 .NET `System.IO.Compression.ZipFile` 流式解压，复用 `Write-OperationProgress` 同一行刷新，并加入 zip-slip 路径越界防护。
+
+后续若继续现代化 TUI，应先按计划重做信息架构，而不是继续在旧“自定义选择”里增加复选项。
