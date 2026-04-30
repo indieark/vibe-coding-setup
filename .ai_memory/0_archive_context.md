@@ -245,3 +245,33 @@ TUI 自定义流程新增 Skill Profile 复选页，运行时从 `downloads/skil
 本次修复增加双层兜底：`bootstrap.ps1` 在 TUI 初始参数和结果写回时清洗空 Skill Profile；`modules/common.psm1` 的 `ConvertTo-ArgumentTokens` 对所有数组参数过滤空元素，并在数组为空时不输出参数名。这样默认安装、空 Skill 选择和后续数组参数重启都不会再生成缺值参数。
 
 验证覆盖空数组 token、非空数组 token、脚本解析、`-Only git` dry-run、`-Tui -DryRun -SkipSkills -SkipCcSwitch` 首屏默认 Enter 后完整执行，以及 `git diff --check`。
+
+## 2026-04-30 — 安装器交互体验阶段最终归档
+
+### 核心议题背景
+
+这一阶段从“中文化、结构化、拟似 TUI”逐步收敛到几个明确的用户可见问题：默认模式必须沿用原安装逻辑，UAC 后不能进入错误命令模式，安装进度不能依赖 PowerShell 蓝色进度区域，Skill 选择应更人性化，中文输入法和中文标点不能干扰 TUI / 命令输入。
+
+### Cognitive Evolution Path
+
+1. 先修正默认模式语义：TUI 首屏选择“默认安装（原来模式）”后不再展示执行确认，也不把默认全量应用改写成 `-Only`，只写入内部 `BootstrapTuiResolved` 防止 UAC 后二次进入 TUI。
+2. 修复 UAC 参数传递：数组参数压缩成逗号形式，空数组和空字符串不再输出参数名，避免 `cc-switch` 被当成位置参数或生成裸 `-SkillProfile`。
+3. 改善终端体验：真实安装提权时优先用 Windows Terminal 承载管理员 PowerShell；总进度改为 `[当前/总数]` 文本，下载和 winget 这类有真实百分比的应用内部步骤才显示自绘进度条。
+4. 精简 Skill 交互：Profile 菜单只保留序号/名称、多选和回车默认全部 Skill，不再把命令行参数说明塞进 TUI。
+5. 提升中文环境兼容性：Profile / app 多选解析统一支持英文逗号、中文逗号和顿号；进入 TUI 前 best-effort 激活英文输入布局，并向前台终端窗口发送输入语言切换请求。
+
+### 当前结论
+
+- 当前 `main` 上的安装器已完成本轮体验修复并推送。
+- 用户手册入口已同步：`README.md`、`docs/operations.md`、`docs/installer-flow.md`、`docs/skill-import.md`。
+- 稳定事实已同步到 `.ai_memory/1_project_context.md`，当前任务快照已同步到 `.ai_memory/2_active_task.md`。
+- 这一阶段没有把用户后续提出的“完整现代化 TUI 信息架构重做”混进补丁；后续应作为单独设计阶段处理。
+
+### 验证闭环
+
+- 脚本解析：`bootstrap.ps1` / `modules/common.psm1`。
+- 旧命令模式 dry-run：`-Only git`。
+- 默认 TUI dry-run：`-Tui -DryRun -SkipSkills -SkipCcSwitch`。
+- 中文分隔符 dry-run：`-Only "git，nodejs、cc-switch"`。
+- Profile 中文分隔符 dry-run：`-SkillProfile "飞书办公套件，前端开发套件、GitHub 工作流套件"`。
+- `git diff --check`。

@@ -88,3 +88,8 @@
 
 - 强化 TUI 进入前的英文输入布局切换：保留 `LoadKeyboardLayout` / `ActivateKeyboardLayout` 当前进程路径，并补充向前台终端窗口发送 `WM_INPUTLANGCHANGEREQUEST`。
 - 该实现仍按 Windows 会话和焦点限制做 best-effort，不改用户系统输入法配置；验证通过脚本解析和 `-Tui -DryRun -SkipSkills -SkipCcSwitch` 首屏退出。
+
+## 2026-04-30
+
+- 完成本轮安装器体验修复最终归档：同步 README、运行命令、安装流程、Skill 导入契约和 `.ai_memory`。
+- 明确后续现代化 TUI 信息架构重做作为下一阶段，不混入本轮 bugfix / 体验修复闭环。

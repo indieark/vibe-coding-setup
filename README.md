@@ -20,6 +20,7 @@
 - 先走公开主来源，失败后按 `bootstrap-assets` fallback。
 - 从公开 `skills.zip` 按 Profile 导入 Skill。
 - 默认进入拟似 TUI，可在进入脚本后选择原来模式、自定义模式或安全演练。
+- TUI 会尽量切换英文输入布局，Profile / 应用多选支持英文逗号、中文逗号和顿号。
 - 安装阶段显示总步骤进度，并在命令日志中列出本次实际安装清单。
 - 使用 `.skill-meta.json` 识别 Skill 来源，并写入 Skills Manager SQLite。
 - 对同名 Skill 做安全三态判定：已跟踪、旧孤儿、第三方同名。
@@ -57,6 +58,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 | 资产镜像 | 私库资产只在 GitHub Actions 中读取，终端用户只访问公开 `bootstrap-assets` |
 | TUI 入口 | 无安装参数默认进入拟似 TUI；显式参数继续支持旧命令模式 |
 | Skill 导入 | `skills.zip` 内置 registry 和 Profile，TUI 与命令模式都支持按需导入 |
+| 输入兼容 | TUI 进入前 best-effort 切英文输入布局；多选分隔支持 `,`、`，`、`、` |
 | 去重安全 | `Tracked / Orphan / Foreign` 三态判定，默认备份不删除 |
 | 进度展示 | 工作区、应用、Skill 和 CC Switch Provider 阶段显示 `[当前/总数]` |
 | 可追更 | `.skill-meta.json` 字段透传到 Skills Manager DB |
