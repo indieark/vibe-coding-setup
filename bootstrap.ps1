@@ -26,6 +26,43 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+function ConvertFrom-BootstrapUtf8Base64String {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Value
+    )
+
+    return [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($Value))
+}
+
+function ConvertTo-DisplaySource {
+    param(
+        [string]$Source
+    )
+
+    switch -Regex ($Source) {
+        '^filesystem$' { return (ConvertFrom-BootstrapUtf8Base64String -Value '5paH5Lu257O757uf') }
+        '^precheck-skip$' { return (ConvertFrom-BootstrapUtf8Base64String -Value '6aKE5qOA5p+l6Lez6L+H') }
+        '^winget$' { return 'winget' }
+        '^winget-fallback$' { return (ConvertFrom-BootstrapUtf8Base64String -Value 'd2luZ2V0IOWbnumAgA==') }
+        '^release-fallback$' { return (ConvertFrom-BootstrapUtf8Base64String -Value 'UmVsZWFzZSDlm57pgIA=') }
+        '^uri-fallback$' { return (ConvertFrom-BootstrapUtf8Base64String -Value 'VVJJIOWbnumAgA==') }
+        '^release-asset$' { return (ConvertFrom-BootstrapUtf8Base64String -Value 'UmVsZWFzZSDotYTkuqc=') }
+        '^github-latest-tag$' { return (ConvertFrom-BootstrapUtf8Base64String -Value 'R2l0SHViIGxhdGVzdCB0YWc=') }
+        '^github-release$' { return (ConvertFrom-BootstrapUtf8Base64String -Value 'R2l0SHViIFJlbGVhc2U=') }
+        '^direct-url$' { return (ConvertFrom-BootstrapUtf8Base64String -Value '55u06ZO+5LiL6L29') }
+        '^local-zip$' { return (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5ZywIHppcA==') }
+        '^ccswitch-deeplink$' { return (ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIOWvvOWFpQ==') }
+        'postcheck$' { return (ConvertFrom-BootstrapUtf8Base64String -Value '6aKE5qOA5p+l5oGi5aSN') }
+        default {
+            if ([string]::IsNullOrWhiteSpace($Source)) {
+                return (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq55+l5p2l5rqQ')
+            }
+            return $Source
+        }
+    }
+}
+
 function Write-BootstrapMessage {
     param(
         [Parameter(Mandatory)]
@@ -73,10 +110,10 @@ function Invoke-BootstrapExit {
     if ($KeepShellOpen) {
         Write-Host ''
         if ($Code -eq 0) {
-            Write-Host 'Installation finished. This elevated window will stay open. Close it manually when you are done reviewing the output.'
+            Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5bey5a6M5oiQ44CC566h55CG5ZGY56qX5Y+j5Lya5L+d5oyB5omT5byA77yM56Gu6K6k6L6T5Ye65ZCO5Y+v5omL5Yqo5YWz6Zet44CC')
         }
         else {
-            Write-Host 'Installation finished with errors. This elevated window will stay open. Close it manually after reviewing the output.'
+            Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF57uT5p2f5L2G5a2Y5Zyo6ZSZ6K+v44CC566h55CG5ZGY56qX5Y+j5Lya5L+d5oyB5omT5byA77yM6K+35qOA5p+l6L6T5Ye65ZCO5omL5Yqo5YWz6Zet44CC')
         }
 
         $global:LASTEXITCODE = $Code
@@ -85,7 +122,7 @@ function Invoke-BootstrapExit {
 
     if ($PauseOnExit) {
         Write-Host ''
-        Write-Host 'Installation finished. Press any key to close this window...'
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5bey5a6M5oiQ44CC5oyJ5Lu75oSP6ZSu5YWz6Zet56qX5Y+jLi4u')
         try {
             [void][System.Console]::ReadKey($true)
         }
@@ -94,7 +131,7 @@ function Invoke-BootstrapExit {
                 & cmd.exe /d /c 'pause >nul'
             }
             catch {
-                [void](Read-Host 'Press Enter to close this window')
+                [void](Read-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5oyJIEVudGVyIOWFs+mXreeql+WPow=='))
             }
         }
     }
@@ -173,7 +210,7 @@ function Copy-BootstrapDependency {
     }
 
     $sourcePath = Join-BootstrapSourcePath -SourceRoot $SourceRoot -RelativePath $RelativePath
-    Write-BootstrapMessage ('Fetching dependency: {0}' -f $RelativePath)
+    Write-BootstrapMessage ((ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo6I635Y+W6Ieq5Li+5L6d6LWW77yaezB9') -f $RelativePath)
 
     if (Test-HttpSourceRoot -SourceRoot $SourceRoot) {
         Invoke-WebRequest -Uri $sourcePath -OutFile $destinationPath
@@ -181,7 +218,7 @@ function Copy-BootstrapDependency {
     }
 
     if (-not (Test-Path -LiteralPath $sourcePath)) {
-        throw ('Bootstrap dependency not found at source path: {0}' -f $sourcePath)
+        throw ((ConvertFrom-BootstrapUtf8Base64String -Value '5om+5LiN5Yiw6Ieq5Li+5L6d6LWW5rqQ5paH5Lu277yaezB9') -f $sourcePath)
     }
 
     $resolvedSourcePath = (Resolve-Path -LiteralPath $sourcePath).Path
@@ -193,7 +230,7 @@ function Copy-BootstrapDependency {
     }
 
     if ($resolvedSourcePath -eq $resolvedDestinationPath) {
-        Write-BootstrapMessage ('Dependency already in place: {0}' -f $RelativePath)
+        Write-BootstrapMessage ((ConvertFrom-BootstrapUtf8Base64String -Value '6Ieq5Li+5L6d6LWW5bey5bCx57uq77yaezB9') -f $RelativePath)
         return
     }
 
@@ -221,12 +258,12 @@ function Copy-BootstrapReleaseAsset {
     Ensure-BootstrapDirectory -Path $destinationDir
 
     if ((-not $Refresh) -and (Test-Path -LiteralPath $destinationPath)) {
-        Write-BootstrapMessage ('Using cached release asset: {0}' -f $RelativePath)
+        Write-BootstrapMessage ((ConvertFrom-BootstrapUtf8Base64String -Value '5L2/55So5bey57yT5a2Y55qEIFJlbGVhc2Ug6LWE5Lqn77yaezB9') -f $RelativePath)
         return
     }
 
     $url = Get-BootstrapReleaseAssetUrl -Repo $Repo -Tag $Tag -AssetName $AssetName
-    Write-BootstrapMessage ('Fetching release asset: {0}' -f $RelativePath)
+    Write-BootstrapMessage ((ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo6I635Y+WIFJlbGVhc2Ug6LWE5Lqn77yaezB9') -f $RelativePath)
     Invoke-WebRequest -Uri $url -OutFile $destinationPath
 }
 
@@ -307,7 +344,7 @@ if (-not $DryRun -and -not (Test-IsAdministrator)) {
         $argumentList.Add([string]$token)
     }
 
-    Write-Host 'Administrator privileges are required. Requesting UAC elevation...'
+    Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '6ZyA6KaB566h55CG5ZGY5p2D6ZmQ77yM5q2j5Zyo6K+35rGCIFVBQyDmj5DmnYMuLi4=')
     Start-Process -FilePath (Get-CurrentPowerShellExecutable) -Verb RunAs -ArgumentList $argumentList.ToArray() | Out-Null
     Invoke-BootstrapExit -Code 0
 }
@@ -327,9 +364,9 @@ if (-not $SkipSkills) {
         -Refresh:$shouldRefreshSkillBundle
 }
 
-Write-Log -Message ('Workspace: {0}' -f $root)
-Write-Log -Message ('Mode: {0}' -f ($(if ($DryRun) { 'DryRun' } else { 'Install' })))
-Write-Log -Message ('Selected apps: {0}' -f (($selectedApps | ForEach-Object { $_.name }) -join ', '))
+Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '5bel5L2c5Yy677yaezB9') -f $root)
+Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '5qih5byP77yaezB9') -f ($(if ($DryRun) { ConvertFrom-BootstrapUtf8Base64String -Value '5ryU57uD' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF' })))
+Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5Lit55qE5bqU55So77yaezB9') -f (($selectedApps | ForEach-Object { $_.name }) -join ', '))
 
 $providerInfo = $null
 $providerPrecheckResult = $null
@@ -347,17 +384,17 @@ if (-not $SkipCcSwitch -and ($selectedApps | Where-Object { $_.key -eq 'cc-switc
         $existingProvider = Get-CcSwitchProviderByName -ProviderName $providerNameToCheck
     }
     catch {
-        Write-Log -Level 'WARN' -Message ('CC Switch provider precheck failed, fallback to interactive prompt: {0}' -f $_.Exception.Message)
+        Write-Log -Level 'WARN' -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIHByb3ZpZGVyIOmihOajgOafpeWksei0pe+8jOaUueS4uuS6pOS6kuW8j+i+k+WFpe+8mnswfQ==') -f $_.Exception.Message)
     }
 
     if ($existingProvider) {
-        Write-Log -Message ('CC Switch already has codex provider "{0}", skip provider prompts and import' -f $providerNameToCheck)
+        Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIOW3suWtmOWcqCBjb2RleCBwcm92aWRlciDigJx7MH3igJ3vvIzot7Pov4cgcHJvdmlkZXIg6L6T5YWl5ZKM5a+85YWl') -f $providerNameToCheck)
         $providerPrecheckResult = [pscustomobject]@{
             Name = 'CC Switch Provider Import'
             Key = 'cc-switch-provider'
             Status = 'ok'
             Source = 'precheck-skip'
-            Detail = ('Existing provider found: {0}' -f $providerNameToCheck)
+            Detail = ((ConvertFrom-BootstrapUtf8Base64String -Value '5bey5om+5Yiw546w5pyJIHByb3ZpZGVy77yaezB9') -f $providerNameToCheck)
         }
     }
     else {
@@ -380,13 +417,13 @@ try {
 }
 catch {
     $results.Add([pscustomobject]@{
-            Name = 'Codex Workspace'
+            Name = (ConvertFrom-BootstrapUtf8Base64String -Value 'Q29kZXgg5bel5L2c5Yy6')
             Key = 'codex-workspace'
             Status = 'failed'
             Source = 'filesystem'
             Detail = $_.Exception.Message
         })
-    Write-Log -Level 'ERROR' -Message ('Codex workspace setup failed: {0}' -f $_.Exception.Message)
+    Write-Log -Level 'ERROR' -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q29kZXgg5bel5L2c5Yy66K6+572u5aSx6LSl77yaezB9') -f $_.Exception.Message)
 }
 
 foreach ($app in ($selectedApps | Sort-Object order)) {
@@ -402,7 +439,7 @@ foreach ($app in ($selectedApps | Sort-Object order)) {
                 Source = $app.strategy
                 Detail = $_.Exception.Message
             })
-        Write-Log -Level 'ERROR' -Message ('{0} install failed: {1}' -f $app.name, $_.Exception.Message)
+        Write-Log -Level 'ERROR' -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'ezB9IOWuieijheWksei0pe+8mnsxfQ==') -f $app.name, $_.Exception.Message)
     }
 }
 
@@ -427,7 +464,7 @@ if (-not $SkipSkills) {
                 Source = 'local-zip'
                 Detail = $_.Exception.Message
             })
-        Write-Log -Level 'ERROR' -Message ('skills.zip import failed: {0}' -f $_.Exception.Message)
+        Write-Log -Level 'ERROR' -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'c2tpbGxzLnppcCDlr7zlhaXlpLHotKXvvJp7MH0=') -f $_.Exception.Message)
     }
 }
 
@@ -447,19 +484,25 @@ if (-not $SkipCcSwitch -and $providerInfo -and ($selectedApps | Where-Object { $
     }
     catch {
         $results.Add([pscustomobject]@{
-                Name = 'CC Switch Provider Import'
+                Name = (ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIFByb3ZpZGVyIOWvvOWFpQ==')
                 Key = 'cc-switch-provider'
                 Status = 'failed'
                 Source = 'ccswitch-deeplink'
                 Detail = $_.Exception.Message
             })
-        Write-Log -Level 'ERROR' -Message ('CC Switch provider import failed: {0}' -f $_.Exception.Message)
+        Write-Log -Level 'ERROR' -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIHByb3ZpZGVyIOWvvOWFpeWksei0pe+8mnswfQ==') -f $_.Exception.Message)
     }
 }
 
 Write-Host ''
-Write-Host '==== Summary ===='
-$results | Select-Object Name, Status, Source, Detail | Format-Table -AutoSize
+Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5omn6KGM5pGY6KaB')
+$results |
+    Select-Object `
+        @{ Name = (ConvertFrom-BootstrapUtf8Base64String -Value '5ZCN56ew'); Expression = { $_.Name } },
+        @{ Name = (ConvertFrom-BootstrapUtf8Base64String -Value '54q25oCB'); Expression = { if ($_.Status -eq 'failed') { ConvertFrom-BootstrapUtf8Base64String -Value '5aSx6LSl' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5oiQ5Yqf' } } },
+        @{ Name = (ConvertFrom-BootstrapUtf8Base64String -Value '5omn6KGM6Lev5b6E'); Expression = { ConvertTo-DisplaySource -Source $_.Source } },
+        @{ Name = (ConvertFrom-BootstrapUtf8Base64String -Value '6K+m5oOF'); Expression = { $_.Detail } } |
+    Format-Table -AutoSize
 
 $failed = @($results | Where-Object { $_.Status -eq 'failed' })
 if ($failed.Count -gt 0) {

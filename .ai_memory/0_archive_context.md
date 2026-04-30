@@ -132,3 +132,29 @@ Skill 导入的安全边界已经收敛为三态：`Tracked` 表示 IndieArk 可
 本次把 README 改为顶层入口，只保留项目定位、文档地图、快速开始、SSOT 约定和维护检查清单。详细说明按主题拆入 `docs/installer-flow.md`、`docs/skill-import.md`、`docs/asset-refresh.md`、`docs/operations.md`、`docs/roadmap.md`。
 
 同时新增 `.agent/rules/documentation-governance.md`，把“README 只做索引、规则写在 rules、归档不当用户手册、代码配置是最终事实源”固化为仓库规则。后续修改文档时先找唯一入口，不要把同一张表复制到多个文件。
+
+## 2026-04-30 — 脚本中文化与展示可读性归档
+
+### 核心议题背景
+
+用户先提出希望脚本更结构化、支持中文显示并有现代化界面；随后明确收窄为“先把脚本中文化”。因此本轮没有继续推进 GUI，也没有拆分安装内核，而是优先处理终端用户实际看到的提示、日志、错误和最终 summary。
+
+### Cognitive Evolution Path
+
+1. 先确认当前仓库的安装核心仍是 `bootstrap.ps1` 与 `modules/common.psm1`，避免为了界面诉求直接大改安装流程。
+2. 发现 Windows PowerShell 5.1 对无 BOM 中文源码不稳定，因此没有把大量中文直接写成源码字面量，而是沿用项目已有的 UTF-8 base64 解码输出方式。
+3. 第一轮中文化覆盖自举、下载、winget、预检查、fallback、CC Switch、Skill 导入和执行摘要。
+4. 用户追问“中文还能更优雅易读吗”后，进一步把日志等级从 `INFO/WARN/ERROR` 展示为“信息 / 警告 / 错误”，并把执行摘要中的内部 source 值翻译成用户语义，如“文件系统”“预检查跳过”。
+5. 最小回归验证选用既有安全命令：`powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only git`，确认中文输出和退出码正常。
+
+### 关键决策
+
+- 本轮只做展示层中文化，不改变安装策略、状态值、fallback 顺序或 Skill 三态判定。
+- 内部 `Status`、`Source` 等字段继续保留英文机器值，最终表格单独做中文展示映射，避免影响脚本逻辑。
+- 为兼容旧版 PowerShell，中文提示继续通过 UTF-8 base64 解码，脚本文件保持 UTF-8 无 BOM。
+
+### 当前结论
+
+- 脚本已经能以中文输出主要用户可见流程。
+- 执行摘要相比上一版更容易读：标题为“执行摘要”，日志等级为中文，执行路径以用户语义展示。
+- 后续若做 GUI，应作为独立阶段，复用当前参数和安装内核，不要把 GUI 与安装逻辑重构绑在同一个变更里。

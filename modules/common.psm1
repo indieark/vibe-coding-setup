@@ -10,7 +10,13 @@ function Write-Log {
     )
 
     $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-    Write-Host ('[{0}] [{1}] {2}' -f $timestamp, $Level, $Message)
+    $levelText = switch ($Level) {
+        'INFO' { ConvertFrom-Utf8Base64String -Value '5L+h5oGv' }
+        'WARN' { ConvertFrom-Utf8Base64String -Value '6K2m5ZGK' }
+        'ERROR' { ConvertFrom-Utf8Base64String -Value '6ZSZ6K+v' }
+        default { $Level }
+    }
+    Write-Host ('[{0}] [{1}] {2}' -f $timestamp, $levelText, $Message)
 }
 
 function Test-IsAdministrator {
@@ -72,7 +78,7 @@ function Get-AppManifest {
     )
 
     if (-not (Test-Path -LiteralPath $ManifestPath)) {
-        throw "Manifest not found: $ManifestPath"
+        throw ((ConvertFrom-Utf8Base64String -Value '5om+5LiN5Yiw5a6J6KOF5riF5Y2V77yaezB9') -f $ManifestPath)
     }
 
     return Get-Content -LiteralPath $ManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -99,7 +105,7 @@ function Get-SelectedApps {
     $selected = @($Apps | Where-Object { $lookup -contains $_.key.ToLowerInvariant() })
 
     if ($selected.Count -eq 0) {
-        throw ('No app keys matched: {0}' -f ($Only -join ', '))
+        throw ((ConvertFrom-Utf8Base64String -Value '5rKh5pyJ5Yy56YWN5Yiw5bqU55SoIGtlee+8mnswfQ==') -f ($Only -join ', '))
     }
 
     return $selected
@@ -161,16 +167,16 @@ function Initialize-CodexWorkspaceDirectory {
     $driveRoot = $candidateDrives | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 
     if (-not $driveRoot) {
-        throw 'Neither drive D: nor C: is available'
+        throw (ConvertFrom-Utf8Base64String -Value '5pyq5om+5YiwIEQ6IOaIliBDOiDnm5g=')
     }
 
     $workspaceRoot = Join-Path $driveRoot 'Vibe Coding'
     $chatPath = Join-Path $workspaceRoot 'Chat'
 
     if ($DryRun) {
-        Write-Log -Message ('[DryRun] Create Codex workspace directory: {0}' -f $chatPath)
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5Yib5bu6IENvZGV4IOW3peS9nOWMuuebruW9le+8mnswfQ==') -f $chatPath)
         return [pscustomobject]@{
-            Name = 'Codex Workspace'
+            Name = (ConvertFrom-Utf8Base64String -Value 'Q29kZXgg5bel5L2c5Yy6')
             Key = 'codex-workspace'
             Status = 'ok'
             Source = 'filesystem'
@@ -179,16 +185,16 @@ function Initialize-CodexWorkspaceDirectory {
     }
 
     if (Test-Path -LiteralPath $chatPath -PathType Container) {
-        Write-Log -Message ('Codex workspace directory already exists, skip creation: {0}' -f $chatPath)
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'Q29kZXgg5bel5L2c5Yy655uu5b2V5bey5a2Y5Zyo77yM6Lez6L+H5Yib5bu677yaezB9') -f $chatPath)
     }
     else {
         Initialize-Directory -Path $workspaceRoot
         Initialize-Directory -Path $chatPath
-        Write-Log -Message ('Created Codex workspace directory: {0}' -f $chatPath)
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5bey5Yib5bu6IENvZGV4IOW3peS9nOWMuuebruW9le+8mnswfQ==') -f $chatPath)
     }
 
     return [pscustomobject]@{
-        Name = 'Codex Workspace'
+        Name = (ConvertFrom-Utf8Base64String -Value 'Q29kZXgg5bel5L2c5Yy6')
         Key = 'codex-workspace'
         Status = 'ok'
         Source = 'filesystem'
@@ -221,12 +227,12 @@ function Get-GitHubLatestReleaseAsset {
         'Accept' = 'application/vnd.github+json'
     }
 
-    Write-Log -Message ('Querying GitHub latest release: {0}' -f $Repo)
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5p+l6K+iIEdpdEh1YiDmnIDmlrAgUmVsZWFzZe+8mnswfQ==') -f $Repo)
     $release = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
     $asset = $release.assets | Where-Object { $_.name -match $AssetPattern } | Select-Object -First 1
 
     if (-not $asset) {
-        throw ('Repo {0} did not expose an asset matching: {1}' -f $Repo, $AssetPattern)
+        throw ((ConvertFrom-Utf8Base64String -Value '5LuT5bqTIHswfSDmsqHmnInmj5DkvpvljLnphY3otYTkuqfvvJp7MX0=') -f $Repo, $AssetPattern)
     }
 
     return [pscustomobject]@{
@@ -264,12 +270,12 @@ function Get-GitHubLatestTagViaRedirect {
     try {
         $location = $response.Headers['Location']
         if ([string]::IsNullOrWhiteSpace($location)) {
-            throw ('GitHub latest redirect did not provide a Location header: {0}' -f $Repo)
+            throw ((ConvertFrom-Utf8Base64String -Value 'R2l0SHViIGxhdGVzdCDot7PovazmsqHmnInov5Tlm54gTG9jYXRpb24gaGVhZGVy77yaezB9') -f $Repo)
         }
 
         $match = [regex]::Match($location, '/tag/(?<tag>[^/]+)$')
         if (-not $match.Success) {
-            throw ('Could not parse latest tag from redirect: {0}' -f $location)
+            throw ((ConvertFrom-Utf8Base64String -Value '5peg5rOV5LuO6Lez6L2s5Zyw5Z2A6Kej5p6QIGxhdGVzdCB0YWfvvJp7MH0=') -f $location)
         }
 
         return $match.Groups['tag'].Value
@@ -289,12 +295,12 @@ function Invoke-DownloadFile {
     )
 
     if ($DryRun) {
-        Write-Log -Message ('[DryRun] Download {0} -> {1}' -f $Url, $DestinationPath)
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5LiL6L29IHswfSAtPiB7MX0=') -f $Url, $DestinationPath)
         return $DestinationPath
     }
 
     Initialize-Directory -Path (Split-Path -Parent $DestinationPath)
-    Write-Log -Message ('Downloading {0}' -f $Url)
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5LiL6L29IHswfQ==') -f $Url)
     Invoke-WebRequest -Uri $Url -OutFile $DestinationPath
     return $DestinationPath
 }
@@ -420,7 +426,7 @@ function Write-WingetOutputLines {
                 continue
             }
 
-            Write-Log -Message ('winget progress: {0}%' -f $progressPercent)
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'd2luZ2V0IOi/m+W6pu+8mnswfSU=') -f $progressPercent)
             $LastProgressPercent.Value = $progressPercent
             $LastLine.Value = 'progress:{0}' -f $progressPercent
             $Emitted.Value = $true
@@ -465,7 +471,7 @@ function Invoke-WingetAction {
     )
 
     if (-not (Test-WingetInstalled)) {
-        throw 'winget is not available'
+        throw (ConvertFrom-Utf8Base64String -Value 'd2luZ2V0IOS4jeWPr+eUqA==')
     }
 
     $args = @(
@@ -483,13 +489,13 @@ function Invoke-WingetAction {
     }
 
     if ($DryRun) {
-        Write-Log -Message ('[DryRun] winget {0} {1}' -f $Action, $PackageId)
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10gd2luZ2V0IHswfSB7MX0=') -f $Action, $PackageId)
         return
     }
 
-    Write-Log -Message ('Running winget {0}: {1}' -f $Action, $PackageId)
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5omn6KGMIHdpbmdldCB7MH3vvJp7MX0=') -f $Action, $PackageId)
     if ($Source -eq 'msstore') {
-        Write-Log -Message ('winget {0} for Store package {1} may pause without progress output while Microsoft Store resolves the request' -f $Action, $PackageId)
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo6YCa6L+HIHdpbmdldCB7MH0gTWljcm9zb2Z0IFN0b3JlIOWMhSB7MX3vvIxTdG9yZSDop6PmnpDmnJ/pl7Tlj6/og73mmoLml7bmsqHmnInov5vluqbovpPlh7o=') -f $Action, $PackageId)
     }
 
     $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ('winget-' + [guid]::NewGuid().ToString('N'))
@@ -522,7 +528,7 @@ function Invoke-WingetAction {
                 $lastHeartbeat = Get-Date
             }
             elseif (((Get-Date) - $lastHeartbeat).TotalSeconds -ge 15) {
-                Write-Log -Message ('winget {0} for {1} is still running...' -f $Action, $PackageId)
+                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'd2luZ2V0IHswfSB7MX0g5LuN5Zyo6L+Q6KGMLi4u') -f $Action, $PackageId)
                 $lastHeartbeat = Get-Date
             }
 
@@ -555,20 +561,20 @@ function Invoke-WingetAction {
 
     if ($exitCode -ne 0) {
         if (Test-WingetNoApplicableUpgradeOutput -OutputText $combinedOutput) {
-            Write-Log -Message ('winget {0} reported no applicable update for {1}; treating as current' -f $Action, $PackageId)
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'd2luZ2V0IHswfSDmiqXlkYogezF9IOayoeacieWPr+eUqOabtOaWsO+8jOaMieW3suaYr+acgOaWsOWkhOeQhg==') -f $Action, $PackageId)
             return
         }
 
         if ($Action -eq 'upgrade') {
-            Write-Log -Level 'WARN' -Message ('winget upgrade {0} returned {1}; continuing' -f $PackageId, $exitCode)
+            Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'd2luZ2V0IHVwZ3JhZGUgezB9IOi/lOWbniB7MX3vvIznu6fnu63lkI7nu63mtYHnqIs=') -f $PackageId, $exitCode)
             return
         }
         $exitText = if ($null -eq $exitCode) { 'unknown' } else { [string]$exitCode }
-        throw ('winget {0} {1} failed, exit={2}' -f $Action, $PackageId, $exitText)
+        throw ((ConvertFrom-Utf8Base64String -Value 'd2luZ2V0IHswfSB7MX0g5aSx6LSl77yM6YCA5Ye656CBPXsyfQ==') -f $Action, $PackageId, $exitText)
     }
 
     Reset-InstallDetectionState
-    Write-Log -Message ('winget {0} completed: {1}' -f $Action, $PackageId)
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'd2luZ2V0IHswfSDlt7LlrozmiJDvvJp7MX0=') -f $Action, $PackageId)
 }
 
 function Test-WingetPackageInstalled {
@@ -871,7 +877,7 @@ function Get-InstalledCommandVersion {
                 Found = $false
                 Version = $null
                 Source = 'command'
-                Detail = '{0} invocation failed: {1}' -f $commandName, $_.Exception.Message
+                Detail = (ConvertFrom-Utf8Base64String -Value 'ezB9IOiwg+eUqOWksei0pe+8mnsxfQ==') -f $commandName, $_.Exception.Message
             }
             continue
         }
@@ -921,7 +927,7 @@ function Get-InstalledAppVersion {
             Found = $false
             Version = $null
             Source = 'none'
-            Detail = 'No detection rule'
+            Detail = (ConvertFrom-Utf8Base64String -Value '5rKh5pyJ5qOA5rWL6KeE5YiZ')
         }
     }
 
@@ -950,7 +956,7 @@ function Get-InstalledAppVersion {
         Found = $false
         Version = $null
         Source = 'none'
-        Detail = 'No detection rule'
+        Detail = (ConvertFrom-Utf8Base64String -Value '5rKh5pyJ5qOA5rWL6KeE5YiZ')
     }
 }
 
@@ -1106,7 +1112,7 @@ function Get-AppInstallDecision {
             Reason = 'missing'
             InstalledVersion = $null
             DesiredVersion = $desired.Version
-            Detail = 'Not installed'
+            Detail = (ConvertFrom-Utf8Base64String -Value '5pyq5a6J6KOF')
         }
     }
 
@@ -1116,7 +1122,7 @@ function Get-AppInstallDecision {
             Reason = 'present'
             InstalledVersion = $installed.Version
             DesiredVersion = $desired.Version
-            Detail = 'Installed app detected and installIfMissingOnly is enabled'
+            Detail = (ConvertFrom-Utf8Base64String -Value '5bey5qOA5rWL5Yiw5bqU55So77yM5LiU5ZCv55SoIGluc3RhbGxJZk1pc3NpbmdPbmx5')
         }
     }
 
@@ -1126,7 +1132,7 @@ function Get-AppInstallDecision {
             Reason = 'unknown-installed-version'
             InstalledVersion = $null
             DesiredVersion = $desired.Version
-            Detail = 'Installed version could not be determined'
+            Detail = (ConvertFrom-Utf8Base64String -Value '5peg5rOV56Gu5a6a5bey5a6J6KOF54mI5pys')
         }
     }
 
@@ -1136,7 +1142,7 @@ function Get-AppInstallDecision {
             Reason = 'unknown-target-version'
             InstalledVersion = $installed.Version
             DesiredVersion = $null
-            Detail = 'Installed version detected, but target version is not comparable'
+            Detail = (ConvertFrom-Utf8Base64String -Value '5bey5qOA5rWL5Yiw5a6J6KOF54mI5pys77yM5L2G55uu5qCH54mI5pys5LiN5Y+v5q+U6L6D')
         }
     }
 
@@ -1147,7 +1153,7 @@ function Get-AppInstallDecision {
             Reason = 'non-comparable'
             InstalledVersion = $installed.Version
             DesiredVersion = $desired.Version
-            Detail = 'Installed and target versions are not comparable'
+            Detail = (ConvertFrom-Utf8Base64String -Value '5bey5a6J6KOF54mI5pys5ZKM55uu5qCH54mI5pys5LiN5Y+v5q+U6L6D')
         }
     }
 
@@ -1157,7 +1163,7 @@ function Get-AppInstallDecision {
             Reason = 'current'
             InstalledVersion = $installed.Version
             DesiredVersion = $desired.Version
-            Detail = 'Installed version is current'
+            Detail = (ConvertFrom-Utf8Base64String -Value '5bey5a6J6KOF54mI5pys5Li65pyA5paw')
         }
     }
 
@@ -1166,7 +1172,7 @@ function Get-AppInstallDecision {
         Reason = 'outdated'
         InstalledVersion = $installed.Version
         DesiredVersion = $desired.Version
-        Detail = 'Installed version is older than target'
+        Detail = (ConvertFrom-Utf8Base64String -Value '5bey5a6J6KOF54mI5pys5L2O5LqO55uu5qCH54mI5pys')
     }
 }
 
@@ -1188,7 +1194,7 @@ function Test-InstallRecoveredAfterPrimaryFailure {
                 return [pscustomobject]@{
                     Recovered = $true
                     InstalledVersion = $installed.Version
-                    Detail = 'App became detectable after primary installer returned an error'
+                    Detail = (ConvertFrom-Utf8Base64String -Value '5Li75a6J6KOF5Zmo6L+U5Zue6ZSZ6K+v5ZCO77yM5bqU55So5bey5Y+v5qOA5rWL')
                 }
             }
 
@@ -1210,7 +1216,7 @@ function Test-InstallRecoveredAfterPrimaryFailure {
     return [pscustomobject]@{
         Recovered = $false
         InstalledVersion = $null
-        Detail = 'App was still not verifiably installed after recheck'
+        Detail = (ConvertFrom-Utf8Base64String -Value '5aSN5p+l5ZCO5LuN5peg5rOV56Gu6K6k5bqU55So5bey5a6J6KOF')
     }
 }
 
@@ -1227,11 +1233,11 @@ function Resolve-PrimaryInstallFailure {
         [switch]$DryRun
     )
 
-    Write-Log -Level 'WARN' -Message ('{0} path raised an error for {1}: {2}' -f $PrimarySource, $Definition.name, $ErrorRecord.Exception.Message)
+    Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'ezB9IOi3r+W+hOWkhOeQhiB7MX0g5pe25Ye66ZSZ77yaezJ9') -f $PrimarySource, $Definition.name, $ErrorRecord.Exception.Message)
     if (-not $DryRun) {
         $recovered = Test-InstallRecoveredAfterPrimaryFailure -Definition $Definition -InitialDecision $InitialDecision
         if ($recovered.Recovered) {
-            Write-Log -Level 'WARN' -Message ('{0} appears installed after post-failure recheck; skipping fallback for {1}' -f $Definition.name, $PrimarySource)
+            Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'ezB9IOWcqOWksei0peWQjuWkjeafpeaXtueci+i1t+adpeW3suWuieijhe+8jOi3s+i/hyB7MX0gZmFsbGJhY2s=') -f $Definition.name, $PrimarySource)
             return [pscustomobject]@{
                 Name = $Definition.name
                 Key = $Definition.key
@@ -1242,7 +1248,7 @@ function Resolve-PrimaryInstallFailure {
         }
     }
 
-    Write-Log -Level 'WARN' -Message ('{0} path failed, falling back to release or local package: {1}' -f $PrimarySource, $Definition.name)
+    Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '5Li76Lev5b6E5aSx6LSl77yM5pS555SoIHJlbGVhc2Ug5oiW5pys5Zyw5a6J6KOF5YyF77yaezB9IC8gezF9') -f $PrimarySource, $Definition.name)
     return $null
 }
 
@@ -1257,7 +1263,7 @@ function Install-DownloadedPackage {
     )
 
     if ($InstallerType -ne 'uri' -and -not (Test-Path -LiteralPath $PackagePath) -and -not $DryRun) {
-        throw "Package not found: $PackagePath"
+        throw ((ConvertFrom-Utf8Base64String -Value '5a6J6KOF5YyF5LiN5a2Y5Zyo77yaezB9') -f $PackagePath)
     }
 
     switch ($InstallerType) {
@@ -1269,10 +1275,10 @@ function Install-DownloadedPackage {
                 return
             }
 
-            Write-Log -Message ('Installing MSI: {0}' -f (Split-Path -Leaf $PackagePath))
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5a6J6KOFIE1TSe+8mnswfQ==') -f (Split-Path -Leaf $PackagePath))
             $proc = Start-Process -FilePath 'msiexec.exe' -ArgumentList $argumentLine -Wait -PassThru
             if ($proc.ExitCode -ne 0) {
-                throw ('MSI install failed, exit={0}' -f $proc.ExitCode)
+                throw ((ConvertFrom-Utf8Base64String -Value 'TVNJIOWuieijheWksei0pe+8jOmAgOWHuueggT17MH0=') -f $proc.ExitCode)
             }
 
             Reset-InstallDetectionState
@@ -1284,10 +1290,10 @@ function Install-DownloadedPackage {
                 return
             }
 
-            Write-Log -Message ('Installing EXE: {0}' -f (Split-Path -Leaf $PackagePath))
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5a6J6KOFIEVYRe+8mnswfQ==') -f (Split-Path -Leaf $PackagePath))
             $proc = Start-Process -FilePath $PackagePath -ArgumentList $argumentLine -Wait -PassThru
             if ($proc.ExitCode -ne 0) {
-                throw ('EXE install failed, exit={0}' -f $proc.ExitCode)
+                throw ((ConvertFrom-Utf8Base64String -Value 'RVhFIOWuieijheWksei0pe+8jOmAgOWHuueggT17MH0=') -f $proc.ExitCode)
             }
 
             Reset-InstallDetectionState
@@ -1298,7 +1304,7 @@ function Install-DownloadedPackage {
                 return
             }
 
-            Write-Log -Message ('Installing MSIX: {0}' -f (Split-Path -Leaf $PackagePath))
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5a6J6KOFIE1TSVjvvJp7MH0=') -f (Split-Path -Leaf $PackagePath))
             Add-AppxPackage -Path $PackagePath
             Reset-InstallDetectionState
         }
@@ -1308,11 +1314,11 @@ function Install-DownloadedPackage {
                 return
             }
 
-            Write-Log -Message ('Opening installer URI: {0}' -f $PackagePath)
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5omT5byA5a6J6KOFIFVSSe+8mnswfQ==') -f $PackagePath)
             Start-Process -FilePath $PackagePath | Out-Null
         }
         default {
-            throw ('Unsupported installerType: {0}' -f $InstallerType)
+            throw ((ConvertFrom-Utf8Base64String -Value '5LiN5pSv5oyB55qEIGluc3RhbGxlclR5cGXvvJp7MH0=') -f $InstallerType)
         }
     }
 }
@@ -1332,40 +1338,40 @@ function Install-AppFromDefinition {
 
     switch ($decision.Reason) {
         'missing' {
-            Write-Log -Message ('Precheck {0}: not installed, will install' -f $Definition.name)
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muacquWuieijhe+8jOWwhuaJp+ihjOWuieijhQ==') -f $Definition.name)
         }
         'outdated' {
-            Write-Log -Message ('Precheck {0}: installed {1}, target {2}, will update' -f $Definition.name, $decision.InstalledVersion, $decision.DesiredVersion)
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muW3suWuieijhSB7MX3vvIznm67moIcgezJ977yM5bCG5pu05paw') -f $Definition.name, $decision.InstalledVersion, $decision.DesiredVersion)
         }
         'current' {
-            Write-Log -Message ('Precheck {0}: installed {1}, target {2}, skip' -f $Definition.name, $decision.InstalledVersion, $decision.DesiredVersion)
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muW3suWuieijhSB7MX3vvIznm67moIcgezJ977yM6Lez6L+H') -f $Definition.name, $decision.InstalledVersion, $decision.DesiredVersion)
         }
         'present' {
             if ([string]::IsNullOrWhiteSpace([string]$decision.InstalledVersion)) {
-                Write-Log -Message ('Precheck {0}: detected as installed, installIfMissingOnly enabled, skip' -f $Definition.name)
+                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muajgOa1i+WIsOW3suWuieijhe+8jOS4lOWQr+eUqCBpbnN0YWxsSWZNaXNzaW5nT25see+8jOi3s+i/hw==') -f $Definition.name)
             }
             else {
-                Write-Log -Message ('Precheck {0}: installed {1}, installIfMissingOnly enabled, skip' -f $Definition.name, $decision.InstalledVersion)
+                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muW3suWuieijhSB7MX3vvIzkuJTlkK/nlKggaW5zdGFsbElmTWlzc2luZ09ubHnvvIzot7Pov4c=') -f $Definition.name, $decision.InstalledVersion)
             }
         }
         'unknown-target-version' {
-            Write-Log -Message ('Precheck {0}: installed {1}, target version unavailable, will let source reconcile' -f $Definition.name, $decision.InstalledVersion)
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muW3suWuieijhSB7MX3vvIznm67moIfniYjmnKzkuI3lj6/nlKjvvIzkuqTnu5nlronoo4XmnaXmupDlpITnkIY=') -f $Definition.name, $decision.InstalledVersion)
         }
         'unknown-installed-version' {
-            Write-Log -Message ('Precheck {0}: app exists but installed version is unknown, will reinstall or update' -f $Definition.name)
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muW6lOeUqOWtmOWcqOS9huW3suWuieijheeJiOacrOacquefpe+8jOWwhumHjeaWsOWuieijheaIluabtOaWsA==') -f $Definition.name)
         }
         'non-comparable' {
-            Write-Log -Message ('Precheck {0}: installed {1}, target {2}, versions not comparable, will reinstall or update' -f $Definition.name, $decision.InstalledVersion, $decision.DesiredVersion)
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muW3suWuieijhSB7MX3vvIznm67moIcgezJ977yM54mI5pys5LiN5Y+v5q+U6L6D77yM5bCG6YeN5paw5a6J6KOF5oiW5pu05paw') -f $Definition.name, $decision.InstalledVersion, $decision.DesiredVersion)
         }
     }
 
     if ($decision.Action -eq 'skip') {
         $skipDetail = if ($decision.Reason -eq 'present') {
             if ([string]::IsNullOrWhiteSpace([string]$decision.InstalledVersion)) {
-                'Detected as installed; installIfMissingOnly enabled'
+                ConvertFrom-Utf8Base64String -Value '5qOA5rWL5Yiw5bey5a6J6KOF77yb5bey5ZCv55SoIGluc3RhbGxJZk1pc3NpbmdPbmx5'
             }
             else {
-                'Detected as installed ({0}); installIfMissingOnly enabled' -f $decision.InstalledVersion
+                (ConvertFrom-Utf8Base64String -Value '5qOA5rWL5Yiw5bey5a6J6KOF77yIezB977yJ77yb5bey5ZCv55SoIGluc3RhbGxJZk1pc3NpbmdPbmx5') -f $decision.InstalledVersion
             }
         }
         else {
@@ -1482,7 +1488,7 @@ function Install-AppFromDefinition {
         }
         'github-latest-tag' {
             try {
-                Write-Log -Message ('Resolving latest GitHub tag via redirect: {0}' -f $Definition.repo)
+                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo6YCa6L+H6Lez6L2s6Kej5p6QIEdpdEh1YiDmnIDmlrAgdGFn77yaezB9') -f $Definition.repo)
                 $tag = Get-GitHubLatestTagViaRedirect -Repo $Definition.repo
                 $version = $tag.TrimStart('v')
                 $assetName = $Definition.assetTemplate.Replace('{tag}', $tag).Replace('{version}', $version)
@@ -1512,12 +1518,12 @@ function Install-AppFromDefinition {
             }
         }
         default {
-            throw ('Unsupported strategy: {0}' -f $Definition.strategy)
+            throw ((ConvertFrom-Utf8Base64String -Value '5LiN5pSv5oyB55qE5a6J6KOF562W55Wl77yaezB9') -f $Definition.strategy)
         }
     }
 
     if (-not $Definition.fallback) {
-        throw ('{0} has no usable fallback' -f $Definition.name)
+        throw ((ConvertFrom-Utf8Base64String -Value 'ezB9IOayoeacieWPr+eUqCBmYWxsYmFjaw==') -f $Definition.name)
     }
 
     $fallbackWingetId = [string](Get-ObjectPropertyValue -Object $Definition.fallback -Name 'wingetId')
@@ -1535,7 +1541,7 @@ function Install-AppFromDefinition {
             }
         }
         catch {
-            Write-Log -Level 'WARN' -Message ('winget fallback failed: {0}' -f $_.Exception.Message)
+            Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'd2luZ2V0IGZhbGxiYWNrIOWksei0pe+8mnswfQ==') -f $_.Exception.Message)
         }
     }
 
@@ -1564,7 +1570,7 @@ function Install-AppFromDefinition {
             }
         }
         catch {
-            Write-Log -Level 'WARN' -Message ('Release fallback failed: {0}' -f $_.Exception.Message)
+            Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'UmVsZWFzZSBmYWxsYmFjayDlpLHotKXvvJp7MH0=') -f $_.Exception.Message)
         }
     }
 
@@ -1586,12 +1592,12 @@ function Install-AppFromDefinition {
                 }
             }
             catch {
-                Write-Log -Level 'WARN' -Message ('URI fallback failed: {0}' -f $_.Exception.Message)
+                Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'VVJJIGZhbGxiYWNrIOWksei0pe+8mnswfQ==') -f $_.Exception.Message)
             }
         }
     }
 
-    throw ('{0} has no usable fallback package after online sources failed' -f $Definition.name)
+    throw ((ConvertFrom-Utf8Base64String -Value 'ezB9IOWcqOe6v+adpea6kOWksei0peWQjuayoeacieWPr+eUqCBmYWxsYmFjayDlronoo4XljIU=') -f $Definition.name)
 }
 
 function ConvertFrom-SecureStringPlainText {
@@ -1718,7 +1724,7 @@ function Get-CcSwitchProviderByName {
         $openResult = [WinSqliteInterop]::sqlite3_open_v2($openPathBytes, [ref]$db, $sqliteOpenReadOnly, [IntPtr]::Zero)
         if ($openResult -ne 0) {
             $openError = [WinSqliteInterop]::PtrToStringUtf8([WinSqliteInterop]::sqlite3_errmsg($db))
-            throw ('Failed to open CC Switch database: {0}' -f $openError)
+            throw ((ConvertFrom-Utf8Base64String -Value '5omT5byAIENDIFN3aXRjaCDmlbDmja7lupPlpLHotKXvvJp7MH0=') -f $openError)
         }
 
         $escapedProviderName = $ProviderName.Replace("'", "''")
@@ -1735,7 +1741,7 @@ limit 1;
         $prepareResult = [WinSqliteInterop]::sqlite3_prepare_v2($db, $sqlBytes, -1, [ref]$stmt, [IntPtr]::Zero)
         if ($prepareResult -ne 0) {
             $prepareError = [WinSqliteInterop]::PtrToStringUtf8([WinSqliteInterop]::sqlite3_errmsg($db))
-            throw ('Failed to query CC Switch database: {0}' -f $prepareError)
+            throw ((ConvertFrom-Utf8Base64String -Value '5p+l6K+iIENDIFN3aXRjaCDmlbDmja7lupPlpLHotKXvvJp7MH0=') -f $prepareError)
         }
 
         $stepResult = [WinSqliteInterop]::sqlite3_step($stmt)
@@ -1791,13 +1797,13 @@ function Read-CodexProviderInput {
         $model = 'gpt-5.5'
     }
 
-    $name = Read-HostWithDefaultValue -Prompt 'CC Switch provider name' -DefaultValue $name
+    $name = Read-HostWithDefaultValue -Prompt (ConvertFrom-Utf8Base64String -Value 'Q0MgU3dpdGNoIHByb3ZpZGVyIOWQjeensA==') -DefaultValue $name
     $baseUrl = Read-HostWithDefaultValue -Prompt 'API base URL' -DefaultValue $baseUrl
-    $model = Read-HostWithDefaultValue -Prompt 'Model name' -DefaultValue $model
+    $model = Read-HostWithDefaultValue -Prompt (ConvertFrom-Utf8Base64String -Value '5qih5Z6L5ZCN56ew') -DefaultValue $model
 
     $apiKey = $PresetApiKey
     if ([string]::IsNullOrWhiteSpace($apiKey)) {
-        $secureApiKey = Read-Host 'SK (leave blank to use default sk-, input hidden)' -AsSecureString
+        $secureApiKey = Read-Host (ConvertFrom-Utf8Base64String -Value 'U0vvvIjnlZnnqbrkvb/nlKjpu5jorqQgc2st77yM6L6T5YWl5Lya6ZqQ6JeP77yJ') -AsSecureString
         $apiKey = ConvertFrom-SecureStringPlainText -SecureString $secureApiKey
     }
 
@@ -1885,10 +1891,10 @@ function Import-CcSwitchCodexProvider {
 
     if ($DryRun) {
         if ($ForceWarmup) {
-            Write-Log -Message '[DryRun] Would warm up CC Switch once before provider import because it was installed or updated in this run'
+            Write-Log -Message (ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5pys5qyh5Yia5a6J6KOF5oiW5pu05paw5LqGIENDIFN3aXRjaO+8jOWvvOWFpSBwcm92aWRlciDliY3kvJrlhYjlkK/liqjkuIDmrKHlupTnlKjlrozmiJDms6jlhow=')
         }
 
-        Write-Log -Message ('[DryRun] Would import provider via ccswitch:// deep link: {0} -> {1}' -f $ProviderInfo.Name, $ProviderInfo.BaseUrl)
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5bCG6YCa6L+HIGNjc3dpdGNoOi8vIGRlZXAgbGluayDlr7zlhaUgcHJvdmlkZXLvvJp7MH0gLT4gezF9') -f $ProviderInfo.Name, $ProviderInfo.BaseUrl)
         return [pscustomobject]@{
             Name = 'CC Switch Provider Import'
             Key = 'cc-switch-provider'
@@ -1903,23 +1909,23 @@ function Import-CcSwitchCodexProvider {
     if ($ForceWarmup -or -not $protocolRegistered) {
         $ccSwitchExe = Get-InstalledCcSwitchExecutable
         if ($ccSwitchExe) {
-            $warmupReason = if ($ForceWarmup) { 'fresh install or update detected' } else { 'protocol not registered yet' }
-            Write-Log -Message ('Launching CC Switch before provider import ({0}): {1}' -f $warmupReason, $ccSwitchExe)
+            $warmupReason = if ($ForceWarmup) { ConvertFrom-Utf8Base64String -Value '5Yia5a6J6KOF5oiW5pu05paw' } else { ConvertFrom-Utf8Base64String -Value '5Y2P6K6u5bCa5pyq5rOo5YaM' }
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5a+85YWlIHByb3ZpZGVyIOWJjeWFiOWQr+WKqCBDQyBTd2l0Y2jvvIh7MH3vvInvvJp7MX0=') -f $warmupReason, $ccSwitchExe)
             Start-Process -FilePath $ccSwitchExe | Out-Null
             Start-Sleep -Seconds 5
 
             if (-not (Wait-CcSwitchProtocolRegistration -TimeoutSeconds 25)) {
-                throw 'ccswitch:// protocol is not registered after launching CC Switch. Retry once manually if Windows is still finalizing app registration.'
+                throw (ConvertFrom-Utf8Base64String -Value '5ZCv5YqoIENDIFN3aXRjaCDlkI7ku43mnKrms6jlhowgY2Nzd2l0Y2g6Ly8g5Y2P6K6u44CC5aaC5p6cIFdpbmRvd3Mg5LuN5Zyo5a6M5oiQ5bqU55So5rOo5YaM77yM6K+356iN5ZCO5omL5Yqo6YeN6K+V5LiA5qyh44CC')
             }
 
             Start-Sleep -Seconds 3
         }
         else {
-            throw 'ccswitch:// protocol is not registered and CC Switch executable was not found. Launch CC Switch once, then retry.'
+            throw (ConvertFrom-Utf8Base64String -Value 'Y2Nzd2l0Y2g6Ly8g5Y2P6K6u5pyq5rOo5YaM77yM5LiU5rKh5pyJ5om+5YiwIENDIFN3aXRjaCDlj6/miafooYzmlofku7bjgILor7flhYjlkK/liqjkuIDmrKEgQ0MgU3dpdGNoIOWQjumHjeivleOAgg==')
         }
     }
 
-    Write-Log -Message ('Importing CC Switch provider via official deep link: {0}' -f $ProviderInfo.Name)
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo6YCa6L+H5a6Y5pa5IGRlZXAgbGluayDlr7zlhaUgQ0MgU3dpdGNoIHByb3ZpZGVy77yaezB9') -f $ProviderInfo.Name)
     if (-not $ccSwitchExe) {
         $ccSwitchExe = Get-InstalledCcSwitchExecutable
     }
@@ -1961,7 +1967,7 @@ function Copy-SkillDirectory {
     )
 
     if ($DryRun) {
-        Write-Log -Message ('[DryRun] Copy skill {0} -> {1}' -f $SourcePath, $DestinationPath)
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5aSN5Yi2IHNraWxsIHswfSAtPiB7MX0=') -f $SourcePath, $DestinationPath)
         return
     }
 
@@ -2078,40 +2084,40 @@ function Get-SkillInstallState {
     )
 
     if (-not (Test-Path -LiteralPath $DestinationPath)) {
-        return [pscustomobject]@{ State = 'Missing'; Detail = 'Destination does not exist' }
+        return [pscustomobject]@{ State = 'Missing'; Detail = (ConvertFrom-Utf8Base64String -Value '55uu5qCH55uu5b2V5LiN5a2Y5Zyo') }
     }
 
     if (-not (Test-Path -LiteralPath (Join-Path $DestinationPath 'SKILL.md'))) {
-        return [pscustomobject]@{ State = 'Orphan'; Detail = 'Existing directory has no SKILL.md' }
+        return [pscustomobject]@{ State = 'Orphan'; Detail = (ConvertFrom-Utf8Base64String -Value '546w5pyJ55uu5b2V5rKh5pyJIFNLSUxMLm1k') }
     }
 
     try {
         $sourceMeta = Read-SkillMetaFile -SkillPath $SourcePath
     }
     catch {
-        return [pscustomobject]@{ State = 'Orphan'; Detail = ('Source meta is invalid: {0}' -f $_.Exception.Message) }
+        return [pscustomobject]@{ State = 'Orphan'; Detail = ((ConvertFrom-Utf8Base64String -Value '5p2l5rqQIG1ldGEg5peg5pWI77yaezB9') -f $_.Exception.Message) }
     }
 
     try {
         $destinationMeta = Read-SkillMetaFile -SkillPath $DestinationPath
     }
     catch {
-        return [pscustomobject]@{ State = 'Orphan'; Detail = ('Existing meta is invalid: {0}' -f $_.Exception.Message) }
+        return [pscustomobject]@{ State = 'Orphan'; Detail = ((ConvertFrom-Utf8Base64String -Value '546w5pyJIG1ldGEg5peg5pWI77yaezB9') -f $_.Exception.Message) }
     }
 
     if ($null -eq $destinationMeta) {
-        return [pscustomobject]@{ State = 'Orphan'; Detail = 'Existing skill has no .skill-meta.json' }
+        return [pscustomobject]@{ State = 'Orphan'; Detail = (ConvertFrom-Utf8Base64String -Value '546w5pyJIHNraWxsIOe8uuWwkSAuc2tpbGwtbWV0YS5qc29u') }
     }
 
     if ($null -eq $sourceMeta) {
-        return [pscustomobject]@{ State = 'Tracked'; Detail = 'Bundle has no meta; fallback to legacy sync' }
+        return [pscustomobject]@{ State = 'Tracked'; Detail = (ConvertFrom-Utf8Base64String -Value 'YnVuZGxlIOayoeaciSBtZXRh77yM5Zue6YCA5Yiw5pen54mI5ZCM5q2l') }
     }
 
     if (Test-SkillMetaMatchesSource -SourceMeta $sourceMeta -DestinationMeta $destinationMeta -SkillName $SkillName) {
-        return [pscustomobject]@{ State = 'Tracked'; Detail = 'Existing meta matches bundle source' }
+        return [pscustomobject]@{ State = 'Tracked'; Detail = (ConvertFrom-Utf8Base64String -Value '546w5pyJIG1ldGEg5LiOIGJ1bmRsZSDmnaXmupDljLnphY0=') }
     }
 
-    return [pscustomobject]@{ State = 'Foreign'; Detail = 'Existing meta source does not match bundle source' }
+    return [pscustomobject]@{ State = 'Foreign'; Detail = (ConvertFrom-Utf8Base64String -Value '546w5pyJIG1ldGEg5p2l5rqQ5LiOIGJ1bmRsZSDmnaXmupDkuI3ljLnphY0=') }
 }
 
 function Backup-SkillDirectory {
@@ -2132,7 +2138,7 @@ function Backup-SkillDirectory {
     }
 
     if ($DryRun) {
-        Write-Log -Message ('[DryRun] Backup skill {0} -> {1}' -f $Path, $backupPath)
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5aSH5Lu9IHNraWxsIHswfSAtPiB7MX0=') -f $Path, $backupPath)
         return $backupPath
     }
 
@@ -2209,7 +2215,7 @@ function Get-SkillDirectoriesFromExtractedRoot {
 
     $skillFiles = Get-ChildItem -LiteralPath $RootPath -Filter 'SKILL.md' -File -Recurse
     if (-not $skillFiles) {
-        throw "No SKILL.md files were found in: $RootPath"
+        throw ((ConvertFrom-Utf8Base64String -Value '5rKh5pyJ5om+5YiwIFNLSUxMLm1kIOaWh+S7tu+8mnswfQ==') -f $RootPath)
     }
 
     return @($skillFiles | ForEach-Object { $_.Directory.FullName } | Sort-Object -Unique)
@@ -2232,7 +2238,7 @@ function Get-SkillDirectoriesFromZip {
         )
 
         if (-not $entries -or $entries.Count -eq 0) {
-            throw "No SKILL.md files were found in: $ZipPath"
+            throw ((ConvertFrom-Utf8Base64String -Value '5rKh5pyJ5om+5YiwIFNLSUxMLm1kIOaWh+S7tu+8mnswfQ==') -f $ZipPath)
         }
 
         return @($entries)
@@ -2323,13 +2329,13 @@ function Expand-BundleRegistryArchive {
     Initialize-Directory -Path $DestinationPath
     $tar = Get-Command tar -ErrorAction SilentlyContinue
     if (-not $tar) {
-        Write-Log -Level 'WARN' -Message 'tar is not available; skip profile registry extraction'
+        Write-Log -Level 'WARN' -Message (ConvertFrom-Utf8Base64String -Value 'dGFyIOS4jeWPr+eUqO+8jOi3s+i/hyBwcm9maWxlIHJlZ2lzdHJ5IOino+WOiw==')
         return $null
     }
 
     & $tar.Source -xzf $archivePath -C $DestinationPath
     if ($LASTEXITCODE -ne 0) {
-        Write-Log -Level 'WARN' -Message ('Failed to extract registry.tar.gz, exit={0}; skip profile menu' -f $LASTEXITCODE)
+        Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'cmVnaXN0cnkudGFyLmd6IOino+WOi+Wksei0pe+8jOmAgOWHuueggT17MH3vvJvot7Pov4cgcHJvZmlsZSDoj5zljZU=') -f $LASTEXITCODE)
         return $null
     }
 
@@ -2490,7 +2496,7 @@ function Select-SkillDirectoriesForProfiles {
 
     $tokens = @(Split-SelectionTokens -Values $RequestedProfiles)
     if ($tokens.Count -eq 0 -and -not (Test-InteractiveConsole)) {
-        Write-Log -Message 'No interactive console detected; install all skills from bundle'
+        Write-Log -Message (ConvertFrom-Utf8Base64String -Value '5pyq5qOA5rWL5Yiw5Lqk5LqS5byP57uI56uv77yM5a6J6KOFIGJ1bmRsZSDkuK3nmoTlhajpg6ggc2tpbGw=')
         return @($SkillDirectories)
     }
 
@@ -2503,7 +2509,7 @@ function Select-SkillDirectoriesForProfiles {
             Write-Host ('  {0}. {1} - {2}' -f ($index + 1), $profile.Name, $profile.Description)
         }
 
-        $answer = Read-Host 'Profile'
+        $answer = Read-Host (ConvertFrom-Utf8Base64String -Value 'UHJvZmlsZQ==')
         $tokens = @(Split-SelectionTokens -Values @($answer))
         if ($tokens.Count -eq 0 -or $tokens -contains '0') {
             return @($SkillDirectories)
@@ -2522,7 +2528,7 @@ function Select-SkillDirectoriesForProfiles {
         }
 
         if (-not $matched) {
-            throw ('Unknown skill profile: {0}' -f $token)
+            throw ((ConvertFrom-Utf8Base64String -Value '5pyq55+lIHNraWxsIHByb2ZpbGXvvJp7MH0=') -f $token)
         }
 
         $selectedProfiles.Add($matched)
@@ -2536,7 +2542,7 @@ function Select-SkillDirectoriesForProfiles {
     }
 
     if ($wantedSkills.Count -eq 0) {
-        Write-Log -Level 'WARN' -Message 'Selected profiles do not reference any skills; install all skills from bundle'
+        Write-Log -Level 'WARN' -Message (ConvertFrom-Utf8Base64String -Value '6YCJ5Lit55qEIHByb2ZpbGUg5pyq5byV55So5Lu75L2VIHNraWxs77yM5a6J6KOFIGJ1bmRsZSDkuK3nmoTlhajpg6ggc2tpbGw=')
         return @($SkillDirectories)
     }
 
@@ -2560,7 +2566,7 @@ function Select-SkillDirectoriesForProfiles {
                 }
             }
             catch {
-                Write-Log -Level 'WARN' -Message ('Invalid .skill-meta.json while resolving profile entry for {0}: {1}' -f $skillName, $_.Exception.Message)
+                Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '6Kej5p6QIHByb2ZpbGUg5p2h55uuIHswfSDml7YgLnNraWxsLW1ldGEuanNvbiDml6DmlYjvvJp7MX0=') -f $skillName, $_.Exception.Message)
             }
         }
     }
@@ -2591,16 +2597,16 @@ function Select-SkillDirectoriesForProfiles {
     }
 
     if ($missingSkills.Count -gt 0) {
-        Write-Log -Level 'WARN' -Message ('Profiles reference skills not found in bundle: {0}' -f ($missingSkills -join ', '))
+        Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'cHJvZmlsZSDlvJXnlKjnmoQgc2tpbGwg5LiN5ZyoIGJ1bmRsZSDkuK3vvJp7MH0=') -f ($missingSkills -join ', '))
     }
 
     $selectedProfileNames = @($selectedProfiles | ForEach-Object { $_.Name }) -join ', '
     $mcpDetail = if ($wantedMcp.Count -gt 0) { $wantedMcp -join ', ' } else { '(none)' }
     $prereqDetail = if ($wantedPrereqs.Count -gt 0) { $wantedPrereqs -join ', ' } else { '(none)' }
-    Write-Log -Message ('Selected profiles: {0}' -f $selectedProfileNames)
-    Write-Log -Message ('Selected skills: {0}/{1}' -f $selectedSkillDirs.Count, $SkillDirectories.Count)
-    Write-Log -Message ('Selected MCP: {0}' -f $mcpDetail)
-    Write-Log -Message ('Resolved prereqs: {0}' -f $prereqDetail)
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6YCJ5Lit55qEIHByb2ZpbGXvvJp7MH0=') -f $selectedProfileNames)
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6YCJ5Lit55qEIHNraWxs77yaezB9L3sxfQ==') -f $selectedSkillDirs.Count, $SkillDirectories.Count)
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6YCJ5Lit55qEIE1DUO+8mnswfQ==') -f $mcpDetail)
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6Kej5p6Q5Yiw55qE5YmN572u5L6d6LWW77yaezB9') -f $prereqDetail)
 
     return @($selectedSkillDirs)
 }
@@ -2684,7 +2690,7 @@ function Initialize-SkillsManagerDatabase {
         }
     }
 
-    Write-Log -Message ('skills-manager DB not found yet; launching Skills Manager to initialize it: {0}' -f $SkillsManagerExe)
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'c2tpbGxzLW1hbmFnZXIgREIg5bCa5LiN5a2Y5Zyo77yM5q2j5Zyo5ZCv5YqoIFNraWxscyBNYW5hZ2VyIOWIneWni+WMlu+8mnswfQ==') -f $SkillsManagerExe)
     Start-Process -FilePath $SkillsManagerExe | Out-Null
 
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
@@ -2722,7 +2728,7 @@ function Read-SkillMetadata {
             $meta = Get-Content -Raw -Encoding UTF8 -LiteralPath $metaPath | ConvertFrom-Json
         }
         catch {
-            Write-Log -Level 'WARN' -Message ('Invalid .skill-meta.json for {0}; fall back to local source: {1}' -f $SkillName, $_.Exception.Message)
+            Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'ezB9IOeahCAuc2tpbGwtbWV0YS5qc29uIOaXoOaViO+8jOWbnumAgOS4uuacrOWcsOadpea6kO+8mnsxfQ==') -f $SkillName, $_.Exception.Message)
         }
     }
 
@@ -2772,7 +2778,7 @@ function Sync-SkillsManagerRegistry {
 
     if ($DryRun) {
         foreach ($skill in $ImportedSkills) {
-            Write-Log -Message ('[DryRun] Register skill in skills-manager DB: {0}' -f $skill.Name)
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5rOo5YaMIHNraWxsIOWIsCBza2lsbHMtbWFuYWdlciBEQu+8mnswfQ==') -f $skill.Name)
         }
         return
     }
@@ -2780,7 +2786,7 @@ function Sync-SkillsManagerRegistry {
     Update-CurrentProcessPath
     $python = Get-PythonLauncher
     if (-not $python) {
-        Write-Log -Level 'WARN' -Message 'Python is not available yet; skip skills-manager DB sync for this run'
+        Write-Log -Level 'WARN' -Message (ConvertFrom-Utf8Base64String -Value '5pys5qyhIFB5dGhvbiDov5jkuI3lj6/nlKjvvIzot7Pov4cgc2tpbGxzLW1hbmFnZXIgREIg5ZCM5q2l')
         return
     }
 
@@ -2789,7 +2795,7 @@ function Sync-SkillsManagerRegistry {
     $skillsManagerExe = if ($SkipSkillsManagerLaunch) { $null } else { Get-InstalledSkillsManagerExecutable }
     $dbState = Initialize-SkillsManagerDatabase -DbPath $dbPath -SkillsManagerExe $skillsManagerExe -DryRun:$DryRun
     if (-not $dbState.Available) {
-        Write-Log -Level 'WARN' -Message ('skills-manager DB not found, skip registry sync: {0}' -f $dbPath)
+        Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '5om+5LiN5YiwIHNraWxscy1tYW5hZ2VyIERC77yM6Lez6L+H5rOo5YaM5ZCM5q2l77yaezB9') -f $dbPath)
         return [pscustomobject]@{
             Synchronized = $false
             LaunchedSkillsManager = $dbState.LaunchedSkillsManager
@@ -2924,7 +2930,7 @@ conn.close()
     try {
         & $python $scriptPath $payloadPath $dbPath
         if ($LASTEXITCODE -ne 0) {
-            Write-Log -Level 'WARN' -Message ('skills-manager registry sync failed, exit={0}' -f $LASTEXITCODE)
+            Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'c2tpbGxzLW1hbmFnZXIg5rOo5YaM5ZCM5q2l5aSx6LSl77yM6YCA5Ye656CBPXswfQ==') -f $LASTEXITCODE)
         }
     }
     finally {
@@ -2953,7 +2959,7 @@ function Install-SkillBundle {
     )
 
     if (-not (Test-Path -LiteralPath $ZipPath)) {
-        throw "Skill bundle not found: $ZipPath"
+        throw ((ConvertFrom-Utf8Base64String -Value '5om+5LiN5YiwIFNraWxsIGJ1bmRsZe+8mnswfQ==') -f $ZipPath)
     }
 
     $homeDir = Get-UserHomeDirectory
@@ -2964,7 +2970,7 @@ function Install-SkillBundle {
     $copiedSkillCount = 0
 
     try {
-        Write-Log -Message ('Skill source-of-truth root: {0}' -f $centralRoot)
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'U2tpbGwg5ZSv5LiA5p2l5rqQ55uu5b2V77yaezB9') -f $centralRoot)
         Initialize-Directory -Path $tempRoot
         Expand-Archive -LiteralPath $ZipPath -DestinationPath $tempRoot -Force
         $allSkillDirs = @(Get-SkillDirectoriesFromExtractedRoot -RootPath $tempRoot)
@@ -2972,7 +2978,7 @@ function Install-SkillBundle {
         $profiles = if ($registryRoot) { @(Read-SkillProfilesFromRegistry -RegistryRoot $registryRoot) } else { @() }
         $skillDirs = @(Select-SkillDirectoriesForProfiles -SkillDirectories $allSkillDirs -Profiles $profiles -RequestedProfiles $SkillProfiles -RegistryRoot $registryRoot -AllSkills:$AllSkills)
 
-        Write-Log -Message ('Discovered {0} skill directories; selected {1}' -f $allSkillDirs.Count, $skillDirs.Count)
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5Y+R546wIHswfSDkuKogc2tpbGwg55uu5b2V77yb6YCJ5LitIHsxfSDkuKo=') -f $allSkillDirs.Count, $skillDirs.Count)
 
         foreach ($skillDir in $skillDirs) {
             $skillName = Split-Path -Leaf $skillDir
@@ -2987,10 +2993,10 @@ function Install-SkillBundle {
                 -RenameForeign:$RenameForeign
 
             $centralBackupPath = Invoke-SkillImportDecision -Decision $centralDecision -SourcePath $sourcePath -DryRun:$DryRun
-            Write-Log -Message ('Skill import decision: {0} -> {1}; state={2}; action={3}; backup={4}; detail={5}' -f $skillName, $centralDecision.FinalPath, $centralDecision.State, $centralDecision.Action, $(if ($centralBackupPath) { $centralBackupPath } else { '(none)' }), $centralDecision.Detail)
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'U2tpbGwg5a+85YWl5Yaz562W77yaezB9IC0+IHsxfe+8m+eKtuaAgT17Mn3vvJvliqjkvZw9ezN977yb5aSH5Lu9PXs0fe+8m+ivpuaDhT17NX0=') -f $skillName, $centralDecision.FinalPath, $centralDecision.State, $centralDecision.Action, $(if ($centralBackupPath) { $centralBackupPath } else { ConvertFrom-Utf8Base64String -Value '5peg' }), $centralDecision.Detail)
 
             if ($centralDecision.Action -eq 'Skip' -and $centralDecision.State -in @('Orphan', 'Foreign')) {
-                Write-Log -Level 'WARN' -Message ('Skip skill because existing directory is {0}: {1}' -f $centralDecision.State, $centralDecision.FinalPath)
+                Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '6Lez6L+HIHNraWxs77ya546w5pyJ55uu5b2V54q25oCB5Li6IHswfe+8mnsxfQ==') -f $centralDecision.State, $centralDecision.FinalPath)
                 continue
             }
 
@@ -3010,7 +3016,7 @@ function Install-SkillBundle {
                     -ReplaceForeign:$ReplaceForeign `
                     -RenameForeign:$false
                 $targetBackupPath = Invoke-SkillImportDecision -Decision $targetDecision -SourcePath $copySourcePath -DryRun:$DryRun
-                Write-Log -Message ('Skill target decision: {0} -> {1}; state={2}; action={3}; backup={4}; detail={5}' -f $effectiveSkillName, $targetDecision.FinalPath, $targetDecision.State, $targetDecision.Action, $(if ($targetBackupPath) { $targetBackupPath } else { '(none)' }), $targetDecision.Detail)
+                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'U2tpbGwg55uu5qCH5ZCM5q2l5Yaz562W77yaezB9IC0+IHsxfe+8m+eKtuaAgT17Mn3vvJvliqjkvZw9ezN977yb5aSH5Lu9PXs0fe+8m+ivpuaDhT17NX0=') -f $effectiveSkillName, $targetDecision.FinalPath, $targetDecision.State, $targetDecision.Action, $(if ($targetBackupPath) { $targetBackupPath } else { ConvertFrom-Utf8Base64String -Value '5peg' }), $targetDecision.Detail)
 
                 if ($targetDecision.Action -ne 'Skip' -or $targetDecision.State -eq 'Tracked') {
                     $skillTargets.Add([pscustomobject]@{
@@ -3029,7 +3035,7 @@ function Install-SkillBundle {
             $importedSkills.Add($skillMetadata)
 
             if ($centralDecision.Action -eq 'Skip' -and -not $targetChanged) {
-                Write-Log -Message ('Skill already synchronized, skip: {0}' -f $effectiveSkillName)
+                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'U2tpbGwg5bey5ZCM5q2l77yM6Lez6L+H77yaezB9') -f $effectiveSkillName)
                 continue
             }
 
@@ -3046,7 +3052,7 @@ function Install-SkillBundle {
             $skillsManagerExe = Get-InstalledSkillsManagerExecutable
             $alreadyLaunchedForDbInit = ($null -ne $registrySyncResult -and $registrySyncResult.LaunchedSkillsManager)
             if ($skillsManagerExe -and -not $alreadyLaunchedForDbInit) {
-                Write-Log -Message 'Imported skills and synced skills-manager DB; launching Skills Manager'
+                Write-Log -Message (ConvertFrom-Utf8Base64String -Value '5bey5a+85YWlIHNraWxsIOW5tuWQjOatpSBza2lsbHMtbWFuYWdlciBEQu+8m+ato+WcqOWQr+WKqCBTa2lsbHMgTWFuYWdlcg==')
                 Start-Process -FilePath $skillsManagerExe | Out-Null
             }
         }
@@ -3056,7 +3062,7 @@ function Install-SkillBundle {
             Key = 'skills-bundle'
             Status = 'ok'
             Source = 'local-zip'
-            Detail = if ($copiedSkillCount -eq 0) { 'All skills already synchronized' } else { '{0} skills imported' -f $copiedSkillCount }
+            Detail = if ($copiedSkillCount -eq 0) { ConvertFrom-Utf8Base64String -Value '5YWo6YOoIHNraWxsIOW3suWQjOatpQ==' } else { (ConvertFrom-Utf8Base64String -Value '5bey5a+85YWlIHswfSDkuKogc2tpbGw=') -f $copiedSkillCount }
         }
     }
     finally {

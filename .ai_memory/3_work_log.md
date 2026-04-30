@@ -29,3 +29,10 @@
 - 重构文档结构：README 收敛为顶层入口和文档地图，详细说明拆入 `docs/installer-flow.md`、`docs/skill-import.md`、`docs/asset-refresh.md`、`docs/operations.md`、`docs/roadmap.md`。
 - 新增 `.agent/rules/documentation-governance.md`，明确层层索引、单一信息源和修改要求。
 - 精简 `.ai_memory/1_project_context.md`，改为记录 SSOT 地图和稳定事实，不再复制完整应用来源表。
+
+## 2026-04-30
+
+- 完成脚本中文化：覆盖 `bootstrap.ps1` 和 `modules/common.psm1` 的主要用户可见提示、日志、错误和执行摘要。
+- 为兼容 Windows PowerShell 5.1，中文文案采用 UTF-8 base64 解码输出，保持脚本文件无 BOM。
+- 优化执行摘要可读性：日志等级显示为“信息 / 警告 / 错误”，内部 source 展示为“文件系统 / 预检查跳过 / Release 回退 / CC Switch 导入”等用户语义。
+- 验证通过：`powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only git`。
