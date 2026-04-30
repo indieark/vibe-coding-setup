@@ -479,6 +479,18 @@ Set-Location "D:\AI Coding\Vibe Coding Setup"
 .\bootstrap.cmd -SkipSkills
 ```
 
+按预设 Profile 安装 skill（名称来自 `skills.zip` 内置的 `registry/profiles.yaml`）：
+
+```powershell
+.\bootstrap.cmd -SkillProfile "飞书办公套件"
+```
+
+多选 Profile 可用逗号分隔；不传 `-SkillProfile` 且处于交互式终端时会显示中文选择菜单，非交互式环境自动回退为安装全部 skill。若要显式保留旧逻辑：
+
+```powershell
+.\bootstrap.cmd -AllSkills
+```
+
 只做演练，不真正安装：
 
 ```powershell
