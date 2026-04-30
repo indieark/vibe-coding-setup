@@ -25,7 +25,7 @@
 
 - PAT 建议设置过期时间（优先 90 天，最长不超过 180 天）。
 - 轮换时先新增/覆盖 GitHub Secret，再跑 `refresh-bootstrap-assets` dry-run 验证。
-- 每次新增跨仓库 PAT 时，同步更新本文件与 README 的 secret 清单。
+- 每次新增跨仓库 PAT 时，只更新本文件的 secret 清单；README 和 docs 只保留到本文件的链接。
 - 若临时使用了个人 token，完成后必须补一条 follow-up：创建专用 PAT、覆盖 secret、撤销临时 token。
 
 ## 验证命令
