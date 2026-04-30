@@ -2021,17 +2021,165 @@ function Read-HostWithDefaultValue {
         [string]$DefaultValue
     )
 
-    $effectivePrompt = $Prompt
-    if (-not [string]::IsNullOrWhiteSpace($DefaultValue)) {
-        $effectivePrompt = (ConvertFrom-Utf8Base64String -Value 'ezB977yI5b2T5YmN77yaezF977yb5Zue6L2m5L+d5oyB77yM6L6T5YWl6KaG55uW77yJ') -f $Prompt, $DefaultValue
+    if ([Console]::IsInputRedirected -or [Console]::IsOutputRedirected) {
+        $effectivePrompt = $Prompt
+        if (-not [string]::IsNullOrWhiteSpace($DefaultValue)) {
+            $effectivePrompt = '{0} [{1}]' -f $Prompt, $DefaultValue
+        }
+
+        $value = Read-Host $effectivePrompt
+        if ([string]::IsNullOrWhiteSpace($value)) {
+            return $DefaultValue
+        }
+
+        return $value.Trim()
     }
 
-    $value = Read-Host $effectivePrompt
-    if ([string]::IsNullOrWhiteSpace($value)) {
-        return $DefaultValue
+    return Read-HostWithInlineDefaultValue -Label $Prompt -DefaultValue $DefaultValue
+}
+
+function Write-ConsoleInputTail {
+    param(
+        [Parameter(Mandatory)]
+        [int]$Left,
+        [Parameter(Mandatory)]
+        [int]$Top,
+        [string]$Value,
+        [string]$Placeholder,
+        [int]$ClearLength
+    )
+
+    [Console]::SetCursorPosition($Left, $Top)
+    $tailWidth = [Math]::Max(0, [Console]::BufferWidth - $Left - 1)
+    if ($tailWidth -gt 0) {
+        Write-Host (' ' * $tailWidth) -NoNewline
+        [Console]::SetCursorPosition($Left, $Top)
     }
 
-    return $value.Trim()
+    if ([string]::IsNullOrEmpty($Value) -and -not [string]::IsNullOrWhiteSpace($Placeholder)) {
+        Write-Host $Placeholder -ForegroundColor DarkGray -NoNewline
+        [Console]::SetCursorPosition($Left, $Top)
+        return $Placeholder.Length
+    }
+
+    if (-not [string]::IsNullOrEmpty($Value)) {
+        Write-Host $Value -NoNewline
+        return $Value.Length
+    }
+
+    return 0
+}
+
+function Read-HostWithInlineDefaultValue {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Label,
+        [string]$DefaultValue
+    )
+
+    try {
+        Write-Host ('{0} : ' -f $Label) -NoNewline
+        $inputLeft = [Console]::CursorLeft
+        $inputTop = [Console]::CursorTop
+        $placeholder = if ([string]::IsNullOrWhiteSpace($DefaultValue)) { '' } else { $DefaultValue }
+        $buffer = New-Object System.Text.StringBuilder
+        $renderLength = Write-ConsoleInputTail -Left $inputLeft -Top $inputTop -Value '' -Placeholder $placeholder -ClearLength 0
+
+        while ($true) {
+            $key = [Console]::ReadKey($true)
+            if ($key.Key -eq [ConsoleKey]::Enter) {
+                Write-Host ''
+                if ($buffer.Length -eq 0) {
+                    return $DefaultValue
+                }
+
+                return $buffer.ToString().Trim()
+            }
+
+            if (($key.Modifiers -band [ConsoleModifiers]::Control) -and $key.Key -eq [ConsoleKey]::C) {
+                throw 'Interrupted by user.'
+            }
+
+            if ($key.Key -eq [ConsoleKey]::Backspace) {
+                if ($buffer.Length -gt 0) {
+                    $buffer.Length = $buffer.Length - 1
+                    $renderLength = Write-ConsoleInputTail -Left $inputLeft -Top $inputTop -Value $buffer.ToString() -Placeholder $placeholder -ClearLength $renderLength
+                }
+                continue
+            }
+
+            if ($key.KeyChar -ne [char]0 -and -not [char]::IsControl($key.KeyChar)) {
+                [void]$buffer.Append($key.KeyChar)
+                $renderLength = Write-ConsoleInputTail -Left $inputLeft -Top $inputTop -Value $buffer.ToString() -Placeholder $placeholder -ClearLength $renderLength
+            }
+        }
+    }
+    catch {
+        if ($_.Exception.Message -eq 'Interrupted by user.') {
+            throw
+        }
+
+        $value = Read-Host ('{0} [{1}]' -f $Label, $DefaultValue)
+        if ([string]::IsNullOrWhiteSpace($value)) {
+            return $DefaultValue
+        }
+
+        return $value.Trim()
+    }
+}
+
+function Read-HostHiddenValue {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Label,
+        [string]$Placeholder
+    )
+
+    if ([Console]::IsInputRedirected -or [Console]::IsOutputRedirected) {
+        $secureValue = Read-Host ('{0} ({1})' -f $Label, $Placeholder) -AsSecureString
+        return ConvertFrom-SecureStringPlainText -SecureString $secureValue
+    }
+
+    try {
+        Write-Host ('{0} : ' -f $Label) -NoNewline
+        $inputLeft = [Console]::CursorLeft
+        $inputTop = [Console]::CursorTop
+        $buffer = New-Object System.Text.StringBuilder
+        $renderLength = Write-ConsoleInputTail -Left $inputLeft -Top $inputTop -Value '' -Placeholder $Placeholder -ClearLength 0
+
+        while ($true) {
+            $key = [Console]::ReadKey($true)
+            if ($key.Key -eq [ConsoleKey]::Enter) {
+                Write-Host ''
+                return $buffer.ToString()
+            }
+
+            if (($key.Modifiers -band [ConsoleModifiers]::Control) -and $key.Key -eq [ConsoleKey]::C) {
+                throw 'Interrupted by user.'
+            }
+
+            if ($key.Key -eq [ConsoleKey]::Backspace) {
+                if ($buffer.Length -gt 0) {
+                    $buffer.Length = $buffer.Length - 1
+                    $renderLength = Write-ConsoleInputTail -Left $inputLeft -Top $inputTop -Value ('*' * $buffer.Length) -Placeholder $Placeholder -ClearLength $renderLength
+                }
+                continue
+            }
+
+            if ($key.KeyChar -ne [char]0 -and -not [char]::IsControl($key.KeyChar)) {
+                [void]$buffer.Append($key.KeyChar)
+                $renderLength = Write-ConsoleInputTail -Left $inputLeft -Top $inputTop -Value ('*' * $buffer.Length) -Placeholder $Placeholder -ClearLength $renderLength
+            }
+        }
+    }
+    catch {
+        if ($_.Exception.Message -eq 'Interrupted by user.') {
+            throw
+        }
+
+        $secureValue = Read-Host ('{0} ({1})' -f $Label, $Placeholder) -AsSecureString
+        return ConvertFrom-SecureStringPlainText -SecureString $secureValue
+    }
 }
 
 function Write-CodexProviderInputSection {
@@ -2200,78 +2348,49 @@ function Read-CodexProviderInput {
     )
 
     $name = $PresetName
-    $nameSource = if ([string]::IsNullOrWhiteSpace($name)) { $null } else { ConvertFrom-Utf8Base64String -Value '5ZG95Luk5Y+C5pWw' }
     if ([string]::IsNullOrWhiteSpace($name)) {
         $name = $env:VIBE_CODING_PROVIDER_NAME
-        if (-not [string]::IsNullOrWhiteSpace($name)) {
-            $nameSource = ConvertFrom-Utf8Base64String -Value '546v5aKD5Y+Y6YeP'
-        }
     }
     if ([string]::IsNullOrWhiteSpace($name)) {
         $name = 'IndieArk API 2'
-        $nameSource = ConvertFrom-Utf8Base64String -Value '5YaF572u6buY6K6k'
     }
 
     $baseUrl = $PresetBaseUrl
-    $baseUrlSource = if ([string]::IsNullOrWhiteSpace($baseUrl)) { $null } else { ConvertFrom-Utf8Base64String -Value '5ZG95Luk5Y+C5pWw' }
     if ([string]::IsNullOrWhiteSpace($baseUrl)) {
         $baseUrl = $env:VIBE_CODING_BASE_URL
-        if (-not [string]::IsNullOrWhiteSpace($baseUrl)) {
-            $baseUrlSource = ConvertFrom-Utf8Base64String -Value '546v5aKD5Y+Y6YeP'
-        }
     }
     if ([string]::IsNullOrWhiteSpace($baseUrl)) {
         $baseUrl = 'https://api2.indieark.tech/v1'
-        $baseUrlSource = ConvertFrom-Utf8Base64String -Value '5YaF572u6buY6K6k'
     }
 
     $model = $PresetModel
-    $modelSource = if ([string]::IsNullOrWhiteSpace($model)) { $null } else { ConvertFrom-Utf8Base64String -Value '5ZG95Luk5Y+C5pWw' }
     if ([string]::IsNullOrWhiteSpace($model)) {
         $model = $env:VIBE_CODING_MODEL
-        if (-not [string]::IsNullOrWhiteSpace($model)) {
-            $modelSource = ConvertFrom-Utf8Base64String -Value '546v5aKD5Y+Y6YeP'
-        }
     }
     if ([string]::IsNullOrWhiteSpace($model)) {
         $model = 'gpt-5.5'
-        $modelSource = ConvertFrom-Utf8Base64String -Value '5YaF572u6buY6K6k'
     }
 
     Write-CodexProviderInputSection `
         -Title 'CC Switch Provider' `
         -Detail (ConvertFrom-Utf8Base64String -Value '6L+Z5LiA5q616K+05piO5pys5qyhIENDIFN3aXRjaCBQcm92aWRlciDphY3nva7nmoTnlKjpgJTlkozmlY/mhJ/kv6Hmga/mmL7npLrop4TliJnjgII=')
     Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value '55So6YCU') -Value (ConvertFrom-Utf8Base64String -Value '5bCG5a+85YWl5YiwIENDIFN3aXRjaCDnmoQgQ29kZXggcHJvdmlkZXLjgII=')
-    Write-CodexProviderInputLine -Label 'API Key' -Value (ConvertFrom-Utf8Base64String -Value 'QVBJIEtleSDovpPlhaXml7bkvJrpmpDol4/vvJvmkZjopoHlj6rmmL7npLrmmK/lkKblt7LloavlhpnvvIzkuI3mmL7npLrlr4bpkqXjgII=')
-    Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value '5o+Q56S6') -Value (ConvertFrom-Utf8Base64String -Value '5oyJIEVudGVyIOS9v+eUqOaLrOWPt+S4reeahOm7mOiupOWAvO+8m+eVmeepuiBBUEkgS2V5IOS8muWGmeWFpeWNoOS9jeWAvCBzay3jgII=')
-
-    Write-CodexProviderInputSection `
-        -Title (ConvertFrom-Utf8Base64String -Value '5b2T5YmN6buY6K6k5YC8') `
-        -Detail (ConvertFrom-Utf8Base64String -Value '6L+Z6YeM5pi+56S65bCG5bim5YWl6L6T5YWl5Yy655qE5b2T5YmN5YC877yb5p2l5rqQ55So5LqO56Gu6K6k6buY6K6k5YC85LuO5ZOq6YeM5p2l44CC')
-    Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value 'UHJvdmlkZXIg5ZCN56ew') -Value ('{0} ({1}: {2})' -f $name, (ConvertFrom-Utf8Base64String -Value '5p2l5rqQ'), $nameSource)
-    Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value 'QVBJIOWcsOWdgCAvIEJhc2UgVVJM') -Value ('{0} ({1}: {2})' -f $baseUrl, (ConvertFrom-Utf8Base64String -Value '5p2l5rqQ'), $baseUrlSource)
-    Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value '5qih5Z6L5ZCN56ew') -Value ('{0} ({1}: {2})' -f $model, (ConvertFrom-Utf8Base64String -Value '5p2l5rqQ'), $modelSource)
+    Write-CodexProviderInputLine -Label 'API Key' -Value (ConvertFrom-Utf8Base64String -Value '6L6T5YWl5pe25Lya6ZqQ6JeP77yb5pGY6KaB5Y+q5pi+56S65piv5ZCm5bey5aGr5YaZ77yM5LiN5pi+56S65a+G6ZKl44CC')
+    Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value '5o+Q56S6') -Value (ConvertFrom-Utf8Base64String -Value '5Y+z5L6n54Gw6Imy6buY6K6k5YC85Y+v55u05o6l5Zue6L2m5L+d55WZ77yb6L6T5YWl5Lya6KaG55uW44CC55WZ56m6IEFQSSBLZXkg5Lya5YaZ5YWl5Y2g5L2N5YC8IHNrLeOAgg==')
 
     Write-CodexProviderInputSection `
         -Title (ConvertFrom-Utf8Base64String -Value '6L6T5YWl5Yy6') `
-        -Detail (ConvertFrom-Utf8Base64String -Value '55u05o6l6L6T5YWl5paw5YC85Lya6KaG55uW5b2T5YmN5YC877yb55u05o6l5Zue6L2m5L+d5oyB5LiN5Y+Y44CC')
+        -Detail (ConvertFrom-Utf8Base64String -Value '5Y+z5L6n54Gw6Imy5paH5a2X5piv5b2T5YmN6buY6K6k5YC877yb55u05o6l5Zue6L2m5L+d55WZ77yM6L6T5YWl5paw5YC85Lya6KaG55uW44CCQVBJIEtleSDovpPlhaXml7bpmpDol4/vvIznlZnnqbrkvJrlhpnlhaXljaDkvY3lgLwgc2st44CC')
     $name = Read-HostWithDefaultValue -Prompt (ConvertFrom-Utf8Base64String -Value 'UHJvdmlkZXIg5ZCN56ew') -DefaultValue $name
     $baseUrl = Read-HostWithDefaultValue -Prompt (ConvertFrom-Utf8Base64String -Value 'QVBJIOWcsOWdgCAvIEJhc2UgVVJM') -DefaultValue $baseUrl
     $model = Read-HostWithDefaultValue -Prompt (ConvertFrom-Utf8Base64String -Value '5qih5Z6L5ZCN56ew') -DefaultValue $model
 
     $apiKey = $PresetApiKey
     if ([string]::IsNullOrWhiteSpace($apiKey)) {
-        Write-CodexProviderInputSection `
-            -Title (ConvertFrom-Utf8Base64String -Value 'QVBJIEtleQ==') `
-            -Detail (ConvertFrom-Utf8Base64String -Value 'QVBJIEtleSDkvJrpmpDol4/ovpPlhaXvvJvnm7TmjqXlm57ovabkvJrkvb/nlKjljaDkvY3lgLwgc2st44CC')
-        $secureApiKey = Read-Host ('API Key ({0})' -f (ConvertFrom-Utf8Base64String -Value '6L6T5YWl5pe26ZqQ6JeP')) -AsSecureString
-        $apiKey = ConvertFrom-SecureStringPlainText -SecureString $secureApiKey
+        $apiKey = Read-HostHiddenValue -Label 'API Key' -Placeholder (ConvertFrom-Utf8Base64String -Value '6L6T5YWl5pe26ZqQ6JeP77yM5Zue6L2m5Y+v5L2/55So5Y2g5L2N5YC8IHNrLQ==')
     }
     else {
-        Write-CodexProviderInputSection `
-            -Title (ConvertFrom-Utf8Base64String -Value 'QVBJIEtleQ==') `
-            -Detail (ConvertFrom-Utf8Base64String -Value 'QVBJIEtleSDkvJrpmpDol4/ovpPlhaXvvJvnm7TmjqXlm57ovabkvJrkvb/nlKjljaDkvY3lgLwgc2st44CC')
-        Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value '5p2l5rqQ') -Value (ConvertFrom-Utf8Base64String -Value '5bey5LuO5ZG95Luk5Y+C5pWw6K+75Y+W77yM5LiN5pi+56S65YaF5a65')
+        Write-CodexProviderInputLine -Label 'API Key' -Value (ConvertFrom-Utf8Base64String -Value '5bey5LuO5ZG95Luk5Y+C5pWw6K+75Y+W77yM5YaF5a656ZqQ6JeP44CC')
     }
 
     $finalApiKey = if ([string]::IsNullOrWhiteSpace($apiKey)) { 'sk-' } else { $apiKey.Trim() }

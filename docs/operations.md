@@ -115,7 +115,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 - 传 `-SkipCcSwitch` 会跳过 CC Switch Provider 导入。
 - `-SkillsManagerScenarioMode prompt|default|custom|skip` 控制导入后是否写入 Skills Manager 场景；默认 `prompt` 在交互式终端询问，非交互式环境跳过场景注册。
 
-执行开始后，日志会先输出“选中的安装应用清单”，再按 `[当前/总数]` 显示工作区、应用、Skill 和 CC Switch Provider 阶段进度。
+执行开始后，应用 precheck 会先输出执行计划统计；只有存在安装或更新项时，才会列出“准备安装或更新的应用清单”。随后按 `[当前/总数]` 显示工作区、应用、Skill 和 CC Switch Provider 阶段进度。
+
+CC Switch Provider 配置在交互式终端中按“说明 / 输入区 / 配置摘要”分块显示。Provider 名称、Base URL 和模型会在输入区右侧以灰色默认值显示；直接回车保留默认值，输入新值会覆盖。API Key 在同一输入区内处理，输入时隐藏，摘要只显示是否已填写。
 
 ## Skill 安全演练
 

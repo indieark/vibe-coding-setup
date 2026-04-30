@@ -137,3 +137,10 @@
 - Skill 安装路径新增 `Skill Bundle 准备` 分区，先显示下载 / 读取 bundle 的阶段，再进入 Skill Profile 选择。
 - TUI 工作台、执行摘要和 CC Switch Provider 配置区补齐标题与分块说明；Provider 名称、Base URL、模型等预填值直接出现在输入提示里，回车保持、输入覆盖。
 - 同步 `docs/installer-flow.md` 和 `.ai_memory`，准备提交推送。
+
+## 2026-04-30
+
+- 收敛应用计划播报：预检查后只输出执行计划统计，只有安装 / 更新项才逐项显示，跳过项不再刷屏。
+- 合并 CC Switch Provider 的当前默认值和 API Key 区域到“输入区”；真实控制台中默认值以右侧灰色占位显示，回车保持，输入覆盖。
+- 修复自绘输入行清理逻辑，改为清到当前行尾，避免中文占位或长默认值残留。
+- 同步 `docs/operations.md`、`docs/installer-flow.md` 和 `.ai_memory`，准备文档一致性检查后提交推送。

@@ -384,3 +384,33 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 - `bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only codex-provider-sync`。
 - `Read-CodexProviderInput` 预设值显示验证，未打印 API Key 明文。
 - `git diff --check`。
+
+## 2026-04-30 — 播报降噪与 Provider 输入区合并
+
+### 核心议题背景
+
+用户继续基于真实运行日志指出：虽然预检查和跳过逻辑已经正确，但 9 个应用全跳过时仍逐项输出 `Git：跳过`、`Node.js：跳过` 等内容，前置播报不够舒服。用户希望保留“预检查完成”和“应用执行计划统计”，只在真正需要安装或更新时显示应用明细。同时，CC Switch Provider 配置不应分成“当前默认值 / 输入区 / API Key”三段，而应把默认值和 API Key 直接吞并进输入区。
+
+### Cognitive Evolution Path
+
+1. 将应用计划播报从“逐项列所有模式”收敛为“先统计，后仅列安装 / 更新项”。跳过项和检查失败项仍进入 Summary，保留审计原因，但不再占据前置执行播报。
+2. 删除 `安装计划` 与解释性日志行，避免在每次运行时重复提示规则。
+3. 保留安装 / 更新项的可见性：只有存在待执行项时，才输出“准备安装或更新的应用清单”。
+4. 合并 Provider 配置区域：保留“说明 / 输入区 / 配置摘要”，去掉单独的“当前默认值”和“API Key”区。
+5. Provider 名称、Base URL、模型改为右侧灰色占位；回车保留默认值，开始输入后清掉占位并覆盖。
+6. API Key 在同一个输入区中处理，输入时隐藏；预设 API Key 只显示来源，不打印明文。
+7. 自绘输入行按当前行尾清理，避免中文占位或长默认值在 Windows Terminal 中残留。
+
+### 当前结论
+
+- 预检查阶段现在只负责输出统计；跳过明细只保留在执行摘要。
+- Provider 配置区的信息架构已经收敛为一个输入区，不再拆散默认值和 API Key。
+- `docs/operations.md` 和 `docs/installer-flow.md` 已同步当前行为。
+
+### 验证闭环
+
+- `Import-Module .\modules\common.psm1 -Force`。
+- `git diff --check`。
+- `bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only git`。
+- `bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch`。
+- Provider 输入 TTY 冒烟：回车保留默认值、输入覆盖、API Key 只显示星号 / 状态，不明文输出。

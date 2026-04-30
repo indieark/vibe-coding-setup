@@ -746,15 +746,12 @@ function Write-BootstrapAppPlan {
         [hashtable]$PrecheckByKey
     )
 
-    Write-Log -Message (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF6K6h5YiS')
-    Write-Log -Message (ConvertFrom-BootstrapUtf8Base64String -Value '6aKE5qOA5p+l5ZCO5b6X5Yiw55qE5bqU55So5omn6KGM6K6h5YiS77yb6Lez6L+H6aG55Y+q6K6w5b2V5Yiw5pGY6KaB77yM5LiN5YaN6L+b5YWl5a6J6KOF5q2l6aqk44CC')
-
     $installCount = 0
     $updateCount = 0
     $skipCount = 0
     $failedCount = 0
+    $appsToDisplay = New-Object System.Collections.Generic.List[object]
 
-    Write-Log -Message (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5Lit55qE5a6J6KOF5bqU55So5riF5Y2V77ya')
     foreach ($app in ($Apps | Sort-Object order)) {
         $precheck = $PrecheckByKey[[string]$app.key]
         $failed = ($null -ne $precheck -and $precheck.Status -eq 'failed')
@@ -769,12 +766,25 @@ function Write-BootstrapAppPlan {
         }
         elseif ($null -ne $decision -and $decision.Reason -eq 'outdated') {
             $updateCount++
+            [void]$appsToDisplay.Add([pscustomobject]@{
+                    App = $app
+                    Mode = $mode
+                })
         }
         else {
             $installCount++
+            [void]$appsToDisplay.Add([pscustomobject]@{
+                    App = $app
+                    Mode = $mode
+                })
         }
+    }
 
-        Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'ICAtIHswfSAoezF9Ke+8mnsyfQ==') -f $app.name, $app.key, $mode)
+    if ($appsToDisplay.Count -gt 0) {
+        Write-Log -Message (ConvertFrom-BootstrapUtf8Base64String -Value '5YeG5aSH5a6J6KOF5oiW5pu05paw55qE5bqU55So5riF5Y2V77ya')
+        foreach ($item in $appsToDisplay) {
+            Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'ICAtIHswfSAoezF9Ke+8mnsyfQ==') -f $item.App.name, $item.App.key, $item.Mode)
+        }
     }
 
     Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '5bqU55So5omn6KGM6K6h5YiS77ya5a6J6KOFIHswfe+8jOabtOaWsCB7MX3vvIzot7Pov4cgezJ977yM5qOA5p+l5aSx6LSlIHszfQ==') -f $installCount, $updateCount, $skipCount, $failedCount)
