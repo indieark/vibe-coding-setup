@@ -239,6 +239,24 @@ function Get-BootstrapReleaseAssetUrl {
     return 'https://github.com/{0}/releases/download/{1}/{2}' -f $Repo, $Tag, $AssetName
 }
 
+function Invoke-BootstrapDownloadFile {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Uri,
+        [Parameter(Mandatory)]
+        [string]$OutFile
+    )
+
+    $previousProgressPreference = $ProgressPreference
+    try {
+        $ProgressPreference = 'SilentlyContinue'
+        Invoke-WebRequest -Uri $Uri -OutFile $OutFile
+    }
+    finally {
+        $ProgressPreference = $previousProgressPreference
+    }
+}
+
 function Copy-BootstrapDependency {
     param(
         [Parameter(Mandatory)]
@@ -263,7 +281,7 @@ function Copy-BootstrapDependency {
     Write-BootstrapMessage ((ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo6I635Y+W6Ieq5Li+5L6d6LWW77yaezB9') -f $RelativePath)
 
     if (Test-HttpSourceRoot -SourceRoot $SourceRoot) {
-        Invoke-WebRequest -Uri $sourcePath -OutFile $destinationPath
+        Invoke-BootstrapDownloadFile -Uri $sourcePath -OutFile $destinationPath
         return
     }
 
@@ -314,7 +332,7 @@ function Copy-BootstrapReleaseAsset {
 
     $url = Get-BootstrapReleaseAssetUrl -Repo $Repo -Tag $Tag -AssetName $AssetName
     Write-BootstrapMessage ((ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo6I635Y+WIFJlbGVhc2Ug6LWE5Lqn77yaezB9') -f $RelativePath)
-    Invoke-WebRequest -Uri $url -OutFile $destinationPath
+    Invoke-BootstrapDownloadFile -Uri $url -OutFile $destinationPath
 }
 
 function Sync-BootstrapSkillBundleAsset {
@@ -919,7 +937,8 @@ function Test-BootstrapShouldUseTui {
         'UserHomeOverride',
         'BootstrapSourceRoot',
         'BootstrapAssetsRepo',
-        'BootstrapAssetsTag'
+        'BootstrapAssetsTag',
+        'RefreshBootstrapDependencies'
     )
 
     foreach ($name in $BoundParameters.Keys) {

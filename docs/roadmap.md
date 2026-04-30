@@ -4,6 +4,7 @@
 
 ## P0：可观测
 
+- 已完成：执行阶段显示 `[当前/总数]` 进度，并聚合 Skill 导入日志，降低正常安装刷屏。
 - 增加日志落盘，保留关键步骤、版本门禁、fallback 决策和失败原因。
 - 增加安装结果 JSON 报告，便于远程排障和批量装机留痕。
 - 把 Skill 导入 summary 拆成 `Imported / Skipped / BackedUp / Foreign` 计数。
@@ -22,6 +23,7 @@
 
 ## P3：体验增强
 
+- 已完成：无操作参数默认进入拟似 TUI，原来模式包含在 TUI 首屏，Skill Profile 支持运行时复选。
 - 为 `Codex Desktop` / `ChatGPT (Pake)` 增加稳定版本来源，未来从 presence-only 回到可比较版本门禁。
 - 继续观察 `Skills Manager` 是否提供稳定 CLI、可靠版本号或显式 rescan 命令。
 - Phase 6 再处理独立 GUI 装机器和装机命令汉化。

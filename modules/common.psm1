@@ -301,7 +301,14 @@ function Invoke-DownloadFile {
 
     Initialize-Directory -Path (Split-Path -Parent $DestinationPath)
     Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5LiL6L29IHswfQ==') -f $Url)
-    Invoke-WebRequest -Uri $Url -OutFile $DestinationPath
+    $previousProgressPreference = $ProgressPreference
+    try {
+        $ProgressPreference = 'SilentlyContinue'
+        Invoke-WebRequest -Uri $Url -OutFile $DestinationPath
+    }
+    finally {
+        $ProgressPreference = $previousProgressPreference
+    }
     return $DestinationPath
 }
 

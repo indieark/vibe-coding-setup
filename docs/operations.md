@@ -17,7 +17,13 @@ Set-Location "C:\Vibe_Coding\IndieArk\gadget\vibe-coding-setup"
 
 `-Tui` 可在已有参数场景下强制打开 TUI。自动化或旧式命令继续直接传参数，例如 `.\bootstrap.cmd -Only git,nodejs`。
 
-`bootstrap.cmd` 使用 Windows PowerShell 5.1 启动。如果过程中触发 UAC 提权，新开的管理员窗口会在执行完成后保持打开，方便查看 summary 或错误。
+TUI 自定义模式包含三类选择：
+
+- 应用复选：选择本次要安装或检查的应用。
+- 安装复选项：演练、跳过 CC Switch、跳过 Skill、保留旧 Skill 等。
+- Skill 复选项：默认“全部 Skill”，也可按 Profile 选择一个或多个 Skill 套件。
+
+`bootstrap.cmd` 使用 Windows PowerShell 5.1 启动。如果过程中触发 UAC 提权，当前窗口只提示已打开管理员窗口继续安装；新开的管理员窗口会继续后续 TUI 或安装流程，并在执行完成后保持打开，方便查看 summary 或错误。
 
 ## 远程自举
 
@@ -26,6 +32,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 ```
 
 这个命令下载 `bootstrap.ps1`，再由脚本自己同步 `modules/common.psm1` 和 `manifest/apps.json`。
+
+远程入口会传入 `BootstrapSourceRoot`、`BootstrapAssetsRepo`、`BootstrapAssetsTag`、`RefreshBootstrapDependencies` 等自举内部参数。这些参数不算安装选择；如果没有 `-Only`、`-DryRun`、`-SkipSkills` 等操作参数，脚本仍会进入 TUI。
 
 ## 常用参数
 
@@ -52,6 +60,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 .\bootstrap.cmd -SkillProfile "飞书办公套件"
 ```
 
+多个 Profile：
+
+```powershell
+.\bootstrap.cmd -SkillProfile "飞书办公套件","前端开发套件"
+```
+
 显式导入全部 Skill：
 
 ```powershell
@@ -63,6 +77,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 ```powershell
 .\bootstrap.cmd -DryRun
 ```
+
+命令模式默认行为：
+
+- 未传 `-SkipSkills` 时会导入 Skill。
+- 未传 `-SkillProfile` 且未传 `-AllSkills` 时，交互式终端会提示选择 Profile；非交互式环境默认导入全部 Skill。
+- 传 `-SkipSkills` 会完全跳过 Skill 导入。
+- 传 `-SkipCcSwitch` 会跳过 CC Switch Provider 导入。
+
+执行开始后，日志会先输出“选中的安装应用清单”，再按 `[当前/总数]` 显示工作区、应用、Skill 和 CC Switch Provider 阶段进度。
 
 ## Skill 安全演练
 

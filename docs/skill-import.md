@@ -13,11 +13,16 @@
 
 `Install-SkillBundle` 解压 `skills.zip` 后，会读取 bundle 内置的 `registry/profiles.yaml`：
 
+- TUI 自定义模式会先读取 `skills.zip` 中的 Profile，并以复选项展示；默认选择“全部 Skill”。
+- TUI 中选择任意 Profile 后，会取消“全部 Skill”，并在确认页生成等价 `-SkillProfile` 命令。
 - 传 `-SkillProfile "名称"`：只导入指定 Profile 引用的 skill。
 - 多个 Profile 可用逗号分隔。
 - 传 `-AllSkills`：显式导入 bundle 内全部 skill。
+- 传 `-SkipSkills`：完全跳过 `skills.zip` 下载和 Skill 导入。
 - 不传 Profile 且处于交互式终端：显示中文选择菜单。
 - 非交互式且未传 Profile：自动回退为全部导入，保持旧逻辑可用。
+
+命令模式会在 Profile 交互菜单前提示选择方式：`-SkillProfile "名称1","名称2"` 选择 Profile，`-AllSkills` 导入全部，`-SkipSkills` 跳过 Skill；直接回车默认导入全部 Skill。
 
 ## 目标目录
 
@@ -64,6 +69,18 @@ central root 固定为：
 写入字段来自 `.skill-meta.json`，包括上游 git URL、branch、subpath、revision 等。缺少 meta 时，会回退为 local 行为，保持旧 bundle 兼容。
 
 被跳过的 `Orphan` 或 `Foreign` 不会登记到 DB。
+
+## 进度与日志
+
+Skill 导入开始前会输出选中的 Profile、Skill 数量、MCP 和前置依赖摘要。
+
+导入过程中按 skill 聚合显示：
+
+- `Skill 进度：当前/总数 名称`
+- `Skill 已同步：名称；动作=...；目标=... 个`
+- `Skill 已跳过：名称`
+
+正常流程不再逐条打印每个目标目录的复制和备份路径，避免安装窗口刷屏。遇到 `Orphan` / `Foreign` 被策略跳过、警告或失败时，仍会输出明确路径和原因。最终执行摘要以 `skills.zip` 一行呈现导入结果。
 
 ## 安全测试命令
 

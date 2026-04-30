@@ -19,6 +19,8 @@
 - 安装常用 Windows 开发工具：Git、Node.js、Python、VS Code、Codex Desktop、ChatGPT、CC Switch、Codex Provider Sync、Skills Manager。
 - 先走公开主来源，失败后按 `bootstrap-assets` fallback。
 - 从公开 `skills.zip` 按 Profile 导入 Skill。
+- 默认进入拟似 TUI，可在进入脚本后选择原来模式、自定义模式或安全演练。
+- 安装阶段显示总步骤进度，并在命令日志中列出本次实际安装清单。
 - 使用 `.skill-meta.json` 识别 Skill 来源，并写入 Skills Manager SQLite。
 - 对同名 Skill 做安全三态判定：已跟踪、旧孤儿、第三方同名。
 ## 快速开始
@@ -53,8 +55,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 | 应用安装 | `manifest/apps.json` 驱动，先 precheck，再安装或跳过 |
 | 失败回退 | 主来源失败后 post-check，仍失败才使用 fallback |
 | 资产镜像 | 私库资产只在 GitHub Actions 中读取，终端用户只访问公开 `bootstrap-assets` |
-| Skill 导入 | `skills.zip` 内置 registry 和 Profile，支持按需导入 |
+| TUI 入口 | 无安装参数默认进入拟似 TUI；显式参数继续支持旧命令模式 |
+| Skill 导入 | `skills.zip` 内置 registry 和 Profile，TUI 与命令模式都支持按需导入 |
 | 去重安全 | `Tracked / Orphan / Foreign` 三态判定，默认备份不删除 |
+| 进度展示 | 工作区、应用、Skill 和 CC Switch Provider 阶段显示 `[当前/总数]` |
 | 可追更 | `.skill-meta.json` 字段透传到 Skills Manager DB |
 ## 安全边界
 
@@ -87,6 +91,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 ## 当前状态
 
 - `main` 已包含按需装机器 Phase 1-4：私库 bundle 镜像、Profile 选择、Skill meta 透传、三态去重。
+- 安装器已包含集成拟似 TUI、运行时 Skill Profile 复选、UAC 交接提示和安装进度展示。
 - Phase 5 飞书只读镜像在 `indieark/00000-model` 侧按计划推进。
 - 下一步安装器增强应优先围绕可观测、可校验、可回滚，而不是继续堆安装项。
 
