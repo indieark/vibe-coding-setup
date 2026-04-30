@@ -14,7 +14,7 @@
 2. 同步自举依赖：`modules/common.psm1` 和 `manifest/apps.json`。
 3. 导入模块并读取 `manifest/apps.json`。
 4. 判断是否进入 TUI：无操作参数或显式 `-Tui` 时进入；`-Only`、`-DryRun`、`-SkipSkills` 等命令参数会沿用旧命令模式。
-5. 如进入 TUI，先由用户选择运行模式、应用、安装选项和 Skill Profile，再把选择结果写回等价参数。
+5. 如进入 TUI，先由用户选择运行模式。默认安装会直接回到原默认流程；自定义选择和安全演练会继续选择应用、安装选项和 Skill Profile，并把选择结果写回等价参数。
 6. 非 `-DryRun` 且非管理员时，通过 UAC 保留当前参数重新拉起；UAC 交接窗口只提示后续在管理员窗口继续。
 7. 按 `-Only` 过滤应用，并按 `order` 排序。
 8. 如果没有 `-SkipSkills`，预取公开 `bootstrap-assets/skills.zip`。
@@ -26,6 +26,8 @@
 14. 输出 Summary；任一项失败则退出码为 `1`，否则为 `0`。
 
 `PauseOnExit`、`KeepShellOpen`、`UserHomeOverride`、`BootstrapSourceRoot`、`BootstrapAssetsRepo`、`BootstrapAssetsTag`、`RefreshBootstrapDependencies` 属于启动或自举参数，不会单独触发命令模式。
+
+TUI 默认安装模式只写入内部的 `BootstrapTuiResolved` 标记，用于防止 UAC 提权后重复进入 TUI；它不会写入 `-Only`，因此仍遵循原脚本“未指定 `-Only` 时使用默认全量应用”的行为。如果启动 TUI 时已经显式带了 `-DryRun`、`-SkipSkills`、`-SkipCcSwitch` 或 Skill 相关参数，默认安装会保留这些原命令参数。自定义选择和安全演练涉及应用集合时，会把数组参数压缩成逗号形式传递，避免 UAC 重启后出现位置参数解析错误。
 
 ## 应用安装门禁
 每个应用都会先做 precheck：

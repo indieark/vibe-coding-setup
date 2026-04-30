@@ -45,9 +45,7 @@ function ConvertTo-ArgumentTokens {
 
         if ($value -is [System.Array]) {
             $tokens.Add($name)
-            foreach ($item in $value) {
-                $tokens.Add(('"{0}"' -f [string]$item))
-            }
+            $tokens.Add(('"{0}"' -f (($value | ForEach-Object { [string]$_ }) -join ',')))
             continue
         }
 

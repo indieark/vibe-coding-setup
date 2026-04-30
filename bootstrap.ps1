@@ -21,7 +21,8 @@ param(
     [string]$BootstrapSourceRoot,
     [string]$BootstrapAssetsRepo = 'indieark/vibe-coding-setup',
     [string]$BootstrapAssetsTag = 'bootstrap-assets',
-    [switch]$RefreshBootstrapDependencies
+    [switch]$RefreshBootstrapDependencies,
+    [switch]$BootstrapTuiResolved
 )
 
 Set-StrictMode -Version Latest
@@ -677,10 +678,15 @@ function Get-TuiBootstrapArgumentTokens {
         [AllowEmptyCollection()]
         [object[]]$Options,
         [string[]]$SkillProfiles = @(),
+        [switch]$ShowDefaultCommand,
         [switch]$IncludeOnly
     )
 
     $tokens = New-Object System.Collections.Generic.List[string]
+    if ($ShowDefaultCommand) {
+        return $tokens.ToArray()
+    }
+
     if ($IncludeOnly) {
         $tokens.Add('-Only')
         $tokens.Add(($SelectedAppKeys -join ','))
@@ -706,10 +712,11 @@ function Show-TuiReview {
         [object[]]$Options = @(),
         [string[]]$SkillProfiles = @(),
         [string]$ModeName,
+        [switch]$UseDefaultInstall,
         [switch]$IncludeOnly
     )
 
-    $tokens = Get-TuiBootstrapArgumentTokens -SelectedAppKeys $SelectedAppKeys -Options $Options -SkillProfiles $SkillProfiles -IncludeOnly:$IncludeOnly
+    $tokens = Get-TuiBootstrapArgumentTokens -SelectedAppKeys $SelectedAppKeys -Options $Options -SkillProfiles $SkillProfiles -ShowDefaultCommand:$UseDefaultInstall -IncludeOnly:$IncludeOnly
     $commandText = '.\bootstrap.cmd'
     if ($tokens.Count -gt 0) {
         $commandText = '{0} {1}' -f $commandText, (ConvertTo-TuiArgumentText -Tokens $tokens)
@@ -781,7 +788,8 @@ function New-TuiBootstrapResult {
         [string[]]$Only,
         [AllowEmptyCollection()]
         [object[]]$Options = @(),
-        [string[]]$SkillProfiles = @()
+        [string[]]$SkillProfiles = @(),
+        [switch]$UseDefaultInstall
     )
 
     $switches = @{}
@@ -791,6 +799,7 @@ function New-TuiBootstrapResult {
 
     return [pscustomobject]@{
         Only = $Only
+        UseDefaultInstall = [bool]$UseDefaultInstall
         SkillProfile = @($SkillProfiles)
         DryRun = [bool]$switches['DryRun']
         SkipCcSwitch = [bool]$switches['SkipCcSwitch']
@@ -808,7 +817,9 @@ function Invoke-BootstrapTui {
     param(
         [Parameter(Mandatory)]
         [object[]]$Apps,
-        [object[]]$SkillProfiles = @()
+        [object[]]$SkillProfiles = @(),
+        [object[]]$InitialOptions = @(),
+        [string[]]$InitialSkillProfiles = @()
     )
 
     $allAppKeys = @($Apps | ForEach-Object { $_.key })
@@ -820,19 +831,7 @@ function Invoke-BootstrapTui {
         }
 
         if ($selectedMode -eq 'original') {
-            $review = Show-TuiReview `
-                -SelectedAppKeys $allAppKeys `
-                -Options @() `
-                -ModeName (ConvertFrom-BootstrapUtf8Base64String -Value '6buY6K6k5a6J6KOF') `
-                -IncludeOnly
-            if ($review -eq 'quit') {
-                return $null
-            }
-            if ($null -eq $review) {
-                continue
-            }
-
-            return New-TuiBootstrapResult -Only $allAppKeys -Options @()
+            return New-TuiBootstrapResult -Only $null -Options $InitialOptions -SkillProfiles $InitialSkillProfiles -UseDefaultInstall
         }
 
         if ($selectedMode -eq 'dryrun') {
@@ -927,6 +926,10 @@ function Test-BootstrapShouldUseTui {
         [switch]$TuiSwitch
     )
 
+    if ($BoundParameters.ContainsKey('BootstrapTuiResolved')) {
+        return $false
+    }
+
     if ($TuiSwitch.IsPresent) {
         return $true
     }
@@ -1005,7 +1008,18 @@ if ($shouldUseTui -and -not $SkipSkills) {
 }
 
 if ($shouldUseTui) {
-    $tuiResult = Invoke-BootstrapTui -Apps $manifest.apps -SkillProfiles $tuiSkillProfiles
+    $tuiInitialOptions = @(
+        if ($DryRun) { [pscustomobject]@{ SwitchName = 'DryRun'; Enabled = $true } }
+        if ($SkipCcSwitch) { [pscustomobject]@{ SwitchName = 'SkipCcSwitch'; Enabled = $true } }
+        if ($SkipSkills) { [pscustomobject]@{ SwitchName = 'SkipSkills'; Enabled = $true } }
+        if ($AllSkills) { [pscustomobject]@{ SwitchName = 'AllSkills'; Enabled = $true } }
+        if ($NoReplaceOrphan) { [pscustomobject]@{ SwitchName = 'NoReplaceOrphan'; Enabled = $true } }
+        if ($ReplaceForeign) { [pscustomobject]@{ SwitchName = 'ReplaceForeign'; Enabled = $true } }
+        if ($RenameForeign) { [pscustomobject]@{ SwitchName = 'RenameForeign'; Enabled = $true } }
+        if ($SkipSkillsManagerLaunch) { [pscustomobject]@{ SwitchName = 'SkipSkillsManagerLaunch'; Enabled = $true } }
+        if ($RefreshBootstrapDependencies) { [pscustomobject]@{ SwitchName = 'RefreshBootstrapDependencies'; Enabled = $true } }
+    )
+    $tuiResult = Invoke-BootstrapTui -Apps $manifest.apps -SkillProfiles $tuiSkillProfiles -InitialOptions $tuiInitialOptions -InitialSkillProfiles $SkillProfile
     if ($null -eq $tuiResult) {
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5Y+W5raI44CC')
         Invoke-BootstrapExit -Code 0
@@ -1025,6 +1039,7 @@ if ($shouldUseTui) {
     $Tui = [System.Management.Automation.SwitchParameter]$false
 
     [void]$PSBoundParameters.Remove('Tui')
+    $PSBoundParameters['BootstrapTuiResolved'] = [System.Management.Automation.SwitchParameter]$true
     if ($null -eq $Only -or $Only.Count -eq 0) {
         [void]$PSBoundParameters.Remove('Only')
     }

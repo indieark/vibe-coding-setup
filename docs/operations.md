@@ -9,7 +9,7 @@ Set-Location "C:\Vibe_Coding\IndieArk\gadget\vibe-coding-setup"
 .\bootstrap.cmd
 ```
 
-无安装参数时会先进入 TUI；“默认安装（原来模式）”已经包含在 TUI 里，选择后仍按原脚本流程安装全部应用、导入 Skill 和 CC Switch。
+无安装参数时会先进入 TUI；“默认安装（原来模式）”已经包含在 TUI 里，选择后不再改写为 `-Only`，而是直接继续原脚本默认流程：安装默认全量应用、导入 Skill 和 CC Switch。
 
 ```powershell
 .\bootstrap.cmd -Tui
@@ -24,6 +24,8 @@ TUI 自定义模式包含三类选择：
 - Skill 复选项：默认“全部 Skill”，也可按 Profile 选择一个或多个 Skill 套件。
 
 `bootstrap.cmd` 使用 Windows PowerShell 5.1 启动。如果过程中触发 UAC 提权，当前窗口只提示已打开管理员窗口继续安装；新开的管理员窗口会继续后续 TUI 或安装流程，并在执行完成后保持打开，方便查看 summary 或错误。
+
+默认安装模式进入 UAC 后不会再次显示 TUI，也不会把应用清单拆成多个位置参数；自定义选择和安全演练才会生成显式命令预览。如果你显式用 `.\bootstrap.cmd -Tui -DryRun` 这类命令进入 TUI，选择默认安装后仍会保留这些命令参数。
 
 ## 远程自举
 

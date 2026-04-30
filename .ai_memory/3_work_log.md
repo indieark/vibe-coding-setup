@@ -60,3 +60,11 @@
 - 安装执行阶段新增总步骤进度：工作区、应用安装、Skill 导入和 CC Switch Provider 导入会显示 `[当前/总数]`，并同步使用 PowerShell `Write-Progress`。
 - Skill 导入输出从逐目标长路径明细收敛为按 skill 聚合的进度和结果；dry-run 注册 skills-manager DB 也改为计数摘要。
 - 验证通过：脚本解析、模块导入、Profile 读取、旧命令模式 dry-run、`-SkillProfile "飞书办公套件"` dry-run、内部自举参数进入 TUI 并可退出、`git diff --check`。
+
+## 2026-04-30
+
+- 修复 TUI 默认安装模式：选择“默认安装（原来模式）”后不再进入执行确认页，也不再写入 `-Only` 全量应用清单，而是直接沿用原脚本未指定 `-Only` 时的默认全量安装逻辑。
+- 默认安装模式会保留进入 TUI 前显式传入的 `-DryRun`、`-SkipSkills`、`-SkipCcSwitch` 和 Skill 参数，避免 `-Tui -DryRun` 被吞参数后触发 UAC。
+- 新增内部 `BootstrapTuiResolved` 标记，用于 UAC 提权后跳过二次 TUI；该标记不改变安装集合。
+- 修复 UAC 重启时数组参数被拆成多个位置参数的问题：`ConvertTo-ArgumentTokens` 会把数组压缩成逗号形式，例如 `-Only "git,nodejs,cc-switch"`。
+- 验证通过：脚本解析、数组参数 token 生成、默认安装内部标记 dry-run 全量路径、`-Only "git,nodejs,cc-switch"` dry-run、`-Tui` 首屏退出、`git diff --check`。

@@ -215,3 +215,13 @@ TUI 自定义流程新增 Skill Profile 复选页，运行时从 `downloads/skil
 安装执行阶段新增总步骤进度：工作区准备、每个应用、Skill 导入和 CC Switch Provider 导入都会显示 `[当前/总数]`，并同步写 PowerShell 进度条。Skill 导入日志从逐目标长路径明细收敛为按 skill 聚合的进度与结果，dry-run 的 skills-manager DB 注册也改为计数摘要。
 
 验证覆盖脚本解析、模块导入、Profile 读取、旧命令模式 dry-run、`-SkillProfile "飞书办公套件"` dry-run、内部自举参数进入 TUI 并退出、`git diff --check`。
+
+## 2026-04-30 — 默认安装模式回归原逻辑修复
+
+用户实际运行 `vibe-coding-setup.cmd` 后发现：TUI 首屏选择“默认安装（原来模式）”仍进入执行确认页，并把默认全量应用改写成 `-Only git,nodejs,...`；UAC 提权后的管理员窗口报错“找不到接受实际参数 cc-switch 的位置形式参数”。这说明默认模式没有真正遵循原脚本默认逻辑，同时数组参数在 UAC 重启时被拆错。
+
+本次修复把默认安装模式改为直接返回原默认流程：不展示二次确认页，不写入 `-Only`，只写入内部 `BootstrapTuiResolved` 标记防止 UAC 后重复进入 TUI。未指定 `-Only` 时仍由原脚本按 manifest 默认全量应用执行；如果进入 TUI 前显式带了 `-DryRun`、`-SkipSkills`、`-SkipCcSwitch` 或 Skill 参数，默认安装会保留这些原命令参数。
+
+同时修复 `ConvertTo-ArgumentTokens` 的数组序列化：数组参数会压缩成逗号形式，例如 `-Only "git,nodejs,cc-switch"`，避免 PowerShell `-File` 重启时把后续元素当作位置参数。
+
+验证覆盖脚本解析、数组 token 生成、`-BootstrapTuiResolved` dry-run 默认全量路径、`-Only "git,nodejs,cc-switch"` dry-run、`-Tui -DryRun` 首屏默认选择和 `git diff --check`。
