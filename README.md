@@ -219,7 +219,7 @@ precheck 决策规则：
 | `Git` | `winget install --id Git.Git` | `winget show Git.Git` | `git --version`，失败后看注册表 `^Git$` | `indieark/vibe-coding-setup@bootstrap-assets/Git-2.54.0-64-bit.exe` |
 | `Node.js` | `winget install --id OpenJS.NodeJS` | `winget show OpenJS.NodeJS` | `node --version`，失败后看注册表 `Node.js` | `indieark/vibe-coding-setup@bootstrap-assets/node-v25.9.0-x64.msi` |
 | `Python 3.13` | `winget install --id Python.Python.3.13` | `winget show Python.Python.3.13` | `py -V` | `indieark/vibe-coding-setup@bootstrap-assets/python-3.13.13-amd64.exe` |
-| `Visual Studio Code` | `winget install --id Microsoft.VisualStudioCode` | `winget show Microsoft.VisualStudioCode` | `code --version`，失败后看注册表 `Microsoft Visual Studio Code` | `indieark/vibe-coding-setup@bootstrap-assets/VSCodeUserSetup-x64-1.118.0.exe` |
+| `Visual Studio Code` | `winget install --id Microsoft.VisualStudioCode` | `winget show Microsoft.VisualStudioCode` | `code --version`，失败后看注册表 `Microsoft Visual Studio Code` | `indieark/vibe-coding-setup@bootstrap-assets/VSCodeUserSetup-x64-1.118.1.exe` |
 | `Codex Desktop` | `winget install --id 9PLM9XGG6VKS --source msstore` | `winget show 9PLM9XGG6VKS --source msstore`；但实际按 presence-only 预检，检测到已安装即跳过 | `Get-AppxPackage -Name OpenAI.Codex` | 官方 Microsoft Store：优先 `ms-windows-store://pdp/?ProductId=9PLM9XGG6VKS`，失败再开 `https://apps.microsoft.com/detail/9PLM9XGG6VKS` |
 | `ChatGPT (Pake)` | `https://github.com/tw93/Pake/releases/latest/download/ChatGPT_x64.msi` | 无稳定可比较目标版本；实际按 presence-only 预检 | 注册表精确匹配 `ChatGPT` | `indieark/vibe-coding-setup@bootstrap-assets/ChatGPT_x64.msi` |
 | `CC Switch` | `farion1231/cc-switch` 的 latest tag，对应资产模板 `CC-Switch-{tag}-Windows.msi` | GitHub latest tag | 注册表精确匹配 `CC Switch` | `indieark/vibe-coding-setup@bootstrap-assets/CC-Switch-v3.14.1-Windows.msi` |
@@ -361,7 +361,7 @@ precheck 决策规则：
 - `Git-2.54.0-64-bit.exe`
 - `node-v25.9.0-x64.msi`
 - `python-3.13.13-amd64.exe`
-- `VSCodeUserSetup-x64-1.118.0.exe`
+- `VSCodeUserSetup-x64-1.118.1.exe`
 - `CC-Switch-v3.14.1-Windows.msi`
 - `Codex.Provider.Sync_0.3.0_x64-setup.exe`
 - `skills-manager_1.15.2_x64_en-US.msi`
