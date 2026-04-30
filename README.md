@@ -491,6 +491,15 @@ Set-Location "D:\AI Coding\Vibe Coding Setup"
 .\bootstrap.cmd -AllSkills
 ```
 
+Skill 导入会对同名目录做三态判定：IndieArk 已跟踪目录直接同步，缺 `.skill-meta.json` 的旧目录默认备份为 `<name>.legacy.<时间>` 后替换，第三方同名目录默认跳过。可用以下参数调整：
+
+```powershell
+.\bootstrap.cmd -NoReplaceOrphan
+.\bootstrap.cmd -ReplaceForeign
+.\bootstrap.cmd -RenameForeign
+.\bootstrap.cmd -SkipSkillsManagerLaunch
+```
+
 只做演练，不真正安装：
 
 ```powershell

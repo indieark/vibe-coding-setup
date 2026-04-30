@@ -2008,6 +2008,199 @@ function Test-SkillDirectoryInSync {
     return $sourceSignature -eq $destinationSignature
 }
 
+function Read-SkillMetaFile {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SkillPath
+    )
+
+    $metaPath = Join-Path $SkillPath '.skill-meta.json'
+    if (-not (Test-Path -LiteralPath $metaPath)) {
+        return $null
+    }
+
+    return Get-Content -Raw -Encoding UTF8 -LiteralPath $metaPath | ConvertFrom-Json
+}
+
+function Get-SkillMetaStringValue {
+    param(
+        [object]$Meta,
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+
+    $value = Get-ObjectPropertyValue -Object $Meta -Name $Name
+    if ($null -eq $value) {
+        return ''
+    }
+
+    return ([string]$value).Trim()
+}
+
+function Test-SkillMetaMatchesSource {
+    param(
+        [object]$SourceMeta,
+        [object]$DestinationMeta,
+        [Parameter(Mandatory)]
+        [string]$SkillName
+    )
+
+    $sourceRef = Get-SkillMetaStringValue -Meta $SourceMeta -Name 'source_ref'
+    $destinationRef = Get-SkillMetaStringValue -Meta $DestinationMeta -Name 'source_ref'
+    if (-not [string]::IsNullOrWhiteSpace($sourceRef)) {
+        return ($sourceRef -eq $destinationRef) -and
+            ((Get-SkillMetaStringValue -Meta $SourceMeta -Name 'source_subpath') -eq (Get-SkillMetaStringValue -Meta $DestinationMeta -Name 'source_subpath')) -and
+            ((Get-SkillMetaStringValue -Meta $SourceMeta -Name 'source_branch') -eq (Get-SkillMetaStringValue -Meta $DestinationMeta -Name 'source_branch'))
+    }
+
+    $sourceRegistryType = Get-SkillMetaStringValue -Meta $SourceMeta -Name 'registry_source_type'
+    $destinationRegistryType = Get-SkillMetaStringValue -Meta $DestinationMeta -Name 'registry_source_type'
+    $sourceEntryName = Get-SkillMetaStringValue -Meta $SourceMeta -Name 'registry_entry_name'
+    $destinationEntryName = Get-SkillMetaStringValue -Meta $DestinationMeta -Name 'registry_entry_name'
+    if ([string]::IsNullOrWhiteSpace($sourceEntryName)) {
+        $sourceEntryName = $SkillName
+    }
+    if ([string]::IsNullOrWhiteSpace($destinationEntryName)) {
+        $destinationEntryName = $SkillName
+    }
+
+    return ($sourceRegistryType -eq 'custom') -and ($destinationRegistryType -eq 'custom') -and ($sourceEntryName -eq $destinationEntryName)
+}
+
+function Get-SkillInstallState {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SourcePath,
+        [Parameter(Mandatory)]
+        [string]$DestinationPath,
+        [Parameter(Mandatory)]
+        [string]$SkillName
+    )
+
+    if (-not (Test-Path -LiteralPath $DestinationPath)) {
+        return [pscustomobject]@{ State = 'Missing'; Detail = 'Destination does not exist' }
+    }
+
+    if (-not (Test-Path -LiteralPath (Join-Path $DestinationPath 'SKILL.md'))) {
+        return [pscustomobject]@{ State = 'Orphan'; Detail = 'Existing directory has no SKILL.md' }
+    }
+
+    try {
+        $sourceMeta = Read-SkillMetaFile -SkillPath $SourcePath
+    }
+    catch {
+        return [pscustomobject]@{ State = 'Orphan'; Detail = ('Source meta is invalid: {0}' -f $_.Exception.Message) }
+    }
+
+    try {
+        $destinationMeta = Read-SkillMetaFile -SkillPath $DestinationPath
+    }
+    catch {
+        return [pscustomobject]@{ State = 'Orphan'; Detail = ('Existing meta is invalid: {0}' -f $_.Exception.Message) }
+    }
+
+    if ($null -eq $destinationMeta) {
+        return [pscustomobject]@{ State = 'Orphan'; Detail = 'Existing skill has no .skill-meta.json' }
+    }
+
+    if ($null -eq $sourceMeta) {
+        return [pscustomobject]@{ State = 'Tracked'; Detail = 'Bundle has no meta; fallback to legacy sync' }
+    }
+
+    if (Test-SkillMetaMatchesSource -SourceMeta $sourceMeta -DestinationMeta $destinationMeta -SkillName $SkillName) {
+        return [pscustomobject]@{ State = 'Tracked'; Detail = 'Existing meta matches bundle source' }
+    }
+
+    return [pscustomobject]@{ State = 'Foreign'; Detail = 'Existing meta source does not match bundle source' }
+}
+
+function Backup-SkillDirectory {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path,
+        [switch]$DryRun
+    )
+
+    $parent = Split-Path -Parent $Path
+    $name = Split-Path -Leaf $Path
+    $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $backupPath = Join-Path $parent ('{0}.legacy.{1}' -f $name, $timestamp)
+    $suffix = 1
+    while (Test-Path -LiteralPath $backupPath) {
+        $backupPath = Join-Path $parent ('{0}.legacy.{1}.{2}' -f $name, $timestamp, $suffix)
+        $suffix++
+    }
+
+    if ($DryRun) {
+        Write-Log -Message ('[DryRun] Backup skill {0} -> {1}' -f $Path, $backupPath)
+        return $backupPath
+    }
+
+    Move-Item -LiteralPath $Path -Destination $backupPath
+    return $backupPath
+}
+
+function Get-SkillImportDecision {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SourcePath,
+        [Parameter(Mandatory)]
+        [string]$DestinationPath,
+        [Parameter(Mandatory)]
+        [string]$SkillName,
+        [switch]$NoReplaceOrphan,
+        [switch]$ReplaceForeign,
+        [switch]$RenameForeign
+    )
+
+    $installState = Get-SkillInstallState -SourcePath $SourcePath -DestinationPath $DestinationPath -SkillName $SkillName
+    $finalPath = $DestinationPath
+    $finalName = $SkillName
+
+    if ($installState.State -eq 'Foreign' -and $RenameForeign) {
+        $finalName = '{0}-indieark' -f $SkillName
+        $finalPath = Join-Path (Split-Path -Parent $DestinationPath) $finalName
+        $installState = Get-SkillInstallState -SourcePath $SourcePath -DestinationPath $finalPath -SkillName $finalName
+    }
+
+    $action = switch ($installState.State) {
+        'Missing' { 'Copy' }
+        'Tracked' { if (Test-SkillDirectoryInSync -SourcePath $SourcePath -DestinationPath $finalPath) { 'Skip' } else { 'Copy' } }
+        'Orphan' { if ($NoReplaceOrphan) { 'Skip' } else { 'BackupThenCopy' } }
+        'Foreign' { if ($ReplaceForeign) { 'BackupThenCopy' } else { 'Skip' } }
+        default { 'Skip' }
+    }
+
+    return [pscustomobject]@{
+        State = $installState.State
+        Detail = $installState.Detail
+        Action = $action
+        FinalName = $finalName
+        FinalPath = $finalPath
+    }
+}
+
+function Invoke-SkillImportDecision {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Decision,
+        [Parameter(Mandatory)]
+        [string]$SourcePath,
+        [switch]$DryRun
+    )
+
+    $backupPath = $null
+    if ($Decision.Action -eq 'BackupThenCopy') {
+        $backupPath = Backup-SkillDirectory -Path $Decision.FinalPath -DryRun:$DryRun
+        Copy-SkillDirectory -SourcePath $SourcePath -DestinationPath $Decision.FinalPath -DryRun:$DryRun
+    }
+    elseif ($Decision.Action -eq 'Copy') {
+        Copy-SkillDirectory -SourcePath $SourcePath -DestinationPath $Decision.FinalPath -DryRun:$DryRun
+    }
+
+    return $backupPath
+}
+
 function Get-SkillDirectoriesFromExtractedRoot {
     param(
         [Parameter(Mandatory)]
@@ -2569,6 +2762,7 @@ function Sync-SkillsManagerRegistry {
     param(
         [Parameter(Mandatory)]
         [object[]]$ImportedSkills,
+        [switch]$SkipSkillsManagerLaunch,
         [switch]$DryRun
     )
 
@@ -2592,7 +2786,7 @@ function Sync-SkillsManagerRegistry {
 
     $homeDir = Get-UserHomeDirectory
     $dbPath = Join-Path $homeDir '.skills-manager\skills-manager.db'
-    $skillsManagerExe = Get-InstalledSkillsManagerExecutable
+    $skillsManagerExe = if ($SkipSkillsManagerLaunch) { $null } else { Get-InstalledSkillsManagerExecutable }
     $dbState = Initialize-SkillsManagerDatabase -DbPath $dbPath -SkillsManagerExe $skillsManagerExe -DryRun:$DryRun
     if (-not $dbState.Available) {
         Write-Log -Level 'WARN' -Message ('skills-manager DB not found, skip registry sync: {0}' -f $dbPath)
@@ -2751,6 +2945,10 @@ function Install-SkillBundle {
         [string]$ZipPath,
         [string[]]$SkillProfiles,
         [switch]$AllSkills,
+        [switch]$NoReplaceOrphan,
+        [switch]$ReplaceForeign,
+        [switch]$RenameForeign,
+        [switch]$SkipSkillsManagerLaunch,
         [switch]$DryRun
     )
 
@@ -2780,58 +2978,71 @@ function Install-SkillBundle {
             $skillName = Split-Path -Leaf $skillDir
             $sourcePath = $skillDir
             $centralPath = Join-Path $centralRoot $skillName
+            $centralDecision = Get-SkillImportDecision `
+                -SourcePath $sourcePath `
+                -DestinationPath $centralPath `
+                -SkillName $skillName `
+                -NoReplaceOrphan:$NoReplaceOrphan `
+                -ReplaceForeign:$ReplaceForeign `
+                -RenameForeign:$RenameForeign
+
+            $centralBackupPath = Invoke-SkillImportDecision -Decision $centralDecision -SourcePath $sourcePath -DryRun:$DryRun
+            Write-Log -Message ('Skill import decision: {0} -> {1}; state={2}; action={3}; backup={4}; detail={5}' -f $skillName, $centralDecision.FinalPath, $centralDecision.State, $centralDecision.Action, $(if ($centralBackupPath) { $centralBackupPath } else { '(none)' }), $centralDecision.Detail)
+
+            if ($centralDecision.Action -eq 'Skip' -and $centralDecision.State -in @('Orphan', 'Foreign')) {
+                Write-Log -Level 'WARN' -Message ('Skip skill because existing directory is {0}: {1}' -f $centralDecision.State, $centralDecision.FinalPath)
+                continue
+            }
+
+            $effectiveSkillName = $centralDecision.FinalName
+            $effectiveCentralPath = $centralDecision.FinalPath
             $skillTargets = New-Object System.Collections.Generic.List[object]
-            $centralNeedsImport = (-not (Test-SkillDirectoryInSync -SourcePath $sourcePath -DestinationPath $centralPath))
-            $targetsNeedingSync = New-Object System.Collections.Generic.List[string]
+            $targetChanged = $false
+            $copySourcePath = if ((-not $DryRun) -and (Test-Path -LiteralPath $effectiveCentralPath)) { $effectiveCentralPath } else { $sourcePath }
 
             foreach ($target in $targets | Where-Object { $_.Enabled }) {
-                $targetPath = Join-Path $target.Path $skillName
-                $skillTargets.Add([pscustomobject]@{
-                        Tool = $target.Name
-                        Path = $targetPath
-                    })
+                $targetPath = Join-Path $target.Path $effectiveSkillName
+                $targetDecision = Get-SkillImportDecision `
+                    -SourcePath $sourcePath `
+                    -DestinationPath $targetPath `
+                    -SkillName $effectiveSkillName `
+                    -NoReplaceOrphan:$NoReplaceOrphan `
+                    -ReplaceForeign:$ReplaceForeign `
+                    -RenameForeign:$false
+                $targetBackupPath = Invoke-SkillImportDecision -Decision $targetDecision -SourcePath $copySourcePath -DryRun:$DryRun
+                Write-Log -Message ('Skill target decision: {0} -> {1}; state={2}; action={3}; backup={4}; detail={5}' -f $effectiveSkillName, $targetDecision.FinalPath, $targetDecision.State, $targetDecision.Action, $(if ($targetBackupPath) { $targetBackupPath } else { '(none)' }), $targetDecision.Detail)
 
-                if (-not (Test-SkillDirectoryInSync -SourcePath $sourcePath -DestinationPath $targetPath)) {
-                    $targetsNeedingSync.Add($targetPath)
+                if ($targetDecision.Action -ne 'Skip' -or $targetDecision.State -eq 'Tracked') {
+                    $skillTargets.Add([pscustomobject]@{
+                            Tool = $target.Name
+                            Path = $targetDecision.FinalPath
+                        })
+                }
+
+                if ($targetDecision.Action -ne 'Skip') {
+                    $targetChanged = $true
                 }
             }
 
-            $skillMetadata = Read-SkillMetadata -SkillPath $sourcePath -SkillName $skillName -CentralPath $centralPath
+            $skillMetadata = Read-SkillMetadata -SkillPath $sourcePath -SkillName $effectiveSkillName -CentralPath $effectiveCentralPath
             $skillMetadata | Add-Member -MemberType NoteProperty -Name 'Targets' -Value $skillTargets -Force
             $importedSkills.Add($skillMetadata)
 
-            if ((-not $centralNeedsImport) -and $targetsNeedingSync.Count -eq 0) {
-                Write-Log -Message ('Skill already synchronized, skip: {0}' -f $skillName)
+            if ($centralDecision.Action -eq 'Skip' -and -not $targetChanged) {
+                Write-Log -Message ('Skill already synchronized, skip: {0}' -f $effectiveSkillName)
                 continue
             }
 
             $copiedSkillCount++
 
-            if ($centralNeedsImport) {
-                Copy-SkillDirectory -SourcePath $sourcePath -DestinationPath $centralPath -DryRun:$DryRun
-            }
-
-            foreach ($target in $targets | Where-Object { $_.Enabled }) {
-                $targetPath = Join-Path $target.Path $skillName
-                if ($targetsNeedingSync -contains $targetPath) {
-                    $copySourcePath = if (Test-Path -LiteralPath $centralPath) { $centralPath } else { $sourcePath }
-                    if (Test-SkillDirectoryInSync -SourcePath $copySourcePath -DestinationPath $targetPath) {
-                        Write-Log -Message ('Target already synchronized after central import, skip duplicate copy: {0}' -f $targetPath)
-                        continue
-                    }
-
-                    Copy-SkillDirectory -SourcePath $copySourcePath -DestinationPath $targetPath -DryRun:$DryRun
-                }
-            }
-
         }
 
         $registrySyncResult = $null
         if ($importedSkills.Count -gt 0) {
-            $registrySyncResult = Sync-SkillsManagerRegistry -ImportedSkills $importedSkills -DryRun:$DryRun
+            $registrySyncResult = Sync-SkillsManagerRegistry -ImportedSkills $importedSkills -SkipSkillsManagerLaunch:$SkipSkillsManagerLaunch -DryRun:$DryRun
         }
 
-        if (-not $DryRun -and $importedSkills.Count -gt 0) {
+        if (-not $DryRun -and -not $SkipSkillsManagerLaunch -and $importedSkills.Count -gt 0) {
             $skillsManagerExe = Get-InstalledSkillsManagerExecutable
             $alreadyLaunchedForDbInit = ($null -ne $registrySyncResult -and $registrySyncResult.LaunchedSkillsManager)
             if ($skillsManagerExe -and -not $alreadyLaunchedForDbInit) {
