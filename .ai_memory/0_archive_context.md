@@ -305,3 +305,16 @@ TUI 自定义流程新增 Skill Profile 复选页，运行时从 `downloads/skil
 为了让“只安装 Skill”成为真实路径，而不是被迫携带一个软件项，本次新增 `-SkipApps`。命令模式和 TUI 工作台都可以用它跳过应用安装阶段，只保留工作区准备、Skill 导入和其它被选中的阶段。
 
 验证覆盖脚本解析、模块导入、`-SkipApps` Skill dry-run、TUI 工作台 Skill 复选到执行摘要 dry-run、TUI 软件状态页展示和 `git diff --check`。
+## 2026-04-30 — winget 输出收敛与 Skills Manager 场景注册修复
+
+用户在真实安装截图中指出 winget 原始英文输出太多，下载进度会连续刷多行；随后进一步指出 Skill 不应默认写入 Skills Manager 的默认场景，否则所有 Skill 都会堆在一起，同时怀疑已有 Skill 场景下可能误装全部。
+
+本次把 winget 输出层收敛在 `Write-WingetOutputLines`：过滤许可证、免责声明、URL 和重复进度行，常见状态翻译为中文，并把 `1024 KB / 149 MB` 这类下载输出解析为百分比，复用 `Write-OperationProgress` 同一行刷新。未知耗时进度也改为回车覆盖，避免长时间安装时反复刷屏。
+
+Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom/skip`。TUI 安装 Skill 后会让用户选择写入当前默认场景、写入自定义场景，或跳过场景注册只复制 Skill 文件；命令模式对应 `-SkillsManagerScenarioMode` 与 `-SkillsManagerScenarioName`。DB 同步仍会维护 `skills` 和 `skill_targets`，但只有选择 `default` 或 `custom` 时才写 `scenario_skills` 和 `scenario_skill_tools`。
+
+同时修复误导入全部的风险：TUI Skill 复选页新增“跳过 Skill 导入”；用户清空 Profile 后回车不再等价为全部 Skill，而是提示必须选择全部、至少一个 Profile 或跳过。命令模式交互选择中输入 `0` 才导入全部，直接回车改为跳过 Skill 导入；非交互式环境仍保留旧兼容，未指定 Profile 时默认导入全部。
+
+文档同步到 `README.md`、`docs/README.md`、`docs/operations.md`、`docs/installer-flow.md`、`docs/skill-import.md` 和 `docs/roadmap.md`；稳定事实同步到 `.ai_memory/1_project_context.md`，当前状态同步到 `.ai_memory/2_active_task.md`，流水追加到 `.ai_memory/3_work_log.md`。
+
+验证覆盖脚本解析、模块导入、`git diff --check`、旧 `-Only git` dry-run、`-SkillsManagerScenarioMode skip` dry-run、`-SkillsManagerScenarioMode custom` dry-run，以及 TUI 工作台从 Skill 复选到场景注册和执行摘要的冒烟验证。

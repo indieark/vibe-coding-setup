@@ -25,7 +25,7 @@
 - `skills.zip` 独立于应用安装；只要未传 `-SkipSkills`，脚本会在需要读取 Profile 或导入 Skill 时按需获取，并在应用阶段后尝试导入。
 - `skills.zip` 由 `indieark/00000-model` registry bundle 构建，经当前仓库 `bootstrap-assets` 镜像为公开资产后分发，终端用户机器不需要 PAT。
 - TUI 首屏不预取 `skills.zip`；只有进入 Skill 复选页需要读取 Profile，或后续安装 / 演练实际要导入 Skill 时才按需获取。
-- 下载、winget 百分比和 Skill bundle 解压统一使用脚本自绘同一行进度；Skill bundle 解压不再调用 `Expand-Archive`，避免 PowerShell 宿主蓝色进度区域。
+- 下载、winget 下载 / 安装和 Skill bundle 解压统一使用脚本自绘同一行进度；winget 输出会过滤许可证、免责声明和重复进度行，并中文化常见状态；Skill bundle 解压不再调用 `Expand-Archive`，避免 PowerShell 宿主蓝色进度区域。
 - Skill 导入是“Profile 选择 + `.skill-meta.json` 来源判定 + 增量同步 + Skills Manager SQLite 注册”的组合流程。
 - 同名 Skill 三态判定已经落地：`Tracked` 增量同步，`Orphan` 默认备份替换，`Foreign` 默认跳过。
 - `CC Switch` Provider 导入只走 `ccswitch://v1/import` deep link，不写 SQLite。
@@ -33,6 +33,7 @@
 - `bootstrap.ps1` 内置拟似 TUI 与原命令模式：无安装参数或显式 `-Tui` 时进入 TUI；带 `-Only`、`-DryRun`、`-SkipSkills` 等操作参数时继续走原自动化模式；TUI 首屏保留“默认安装（原来模式）”“TUI 模式”“安全演练”，其中 TUI 模式进入控制台工作台。
 - TUI 工作台聚焦任务动作：检查软件状态、安装 / 更新软件、检查 Skill 状态、安装 Skill、执行摘要；复选主要用于 Skill Profile，软件选择放在安装 / 更新软件动作下。
 - `-SkipApps` 可跳过应用安装阶段，支持命令模式或 TUI 工作台只执行 Skill 导入。
+- Skill 导入后不再默认把所有导入项堆到 Skills Manager 默认场景；`SkillsManagerScenarioMode` 支持 `prompt/default/custom/skip`，TUI 安装 Skill 时会选择默认场景、自定义场景或跳过场景注册。
 - 进入 TUI 前会 best-effort 切换英文输入布局，并向前台终端窗口发送输入语言切换请求；该行为不修改用户系统默认输入法。
 - Profile / 应用多选文本统一支持英文逗号、中文逗号和顿号分隔。
 

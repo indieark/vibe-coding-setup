@@ -11,6 +11,9 @@ param(
     [switch]$ReplaceForeign,
     [switch]$RenameForeign,
     [switch]$SkipSkillsManagerLaunch,
+    [ValidateSet('prompt', 'default', 'custom', 'skip')]
+    [string]$SkillsManagerScenarioMode = 'prompt',
+    [string]$SkillsManagerScenarioName,
     [switch]$Tui,
     [switch]$PauseOnExit,
     [switch]$KeepShellOpen,
@@ -921,6 +924,15 @@ function Show-TuiSkillProfileSelection {
             ProfileName = $null
             Enabled = $true
             IsAllSkills = $true
+            IsSkipSkills = $false
+        })
+    $options.Add([pscustomobject]@{
+            Key = 'skip'
+            Label = (ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+HIFNraWxsIOWvvOWFpQ==')
+            ProfileName = $null
+            Enabled = $false
+            IsAllSkills = $false
+            IsSkipSkills = $true
         })
 
     foreach ($profile in @($Profiles)) {
@@ -936,6 +948,7 @@ function Show-TuiSkillProfileSelection {
                 ProfileName = $profile.Name
                 Enabled = $false
                 IsAllSkills = $false
+                IsSkipSkills = $false
             })
     }
 
@@ -969,14 +982,23 @@ function Show-TuiSkillProfileSelection {
                         $option.Enabled = $false
                     }
                 }
+                elseif ($options[$index].IsSkipSkills -and $options[$index].Enabled) {
+                    foreach ($option in $options | Where-Object { -not $_.IsSkipSkills }) {
+                        $option.Enabled = $false
+                    }
+                }
                 elseif ((-not $options[$index].IsAllSkills) -and $options[$index].Enabled) {
                     ($options | Where-Object { $_.IsAllSkills } | Select-Object -First 1).Enabled = $false
+                    ($options | Where-Object { $_.IsSkipSkills } | Select-Object -First 1).Enabled = $false
                 }
             }
             'A' {
                 ($options | Where-Object { $_.IsAllSkills } | Select-Object -First 1).Enabled = $false
+                ($options | Where-Object { $_.IsSkipSkills } | Select-Object -First 1).Enabled = $false
                 foreach ($option in $options | Where-Object { -not $_.IsAllSkills }) {
-                    $option.Enabled = $true
+                    if (-not $option.IsSkipSkills) {
+                        $option.Enabled = $true
+                    }
                 }
             }
             'N' {
@@ -986,21 +1008,113 @@ function Show-TuiSkillProfileSelection {
             }
             'Enter' {
                 $allOption = $options | Where-Object { $_.IsAllSkills } | Select-Object -First 1
+                $skipOption = $options | Where-Object { $_.IsSkipSkills } | Select-Object -First 1
                 $selectedProfiles = @($options | Where-Object { $_.Enabled -and -not $_.IsAllSkills } | ForEach-Object { $_.ProfileName })
-                if ($allOption.Enabled -or $selectedProfiles.Count -eq 0) {
+                if ($skipOption.Enabled) {
                     return [pscustomobject]@{
+                        SkipSkills = $true
+                        AllSkills = $false
+                        SkillProfiles = @()
+                    }
+                }
+                if ($allOption.Enabled -or $selectedProfiles.Count -eq 0) {
+                    if (-not $allOption.Enabled -and $selectedProfiles.Count -eq 0) {
+                        Write-Host ''
+                        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6YCJ5oup5Lu75L2VIFByb2ZpbGXjgILor7fpgInkuK3lhajpg6ggU2tpbGzjgIHoh7PlsJHkuIDkuKogUHJvZmlsZe+8jOaIlumAieaLqei3s+i/hyBTa2lsbCDlr7zlhaXjgII=') -ForegroundColor Yellow
+                        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5oyJ5Lu75oSP6ZSu6L+U5ZueLi4u') -ForegroundColor DarkGray
+                        [void][Console]::ReadKey($true)
+                        continue
+                    }
+                    return [pscustomobject]@{
+                        SkipSkills = $false
                         AllSkills = $true
                         SkillProfiles = @()
                     }
                 }
 
                 return [pscustomobject]@{
+                    SkipSkills = $false
                     AllSkills = $false
                     SkillProfiles = $selectedProfiles
                 }
             }
             'B' { return $null }
             'Q' { return 'quit' }
+        }
+    }
+}
+
+function Show-TuiSkillsManagerScenarioSelection {
+    param(
+        [string]$InitialMode = 'skip',
+        [string]$InitialName
+    )
+
+    $options = @(
+        [pscustomobject]@{
+            Mode = 'default'
+            Label = (ConvertFrom-BootstrapUtf8Base64String -Value '6buY6K6k5Zy65pmv77yI5b2T5YmN5ZCv55So77yJ')
+            Detail = (ConvertFrom-BootstrapUtf8Base64String -Value '5YaZ5YWl6buY6K6k5Zy65pmv')
+        }
+        [pscustomobject]@{
+            Mode = 'custom'
+            Label = (ConvertFrom-BootstrapUtf8Base64String -Value '6Ieq5a6a5LmJ5Zy65pmv')
+            Detail = (ConvertFrom-BootstrapUtf8Base64String -Value '5YaZ5YWl6Ieq5a6a5LmJ5Zy65pmv77yaezB9') -f ($(if ([string]::IsNullOrWhiteSpace($InitialName)) { ConvertFrom-BootstrapUtf8Base64String -Value 'SW5kaWVBcmsgU2tpbGxz' } else { $InitialName }))
+        }
+        [pscustomobject]@{
+            Mode = 'skip'
+            Label = (ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+H5Zy65pmv5rOo5YaM77yI5Y+q5aSN5Yi2IFNraWxsIOaWh+S7tu+8iQ==')
+            Detail = (ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+HIFNraWxscyBNYW5hZ2VyIOWcuuaZr+azqOWGjA==')
+        }
+    )
+
+    $index = 0
+    for ($i = 0; $i -lt $options.Count; $i++) {
+        if ($options[$i].Mode -eq $InitialMode) {
+            $index = $i
+            break
+        }
+    }
+
+    while ($true) {
+        Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGxzIE1hbmFnZXIg5Zy65pmv')
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '6K+36YCJ5oup5a+85YWlIFNraWxsIOWQjuWmguS9leWGmeWFpSBTa2lsbHMgTWFuYWdlciDlnLrmma/vvJo=') -ForegroundColor DarkGray
+        Write-Host ''
+        for ($i = 0; $i -lt $options.Count; $i++) {
+            $option = $options[$i]
+            $cursor = if ($i -eq $index) { '>' } else { ' ' }
+            $color = if ($i -eq $index) { 'Cyan' } else { 'Gray' }
+            Write-Host ('{0} {1}' -f $cursor, $option.Label) -ForegroundColor $color
+            Write-Host ('  {0}' -f $option.Detail) -ForegroundColor DarkGray
+        }
+
+        Write-Host ''
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIEVudGVyIOmAieaLqSAgQiDov5Tlm54gIFEg6YCA5Ye6') -ForegroundColor DarkGray
+        $key = [Console]::ReadKey($true)
+        switch ($key.Key) {
+            'UpArrow' { if ($index -gt 0) { $index-- } }
+            'DownArrow' { if ($index -lt ($options.Count - 1)) { $index++ } }
+            'B' { return $null }
+            'Q' { return 'quit' }
+            'Enter' {
+                $mode = $options[$index].Mode
+                $name = $InitialName
+                if ($mode -eq 'custom') {
+                    if ([string]::IsNullOrWhiteSpace($name)) {
+                        $name = ConvertFrom-BootstrapUtf8Base64String -Value 'SW5kaWVBcmsgU2tpbGxz'
+                    }
+                    Write-Host ''
+                    $answer = Read-Host ('{0} [{1}]' -f (ConvertFrom-BootstrapUtf8Base64String -Value '6Ieq5a6a5LmJ5Zy65pmv5ZCN56ew'), $name)
+                    if (-not [string]::IsNullOrWhiteSpace($answer)) {
+                        $name = $answer.Trim()
+                    }
+                }
+
+                return [pscustomobject]@{
+                    Mode = $mode
+                    Name = $name
+                }
+            }
         }
     }
 }
@@ -1030,6 +1144,8 @@ function Get-TuiBootstrapArgumentTokens {
         [AllowEmptyCollection()]
         [object[]]$Options,
         [string[]]$SkillProfiles = @(),
+        [string]$SkillsManagerScenarioMode,
+        [string]$SkillsManagerScenarioName,
         [switch]$ShowDefaultCommand,
         [switch]$IncludeOnly
     )
@@ -1053,6 +1169,14 @@ function Get-TuiBootstrapArgumentTokens {
             $tokens.Add($profile)
         }
     }
+    if (-not [string]::IsNullOrWhiteSpace($SkillsManagerScenarioMode) -and $SkillsManagerScenarioMode -ne 'prompt') {
+        $tokens.Add('-SkillsManagerScenarioMode')
+        $tokens.Add($SkillsManagerScenarioMode)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($SkillsManagerScenarioName)) {
+        $tokens.Add('-SkillsManagerScenarioName')
+        $tokens.Add($SkillsManagerScenarioName)
+    }
 
     return $tokens.ToArray()
 }
@@ -1064,12 +1188,14 @@ function Show-TuiReview {
         [AllowEmptyCollection()]
         [object[]]$Options = @(),
         [string[]]$SkillProfiles = @(),
+        [string]$SkillsManagerScenarioMode,
+        [string]$SkillsManagerScenarioName,
         [string]$ModeName,
         [switch]$UseDefaultInstall,
         [switch]$IncludeOnly
     )
 
-    $tokens = Get-TuiBootstrapArgumentTokens -SelectedAppKeys $SelectedAppKeys -Options $Options -SkillProfiles $SkillProfiles -ShowDefaultCommand:$UseDefaultInstall -IncludeOnly:$IncludeOnly
+    $tokens = Get-TuiBootstrapArgumentTokens -SelectedAppKeys $SelectedAppKeys -Options $Options -SkillProfiles $SkillProfiles -SkillsManagerScenarioMode $SkillsManagerScenarioMode -SkillsManagerScenarioName $SkillsManagerScenarioName -ShowDefaultCommand:$UseDefaultInstall -IncludeOnly:$IncludeOnly
     $commandText = '.\bootstrap.cmd'
     if ($tokens.Count -gt 0) {
         $commandText = '{0} {1}' -f $commandText, (ConvertTo-TuiArgumentText -Tokens $tokens)
@@ -1109,10 +1235,17 @@ function Show-TuiReview {
         else {
             ConvertFrom-BootstrapUtf8Base64String -Value '5ZG95Luk5qih5byP6buY6K6k'
         }
+        $scenarioText = switch ($SkillsManagerScenarioMode) {
+            'default' { ConvertFrom-BootstrapUtf8Base64String -Value '5YaZ5YWl6buY6K6k5Zy65pmv' }
+            'custom' { (ConvertFrom-BootstrapUtf8Base64String -Value '5YaZ5YWl6Ieq5a6a5LmJ5Zy65pmv77yaezB9') -f $SkillsManagerScenarioName }
+            'skip' { ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+HIFNraWxscyBNYW5hZ2VyIOWcuuaZr+azqOWGjA==' }
+            default { ConvertFrom-BootstrapUtf8Base64String -Value '5ZG95Luk5qih5byP6buY6K6k' }
+        }
 
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5omn6KGM5qih5byP'), $mode) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5Lit5bqU55So'), $appText) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwg6YCJ5oup'), $skillText) -ForegroundColor Gray
+        Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGxzIE1hbmFnZXIg5Zy65pmv'), $scenarioText) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '6ZmE5Yqg5Y+C5pWw'), $optionText) -ForegroundColor Gray
         Write-Host ''
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bCG5omn6KGM5ZG95Luk') -ForegroundColor DarkGray
@@ -1152,6 +1285,8 @@ function New-TuiBootstrapResult {
         [AllowEmptyCollection()]
         [object[]]$Options = @(),
         [string[]]$SkillProfiles = @(),
+        [string]$SkillsManagerScenarioMode,
+        [string]$SkillsManagerScenarioName,
         [switch]$UseDefaultInstall
     )
 
@@ -1164,6 +1299,8 @@ function New-TuiBootstrapResult {
         Only = $Only
         UseDefaultInstall = [bool]$UseDefaultInstall
         SkillProfile = @($SkillProfiles)
+        SkillsManagerScenarioMode = $SkillsManagerScenarioMode
+        SkillsManagerScenarioName = $SkillsManagerScenarioName
         DryRun = [bool]$switches['DryRun']
         SkipCcSwitch = [bool]$switches['SkipCcSwitch']
         SkipApps = [bool]$switches['SkipApps']
@@ -1362,10 +1499,22 @@ function Get-TuiWorkbenchSummaryText {
     else {
         ConvertFrom-BootstrapUtf8Base64String -Value '5peg'
     }
+    $scenarioText = if ($State.SkipSkills) {
+        ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6YCJ5oupIFNraWxs'
+    }
+    else {
+        switch ($State.SkillsManagerScenarioMode) {
+            'default' { ConvertFrom-BootstrapUtf8Base64String -Value '5YaZ5YWl6buY6K6k5Zy65pmv' }
+            'custom' { (ConvertFrom-BootstrapUtf8Base64String -Value '5YaZ5YWl6Ieq5a6a5LmJ5Zy65pmv77yaezB9') -f $State.SkillsManagerScenarioName }
+            'skip' { ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+HIFNraWxscyBNYW5hZ2VyIOWcuuaZr+azqOWGjA==' }
+            default { ConvertFrom-BootstrapUtf8Base64String -Value '5ZG95Luk5qih5byP6buY6K6k' }
+        }
+    }
 
     return [pscustomobject]@{
         Software = $softwareText
         Skill = $skillText
+        Scenario = $scenarioText
     }
 }
 
@@ -1390,6 +1539,7 @@ function Show-TuiWorkbenchMenu {
         Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value 'VFVJIOW3peS9nOWPsA==')
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '6L2v5Lu2'), $summary.Software) -ForegroundColor DarkGray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGw='), $summary.Skill) -ForegroundColor DarkGray
+        Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5Zy65pmv5rOo5YaM'), $summary.Scenario) -ForegroundColor DarkGray
         Write-Host ''
         for ($i = 0; $i -lt $actions.Count; $i++) {
             $action = $actions[$i]
@@ -1425,7 +1575,9 @@ function Invoke-BootstrapTuiWorkbench {
         [Parameter(Mandatory)]
         [string]$DestinationRoot,
         [Parameter(Mandatory)]
-        [bool]$RefreshSkillBundle
+        [bool]$RefreshSkillBundle,
+        [string]$InitialSkillsManagerScenarioMode = 'skip',
+        [string]$InitialSkillsManagerScenarioName
     )
 
     $availableSkillProfiles = @($SkillProfiles)
@@ -1438,6 +1590,8 @@ function Invoke-BootstrapTuiWorkbench {
         SkipSkills = $true
         AllSkills = $false
         SkillProfiles = @()
+        SkillsManagerScenarioMode = if ([string]::IsNullOrWhiteSpace($InitialSkillsManagerScenarioMode) -or $InitialSkillsManagerScenarioMode -eq 'prompt') { 'skip' } else { $InitialSkillsManagerScenarioMode }
+        SkillsManagerScenarioName = $InitialSkillsManagerScenarioName
         BaseOptions = $baseOptions
     }
 
@@ -1478,9 +1632,22 @@ function Invoke-BootstrapTuiWorkbench {
                 $skillSelection = Show-TuiSkillProfileSelection -Profiles $availableSkillProfiles
                 if ($skillSelection -eq 'quit') { return $null }
                 if ($null -ne $skillSelection) {
+                    if ($skillSelection.SkipSkills) {
+                        $state.SkipSkills = $true
+                        $state.AllSkills = $false
+                        $state.SkillProfiles = @()
+                        continue
+                    }
+
+                    $scenarioSelection = Show-TuiSkillsManagerScenarioSelection -InitialMode $state.SkillsManagerScenarioMode -InitialName $state.SkillsManagerScenarioName
+                    if ($scenarioSelection -eq 'quit') { return $null }
+                    if ($null -eq $scenarioSelection) { continue }
+
                     $state.SkipSkills = $false
                     $state.AllSkills = [bool]$skillSelection.AllSkills
                     $state.SkillProfiles = @($skillSelection.SkillProfiles)
+                    $state.SkillsManagerScenarioMode = $scenarioSelection.Mode
+                    $state.SkillsManagerScenarioName = $scenarioSelection.Name
                 }
             }
             'review' {
@@ -1497,12 +1664,14 @@ function Invoke-BootstrapTuiWorkbench {
                     -SelectedAppKeys @($state.AppKeys) `
                     -Options $options `
                     -SkillProfiles @($state.SkillProfiles) `
+                    -SkillsManagerScenarioMode $state.SkillsManagerScenarioMode `
+                    -SkillsManagerScenarioName $state.SkillsManagerScenarioName `
                     -ModeName (ConvertFrom-BootstrapUtf8Base64String -Value 'VFVJIOaooeW8jw==') `
                     -IncludeOnly:(!$state.SkipApps)
                 if ($review -eq 'quit') { return $null }
                 if ($null -eq $review) { continue }
 
-                return New-TuiBootstrapResult -Only @($state.AppKeys) -Options $review.Options -SkillProfiles @($state.SkillProfiles)
+                return New-TuiBootstrapResult -Only @($state.AppKeys) -Options $review.Options -SkillProfiles @($state.SkillProfiles) -SkillsManagerScenarioMode $state.SkillsManagerScenarioMode -SkillsManagerScenarioName $state.SkillsManagerScenarioName
             }
             'back' {
                 return 'back'
@@ -1521,6 +1690,8 @@ function Invoke-BootstrapTui {
         [object[]]$SkillProfiles = @(),
         [object[]]$InitialOptions = @(),
         [string[]]$InitialSkillProfiles = @(),
+        [string]$InitialSkillsManagerScenarioMode = 'prompt',
+        [string]$InitialSkillsManagerScenarioName,
         [Parameter(Mandatory)]
         [string]$BootstrapAssetsRepo,
         [Parameter(Mandatory)]
@@ -1541,7 +1712,7 @@ function Invoke-BootstrapTui {
         }
 
         if ($selectedMode -eq 'original') {
-            return New-TuiBootstrapResult -Only $null -Options $InitialOptions -SkillProfiles $InitialSkillProfiles -UseDefaultInstall
+            return New-TuiBootstrapResult -Only $null -Options $InitialOptions -SkillProfiles $InitialSkillProfiles -SkillsManagerScenarioMode $InitialSkillsManagerScenarioMode -SkillsManagerScenarioName $InitialSkillsManagerScenarioName -UseDefaultInstall
         }
 
         if ($selectedMode -eq 'dryrun') {
@@ -1555,6 +1726,7 @@ function Invoke-BootstrapTui {
             $review = Show-TuiReview `
                 -SelectedAppKeys $allAppKeys `
                 -Options $options `
+                -SkillsManagerScenarioMode 'skip' `
                 -ModeName (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J5YWo5ryU57uD') `
                 -IncludeOnly
             if ($review -eq 'quit') {
@@ -1564,7 +1736,7 @@ function Invoke-BootstrapTui {
                 continue
             }
 
-            return New-TuiBootstrapResult -Only $allAppKeys -Options $options
+            return New-TuiBootstrapResult -Only $allAppKeys -Options $options -SkillsManagerScenarioMode 'skip'
         }
 
         if ($selectedMode -ne 'workbench') {
@@ -1578,7 +1750,9 @@ function Invoke-BootstrapTui {
             -BootstrapAssetsRepo $BootstrapAssetsRepo `
             -BootstrapAssetsTag $BootstrapAssetsTag `
             -DestinationRoot $DestinationRoot `
-            -RefreshSkillBundle $RefreshSkillBundle
+            -RefreshSkillBundle $RefreshSkillBundle `
+            -InitialSkillsManagerScenarioMode $InitialSkillsManagerScenarioMode `
+            -InitialSkillsManagerScenarioName $InitialSkillsManagerScenarioName
         if ($workbenchResult -eq 'back') {
             continue
         }
@@ -1713,6 +1887,8 @@ if ($shouldUseTui) {
         -Apps $manifest.apps `
         -InitialOptions $tuiInitialOptions `
         -InitialSkillProfiles $initialSkillProfiles `
+        -InitialSkillsManagerScenarioMode $SkillsManagerScenarioMode `
+        -InitialSkillsManagerScenarioName $SkillsManagerScenarioName `
         -BootstrapAssetsRepo $BootstrapAssetsRepo `
         -BootstrapAssetsTag $BootstrapAssetsTag `
         -DestinationRoot $root `
@@ -1725,6 +1901,8 @@ if ($shouldUseTui) {
 
     $Only = $tuiResult.Only
     $SkillProfile = @(ConvertTo-BootstrapNonEmptyStringArray -Value $tuiResult.SkillProfile)
+    $SkillsManagerScenarioMode = if ([string]::IsNullOrWhiteSpace([string]$tuiResult.SkillsManagerScenarioMode)) { 'prompt' } else { [string]$tuiResult.SkillsManagerScenarioMode }
+    $SkillsManagerScenarioName = [string]$tuiResult.SkillsManagerScenarioName
     $DryRun = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.DryRun)
     $SkipCcSwitch = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.SkipCcSwitch)
     $SkipApps = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.SkipApps)
@@ -1750,6 +1928,18 @@ if ($shouldUseTui) {
     }
     else {
         $PSBoundParameters['SkillProfile'] = $SkillProfile
+    }
+    if ([string]::IsNullOrWhiteSpace($SkillsManagerScenarioMode) -or $SkillsManagerScenarioMode -eq 'prompt') {
+        [void]$PSBoundParameters.Remove('SkillsManagerScenarioMode')
+    }
+    else {
+        $PSBoundParameters['SkillsManagerScenarioMode'] = $SkillsManagerScenarioMode
+    }
+    if ([string]::IsNullOrWhiteSpace($SkillsManagerScenarioName)) {
+        [void]$PSBoundParameters.Remove('SkillsManagerScenarioName')
+    }
+    else {
+        $PSBoundParameters['SkillsManagerScenarioName'] = $SkillsManagerScenarioName
     }
     Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'DryRun' -Present ([bool]$DryRun)
     Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'SkipCcSwitch' -Present ([bool]$SkipCcSwitch)
@@ -1929,6 +2119,8 @@ if (-not $SkipSkills) {
             -ReplaceForeign:$ReplaceForeign `
             -RenameForeign:$RenameForeign `
             -SkipSkillsManagerLaunch:$SkipSkillsManagerLaunch `
+            -SkillsManagerScenarioMode $SkillsManagerScenarioMode `
+            -SkillsManagerScenarioName $SkillsManagerScenarioName `
             -DryRun:$DryRun
         $results.Add($skillResult)
         $progressCompletedSteps++

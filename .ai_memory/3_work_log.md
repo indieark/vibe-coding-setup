@@ -111,3 +111,6 @@
 - TUI 工作台新增软件状态页、软件安装 / 更新动作页、Skill 状态页、Skill Profile 复选页和执行摘要页。
 - 新增 `-SkipApps`，支持只执行 Skill 导入；TUI 工作台选择 Skill 后不再被迫带软件安装项。
 - 验证通过：脚本解析、模块导入、`-SkipApps` Skill dry-run、TUI 工作台 Skill 复选到执行摘要 dry-run、TUI 软件状态页展示。
+- 收敛 winget 输出：过滤许可证 / 免责声明 / 重复进度行，常见状态中文化，下载进度复用同一行自绘进度。
+- 调整 Skills Manager 场景注册：Skill 导入后可选择默认场景、自定义场景或跳过场景注册；TUI Skill 复选页新增跳过 Skill 导入，并修复空 Profile 选择误导入全部的问题。
+- 同步 README、docs 索引、Skill 导入契约、安装流程、运行命令、路线图和 `.ai_memory` 归档，保证当前交互语义一致。

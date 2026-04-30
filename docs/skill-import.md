@@ -15,17 +15,17 @@
 
 `Install-SkillBundle` 解压 `skills.zip` 后，会读取 bundle 内置的 `registry/profiles.yaml`：
 
-- TUI 模式的“安装 Skill”动作会先读取 `skills.zip` 中的 Profile，并以复选项展示；默认选择“全部 Skill”。
+- TUI 模式的“安装 Skill”动作会先读取 `skills.zip` 中的 Profile，并以复选项展示；默认选择“全部 Skill”，也可以选择“跳过 Skill 导入”。
 - TUI 中选择任意 Profile 后，会取消“全部 Skill”，并在确认页生成等价 `-SkillProfile` 命令。
 - 传 `-SkillProfile "名称"`：只导入指定 Profile 引用的 skill。
 - 多个 Profile 可用英文逗号、中文逗号或顿号分隔。
 - 传 `-AllSkills`：显式导入 bundle 内全部 skill。
 - 传 `-SkipSkills`：完全跳过 `skills.zip` 下载和 Skill 导入。
 - 传 `-SkipApps`：跳过软件安装阶段，可用于只导入 Skill 的命令模式或 TUI 工作台路径。
-- 不传 Profile 且处于交互式终端：显示中文选择菜单。
+- 不传 Profile 且处于交互式终端：显示中文选择菜单；输入 `0` 导入全部，直接回车跳过 Skill 导入。
 - 非交互式且未传 Profile：自动回退为全部导入，保持旧逻辑可用。
 
-Profile 交互菜单只提示：可输入序号/名称，多个可用英文逗号、中文逗号或顿号分隔；直接回车安装全部 Skill。
+Profile 交互菜单只提示：可输入序号/名称，多个可用英文逗号、中文逗号或顿号分隔；输入 `0` 安装全部 Skill。
 
 ## 目标目录
 
@@ -69,7 +69,12 @@ central root 固定为：
 
 - `~/.skills-manager/skills-manager.db`
 
-写入字段来自 `.skill-meta.json`，包括上游 git URL、branch、subpath、revision 等。缺少 meta 时，会回退为 local 行为，保持旧 bundle 兼容。
+写入字段来自 `.skill-meta.json`，包括上游 git URL、branch、subpath、revision 等。缺少 meta 时，会回退为 local 行为，保持旧 bundle 兼容。是否把这些 skill 启用到 Skills Manager 场景由 `-SkillsManagerScenarioMode` 控制：
+
+- `prompt`：交互式终端询问；非交互式环境跳过场景注册。
+- `default`：写入当前默认 / 当前启用场景。
+- `custom`：写入 `-SkillsManagerScenarioName` 指定的自定义场景；场景不存在时创建。
+- `skip`：跳过 Skills Manager 场景注册，只复制 Skill 文件和其它宿主目标。
 
 被跳过的 `Orphan` 或 `Foreign` 不会登记到 DB。
 

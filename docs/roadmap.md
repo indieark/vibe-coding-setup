@@ -4,7 +4,7 @@
 
 ## P0：可观测
 
-- 已完成：执行阶段显示 `[当前/总数]` 进度，并聚合 Skill 导入日志，降低正常安装刷屏。
+- 已完成：执行阶段显示 `[当前/总数]` 进度，应用内部下载、winget 下载 / 安装和 Skill bundle 解压使用脚本自绘单行进度，并聚合 Skill 导入日志，降低正常安装刷屏。
 - 增加日志落盘，保留关键步骤、版本门禁、fallback 决策和失败原因。
 - 增加安装结果 JSON 报告，便于远程排障和批量装机留痕。
 - 把 Skill 导入 summary 拆成 `Imported / Skipped / BackedUp / Foreign` 计数。
@@ -25,6 +25,7 @@
 
 - 已完成：无操作参数默认进入拟似 TUI，原来模式包含在 TUI 首屏，Skill Profile 支持运行时复选。
 - 已完成：TUI 信息架构按 [`plans/2026-04-30-tui-modernization-workbench.md`](../plans/2026-04-30-tui-modernization-workbench.md) 重做为工作台；顶层保留默认安装和安全演练，TUI 内部聚焦状态检查、软件安装 / 更新、Skill 状态和 Skill 安装选择。
+- 已完成：Skill 导入后可选择写入默认场景、自定义场景或跳过 Skills Manager 场景注册，避免所有 Skill 默认堆到同一场景。
 - 为 `Codex Desktop` / `ChatGPT (Pake)` 增加稳定版本来源，未来从 presence-only 回到可比较版本门禁。
 - 继续观察 `Skills Manager` 是否提供稳定 CLI、可靠版本号或显式 rescan 命令。
 - Phase 6 再处理独立 GUI 装机器和装机命令汉化。

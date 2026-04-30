@@ -16,7 +16,7 @@
 4. 判断是否进入 TUI：无操作参数或显式 `-Tui` 时进入；`-Only`、`-DryRun`、`-SkipSkills` 等命令参数会沿用旧命令模式。
 5. 如进入 TUI，先 best-effort 切换英文输入布局，并向前台终端窗口请求切换输入语言。
 6. 用户选择运行模式。默认安装会直接回到原默认流程；TUI 模式进入控制台工作台；安全演练走顶层独立 dry-run 路径。
-7. TUI 工作台可检查软件状态、选择安装 / 更新软件、检查 Skill 状态、选择安装 Skill，并在执行摘要页把选择结果写回等价参数。
+7. TUI 工作台可检查软件状态、选择安装 / 更新软件、检查 Skill 状态、选择安装 Skill，并在执行摘要页把选择结果写回等价参数；安装 Skill 时会选择 Skills Manager 场景注册方式。
 8. 只有进入 Skill 状态页、Skill 复选页或实际执行 Skill 导入时，才按需获取 `skills.zip` 并读取 Profile；TUI 首屏不再预取 Skill bundle。
 9. 非 `-DryRun` 且非管理员时，通过 UAC 保留当前参数重新拉起；UAC 交接窗口只提示后续在管理员窗口继续。提权后优先用 Windows Terminal 承载管理员 PowerShell，系统没有 `wt.exe` 时才回退到经典 PowerShell。
 10. 如果没有 `-SkipApps`，按 `-Only` 过滤应用，并按 `order` 排序。
@@ -28,7 +28,7 @@
 16. 最后导入 CC Switch Provider deep link。
 17. 输出 Summary；任一项失败则退出码为 `1`，否则为 `0`。
 
-安装阶段总进度输出简洁文字，例如 `[当前/总数] 当前步骤`；应用内部可量化进度才输出脚本自绘进度条，例如下载、winget 百分比和 Skill bundle 解压。不再调用 `Write-Progress` 绘制宿主进度条，也不使用会触发宿主进度区域的 `Expand-Archive`。自举依赖和 Release 资产下载同样使用脚本自绘进度条；如果服务器没有返回文件大小，则只显示完成状态。
+安装阶段总进度输出简洁文字，例如 `[当前/总数] 当前步骤`；应用内部可量化进度才输出脚本自绘进度条，例如下载、winget 下载 / 安装和 Skill bundle 解压。不再调用 `Write-Progress` 绘制宿主进度条，也不使用会触发宿主进度区域的 `Expand-Archive`。自举依赖和 Release 资产下载同样使用脚本自绘进度条；如果服务器没有返回文件大小，则只显示完成状态。
 
 `PauseOnExit`、`KeepShellOpen`、`UserHomeOverride`、`BootstrapSourceRoot`、`BootstrapAssetsRepo`、`BootstrapAssetsTag`、`RefreshBootstrapDependencies` 属于启动或自举参数，不会单独触发命令模式。
 
@@ -69,7 +69,7 @@ fallback 安装包统一下载到仓库内 `downloads/`，再根据 `installerTy
 
 ## 进度展示
 
-执行阶段会计算总步骤，并显示 `[当前/总数] 当前步骤` 文本进度，便于复制、截图和远程排障。应用内部下载、winget 百分比和 Skill bundle 解压会显示脚本自绘进度条；静默 MSI/EXE 无法读取真实百分比时显示运行中和耗时。脚本不调用 PowerShell 原生 `Write-Progress`，Skill bundle 解压也不再调用 `Expand-Archive`，避免不同宿主额外绘制独立进度区域。
+执行阶段会计算总步骤，并显示 `[当前/总数] 当前步骤` 文本进度，便于复制、截图和远程排障。应用内部下载、winget 下载 / 安装和 Skill bundle 解压会显示脚本自绘进度条；静默 MSI/EXE 无法读取真实百分比时显示运行中和耗时。脚本不调用 PowerShell 原生 `Write-Progress`，Skill bundle 解压也不再调用 `Expand-Archive`，避免不同宿主额外绘制独立进度区域。winget 原始输出会先过滤许可证、免责声明和重复进度行，再把常见状态翻译为中文；真实终端中下载进度通过回车覆盖保持单行刷新。
 
 计入总步骤的项目包括：
 
@@ -81,6 +81,8 @@ fallback 安装包统一下载到仓库内 `downloads/`，再根据 `installerTy
 应用阶段开始前会输出“选中的安装应用清单”，逐行列出应用名称和 key。Skill 导入阶段按 skill 聚合展示进度和结果，不再默认输出每个目标目录的长路径复制明细；被跳过、警告或失败的情况仍保留原因。
 
 如果传入 `-SkipApps`，应用阶段会显示“跳过软件安装”，不会按 manifest 安装或更新任何应用。这个参数主要由 TUI 工作台的“只安装 Skill”路径生成，也可用于命令模式自动化。
+
+Skill 文件复制完成后，`-SkillsManagerScenarioMode` 决定是否写入 Skills Manager 场景启用：`default` 写入当前默认场景，`custom` 写入或创建指定自定义场景，`skip` 只复制文件不写场景，`prompt` 在交互式终端询问并在非交互式环境跳过场景注册。
 
 ## 特殊行为索引
 

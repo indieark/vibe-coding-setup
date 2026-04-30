@@ -46,9 +46,25 @@ function Write-OperationProgress {
     }
 
     $suffix = if ([string]::IsNullOrWhiteSpace($Detail)) { '' } else { '  {0}' -f $Detail }
+    function Format-OperationProgressLine {
+        param([string]$Text)
+
+        try {
+            $width = [Console]::BufferWidth
+            if ($width -gt 1 -and $Text.Length -lt ($width - 1)) {
+                return $Text.PadRight($width - 1)
+            }
+        }
+        catch {
+        }
+
+        return $Text
+    }
+
     if ($null -eq $Percent -and -not $Completed) {
-        Write-Host ('  {0} {1}{2}' -f $Label, (ConvertFrom-Utf8Base64String -Value '6L+Q6KGM5Lit'), $suffix) -ForegroundColor Cyan
-        $script:OperationProgressLineActive = $false
+        $line = Format-OperationProgressLine -Text ('  {0} {1}{2}' -f $Label, (ConvertFrom-Utf8Base64String -Value '6L+Q6KGM5Lit'), $suffix)
+        Write-Host ("`r{0}" -f $line) -ForegroundColor Cyan -NoNewline
+        $script:OperationProgressLineActive = $true
         return
     }
 
@@ -64,7 +80,7 @@ function Write-OperationProgress {
     $bar = (([string]$filledChar) * $filled) + (([string]$emptyChar) * $empty)
     $percentText = if ($null -ne $Percent -or $Completed) { '{0,3}%' -f $percentValue } else { ConvertFrom-Utf8Base64String -Value '6L+Q6KGM5Lit' }
 
-    $line = ('  {0} {1} {2}{3}' -f $Label, $bar, $percentText, $suffix)
+    $line = Format-OperationProgressLine -Text ('  {0} {1} {2}{3}' -f $Label, $bar, $percentText, $suffix)
     if ($Completed) {
         Write-Host ("`r{0}" -f $line) -ForegroundColor Cyan
         $script:OperationProgressLineActive = $false
@@ -507,6 +523,122 @@ function Test-WingetNoApplicableUpgradeOutput {
     return $false
 }
 
+function ConvertTo-WingetByteCount {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Value,
+        [Parameter(Mandatory)]
+        [string]$Unit
+    )
+
+    $number = 0.0
+    if (-not [double]::TryParse($Value, [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$number)) {
+        return 0
+    }
+
+    switch -Regex ($Unit.ToUpperInvariant()) {
+        '^B$' { return [int64]$number }
+        '^KB$' { return [int64]($number * 1KB) }
+        '^MB$' { return [int64]($number * 1MB) }
+        '^GB$' { return [int64]($number * 1GB) }
+        default { return [int64]$number }
+    }
+}
+
+function Get-WingetProgressInfo {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Line
+    )
+
+    if ($Line -match '(?<percent>\d{1,3})%' -and $Line -notmatch '[A-Za-z]') {
+        return [pscustomobject]@{
+            Percent = [int]$Matches['percent']
+            Detail = $null
+        }
+    }
+
+    if ($Line -match '(?<done>\d+(?:\.\d+)?)\s*(?<doneUnit>B|KB|MB|GB)\s*/\s*(?<total>\d+(?:\.\d+)?)\s*(?<totalUnit>B|KB|MB|GB)') {
+        $doneBytes = ConvertTo-WingetByteCount -Value $Matches['done'] -Unit $Matches['doneUnit']
+        $totalBytes = ConvertTo-WingetByteCount -Value $Matches['total'] -Unit $Matches['totalUnit']
+        if ($totalBytes -gt 0) {
+            return [pscustomobject]@{
+                Percent = [Math]::Min(100, [Math]::Max(0, [int](($doneBytes * 100) / $totalBytes)))
+                Detail = ('{0} {1} / {2}' -f (ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5LiL6L29'), ('{0} {1}' -f $Matches['done'], $Matches['doneUnit']), ('{0} {1}' -f $Matches['total'], $Matches['totalUnit']))
+            }
+        }
+    }
+
+    return $null
+}
+
+function ConvertTo-WingetChineseMessage {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Line
+    )
+
+    if ($Line -match 'Found an existing package already installed\. Trying to upgrade') {
+        return ConvertFrom-Utf8Base64String -Value '5bey5qOA5rWL5Yiw5bey5a6J6KOF54mI5pys77yM5bCG5bCd6K+V5pu05paw'
+    }
+
+    if ($Line -match '^Found (?<found>.+)$') {
+        $foundText = $Matches['found'] -replace '\s+\[[^\]]+\]\s+Version\s+', ' ' -replace '\s+Version\s+', ' '
+        return (ConvertFrom-Utf8Base64String -Value '5bey5om+5Yiw5YyF77yaezB9') -f $foundText.Trim()
+    }
+
+    if ($Line -match 'Successfully verified installer hash') {
+        return ConvertFrom-Utf8Base64String -Value '5bey6aqM6K+B5a6J6KOF5YyF5ZOI5biM'
+    }
+
+    if ($Line -match 'Starting package install') {
+        return ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5ZCv5Yqo5a6J6KOF56iL5bqP'
+    }
+
+    if ($Line -match 'Installing|Starting|Downloading') {
+        return ConvertFrom-Utf8Base64String -Value '5a6J6KOF56iL5bqP6L+Q6KGM5Lit'
+    }
+
+    if ($Line -match 'Successfully installed|Installation successful') {
+        return ConvertFrom-Utf8Base64String -Value '5a6J6KOF5a6M5oiQ'
+    }
+
+    return $null
+}
+
+function Test-WingetNoiseLine {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Line
+    )
+
+    if ($Line -match '^\d{1,3}%$' -or $Line -notmatch '[A-Za-z0-9]') {
+        return $true
+    }
+
+    if ($Line -match '^(Category|Pricing|Free Trial|Terms of Transaction|Seizure Warning|Store License Terms|Publisher|Publisher Url|Publisher Support Url|License|Privacy Url|Copyright|Agreements|Installer|Installer Type|Store Product Id|Offline Distribution Supported)\s*:') {
+        return $true
+    }
+
+    if ($Line -match 'This application is licensed to you by its owner') {
+        return $true
+    }
+
+    if ($Line -match 'Microsoft is not responsible for') {
+        return $true
+    }
+
+    if ($Line -match 'Microsoft Store' -and $Line -notmatch '(?i)install|upgrade|found|available') {
+        return $true
+    }
+
+    if ($Line -match 'https?://') {
+        return $true
+    }
+
+    return $false
+}
+
 function Write-WingetOutputLines {
     param(
         [AllowEmptyCollection()]
@@ -516,7 +648,9 @@ function Write-WingetOutputLines {
         [Parameter(Mandatory)]
         [ref]$LastProgressPercent,
         [Parameter(Mandatory)]
-        [ref]$Emitted
+        [ref]$Emitted,
+        [string]$Action,
+        [string]$PackageId
     )
 
     foreach ($line in $Lines) {
@@ -525,41 +659,44 @@ function Write-WingetOutputLines {
             continue
         }
 
-        if ($normalizedLine -match '(?<percent>\d{1,3})%' -and $normalizedLine -notmatch '[A-Za-z]') {
-            $progressPercent = [int]$Matches['percent']
-            if ($progressPercent -eq [int]$LastProgressPercent.Value) {
+        $progress = Get-WingetProgressInfo -Line $normalizedLine
+        if ($null -ne $progress) {
+            $progressPercent = [int]$progress.Percent
+            $progressDetail = [string]$progress.Detail
+            $progressKey = 'progress:{0}:{1}' -f $progressPercent, $progressDetail
+            if ($progressKey -eq [string]$LastLine.Value -and $progressPercent -eq [int]$LastProgressPercent.Value) {
                 continue
             }
 
-            Write-OperationProgress -Label 'winget' -Percent $progressPercent
+            Write-OperationProgress -Label 'winget' -Percent $progressPercent -Detail $progressDetail
             $LastProgressPercent.Value = $progressPercent
-            $LastLine.Value = 'progress:{0}' -f $progressPercent
+            $LastLine.Value = $progressKey
             $Emitted.Value = $true
             continue
         }
 
-        if ($normalizedLine -match '^\d{1,3}%$' -or $normalizedLine -notmatch '[A-Za-z0-9]') {
+        if (Test-WingetNoiseLine -Line $normalizedLine) {
+            $Emitted.Value = $true
             continue
         }
 
-        if ($normalizedLine -match '^(Category|Pricing|Free Trial|Terms of Transaction|Seizure Warning|Store License Terms|Publisher|Publisher Url|Publisher Support Url|License|Privacy Url|Copyright|Agreements|Installer|Installer Type|Store Product Id|Offline Distribution Supported)\s*:') {
+        $message = ConvertTo-WingetChineseMessage -Line $normalizedLine
+        if ([string]::IsNullOrWhiteSpace($message)) {
+            if ($normalizedLine -match '(?i)error|failed|failure|denied|not found|cannot|requires') {
+                $message = (ConvertFrom-Utf8Base64String -Value 'd2luZ2V0IOmUmeivr++8mnswfQ==') -f $normalizedLine
+            }
+            else {
+                $Emitted.Value = $true
+                continue
+            }
+        }
+
+        if ($message -eq [string]$LastLine.Value) {
             continue
         }
 
-        if ($normalizedLine -match 'Microsoft Store' -and $normalizedLine -notmatch '(?i)install|upgrade|found|available') {
-            continue
-        }
-
-        if ($normalizedLine -match 'https?://') {
-            continue
-        }
-
-        if ($normalizedLine -eq [string]$LastLine.Value) {
-            continue
-        }
-
-        Write-Log -Message ('winget> {0}' -f $normalizedLine)
-        $LastLine.Value = $normalizedLine
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'd2luZ2V077yaezB9') -f $message)
+        $LastLine.Value = $message
         $Emitted.Value = $true
     }
 }
@@ -626,14 +763,14 @@ function Invoke-WingetAction {
                     @{ Path = $stderrPath; Offset = ([ref]$stderrOffset); Pending = ([ref]$stderrPending) }
                 )) {
                 $lines = @(Get-AppendedTextLines -Path $entry.Path -Offset $entry.Offset -PendingLine $entry.Pending)
-                Write-WingetOutputLines -Lines $lines -LastLine ([ref]$lastWingetLine) -LastProgressPercent ([ref]$lastWingetProgressPercent) -Emitted ([ref]$sawOutput)
+                Write-WingetOutputLines -Lines $lines -LastLine ([ref]$lastWingetLine) -LastProgressPercent ([ref]$lastWingetProgressPercent) -Emitted ([ref]$sawOutput) -Action $Action -PackageId $PackageId
             }
 
             if ($sawOutput) {
                 $lastHeartbeat = Get-Date
             }
             elseif (((Get-Date) - $lastHeartbeat).TotalSeconds -ge 15) {
-                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'd2luZ2V0IHswfSB7MX0g5LuN5Zyo6L+Q6KGMLi4u') -f $Action, $PackageId)
+                Write-OperationProgress -Label 'winget' -Percent $null -Detail ((ConvertFrom-Utf8Base64String -Value 'd2luZ2V0IHswfSB7MX0g5LuN5Zyo6L+Q6KGMLi4u') -f $Action, $PackageId)
                 $lastHeartbeat = Get-Date
             }
 
@@ -649,7 +786,7 @@ function Invoke-WingetAction {
             )) {
             $lines = @(Get-AppendedTextLines -Path $entry.Path -Offset $entry.Offset -PendingLine $entry.Pending -Flush)
             $emittedFinal = $false
-            Write-WingetOutputLines -Lines $lines -LastLine ([ref]$lastWingetLine) -LastProgressPercent ([ref]$lastWingetProgressPercent) -Emitted ([ref]$emittedFinal)
+            Write-WingetOutputLines -Lines $lines -LastLine ([ref]$lastWingetLine) -LastProgressPercent ([ref]$lastWingetProgressPercent) -Emitted ([ref]$emittedFinal) -Action $Action -PackageId $PackageId
         }
 
         $stdoutText = if (Test-Path -LiteralPath $stdoutPath) { Get-Content -LiteralPath $stdoutPath -Raw -Encoding UTF8 -ErrorAction SilentlyContinue } else { '' }
@@ -2771,7 +2908,11 @@ function Select-SkillDirectoriesForProfiles {
 
         $answer = Read-Host (ConvertFrom-Utf8Base64String -Value 'UHJvZmlsZQ==')
         $tokens = @(Split-SelectionTokens -Values @($answer))
-        if ($tokens.Count -eq 0 -or $tokens -contains '0') {
+        if ($tokens.Count -eq 0) {
+            Write-Log -Message (ConvertFrom-Utf8Base64String -Value '5pyq6YCJ5oupIFByb2ZpbGXvvIzlt7Lot7Pov4cgU2tpbGwg5a+85YWl44CC')
+            return @()
+        }
+        if ($tokens -contains '0') {
             return @($SkillDirectories)
         }
     }
@@ -2802,8 +2943,8 @@ function Select-SkillDirectoriesForProfiles {
     }
 
     if ($wantedSkills.Count -eq 0) {
-        Write-Log -Level 'WARN' -Message (ConvertFrom-Utf8Base64String -Value '6YCJ5Lit55qEIHByb2ZpbGUg5pyq5byV55So5Lu75L2VIHNraWxs77yM5a6J6KOFIGJ1bmRsZSDkuK3nmoTlhajpg6ggc2tpbGw=')
-        return @($SkillDirectories)
+        Write-Log -Level 'WARN' -Message (ConvertFrom-Utf8Base64String -Value '6YCJ5Lit55qEIHByb2ZpbGUg5rKh5pyJ5byV55So5Lu75L2VIHNraWxs77yM5bey6Lez6L+HIFNraWxsIOWvvOWFpeOAgg==')
+        return @()
     }
 
     $skillByName = @{}
@@ -3024,11 +3165,60 @@ function Read-SkillMetadata {
     }
 }
 
+function Resolve-SkillsManagerScenarioSelection {
+    param(
+        [ValidateSet('prompt', 'default', 'custom', 'skip')]
+        [string]$Mode = 'prompt',
+        [string]$Name
+    )
+
+    $resolvedMode = if ([string]::IsNullOrWhiteSpace($Mode)) { 'prompt' } else { $Mode }
+    $resolvedName = $Name
+    if ($resolvedMode -eq 'prompt') {
+        if (Test-InteractiveConsole) {
+            Write-Host ''
+            Write-Host (ConvertFrom-Utf8Base64String -Value '6K+36YCJ5oup5a+85YWlIFNraWxsIOWQjuWmguS9leWGmeWFpSBTa2lsbHMgTWFuYWdlciDlnLrmma/vvJo=')
+            Write-Host ('  1. {0}' -f (ConvertFrom-Utf8Base64String -Value '6buY6K6k5Zy65pmv77yI5b2T5YmN5ZCv55So77yJ'))
+            Write-Host ('  2. {0}' -f (ConvertFrom-Utf8Base64String -Value '6Ieq5a6a5LmJ5Zy65pmv'))
+            Write-Host ('  3. {0}' -f (ConvertFrom-Utf8Base64String -Value '6Lez6L+H5Zy65pmv5rOo5YaM77yI5Y+q5aSN5Yi2IFNraWxsIOaWh+S7tu+8iQ=='))
+            $answer = Read-Host (ConvertFrom-Utf8Base64String -Value 'U2tpbGxzIE1hbmFnZXIg5Zy65pmv')
+            switch ($answer.Trim()) {
+                '1' { $resolvedMode = 'default' }
+                '2' { $resolvedMode = 'custom' }
+                default { $resolvedMode = 'skip' }
+            }
+        }
+        else {
+            $resolvedMode = 'skip'
+        }
+    }
+
+    if ($resolvedMode -eq 'custom') {
+        if ([string]::IsNullOrWhiteSpace($resolvedName)) {
+            $resolvedName = ConvertFrom-Utf8Base64String -Value 'SW5kaWVBcmsgU2tpbGxz'
+            if (Test-InteractiveConsole) {
+                $answer = Read-Host ('{0} [{1}]' -f (ConvertFrom-Utf8Base64String -Value '6Ieq5a6a5LmJ5Zy65pmv5ZCN56ew'), $resolvedName)
+                if (-not [string]::IsNullOrWhiteSpace($answer)) {
+                    $resolvedName = $answer.Trim()
+                }
+            }
+        }
+    }
+
+    return [pscustomobject]@{
+        Mode = $resolvedMode
+        Name = $resolvedName
+    }
+}
+
 function Sync-SkillsManagerRegistry {
     param(
         [Parameter(Mandatory)]
         [object[]]$ImportedSkills,
         [switch]$SkipSkillsManagerLaunch,
+        [ValidateSet('prompt', 'default', 'custom', 'skip')]
+        [string]$ScenarioMode = 'prompt',
+        [string]$ScenarioName,
         [switch]$DryRun
     )
 
@@ -3036,8 +3226,19 @@ function Sync-SkillsManagerRegistry {
         return
     }
 
+    $scenarioSelection = Resolve-SkillsManagerScenarioSelection -Mode $ScenarioMode -Name $ScenarioName
+    if ($scenarioSelection.Mode -eq 'skip') {
+        Write-Log -Message (ConvertFrom-Utf8Base64String -Value '6Lez6L+HIFNraWxscyBNYW5hZ2VyIOWcuuaZr+azqOWGjO+8m+S7heWkjeWItiBTa2lsbCDmlofku7bjgII=')
+        return [pscustomobject]@{
+            Synchronized = $false
+            LaunchedSkillsManager = $false
+        }
+    }
+
     if ($DryRun) {
+        $scenarioText = if ($scenarioSelection.Mode -eq 'custom') { (ConvertFrom-Utf8Base64String -Value '5YaZ5YWl6Ieq5a6a5LmJ5Zy65pmv77yaezB9') -f $scenarioSelection.Name } else { ConvertFrom-Utf8Base64String -Value '5YaZ5YWl6buY6K6k5Zy65pmv' }
         Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5rOo5YaMIHswfSDkuKogc2tpbGwg5YiwIHNraWxscy1tYW5hZ2VyIERC') -f $ImportedSkills.Count)
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6YCJ5Lit55qEIFNraWxscyBNYW5hZ2VyIOWcuuaZr++8mnswfQ==') -f $scenarioText)
         return
     }
 
@@ -3065,7 +3266,13 @@ function Sync-SkillsManagerRegistry {
 
     $payloadPath = Join-Path $tempRoot 'skills.json'
     $scriptPath = Join-Path $tempRoot 'sync_skills_manager_registry.py'
-    $payloadJson = @{ skills = $ImportedSkills } | ConvertTo-Json -Depth 8
+    $payloadJson = @{
+        skills = $ImportedSkills
+        scenario = @{
+            mode = $scenarioSelection.Mode
+            name = $scenarioSelection.Name
+        }
+    } | ConvertTo-Json -Depth 8
     $scriptContent = @'
 import json
 import os
@@ -3083,15 +3290,35 @@ with open(payload_path, 'r', encoding='utf-8') as fh:
 conn = sqlite3.connect(db_path)
 cur = conn.cursor()
 now = int(time.time() * 1000)
+scenario = payload.get('scenario') or {}
+scenario_mode = scenario.get('mode') or 'skip'
+scenario_name = (scenario.get('name') or '').strip()
 
-active = cur.execute("SELECT scenario_id FROM active_scenario WHERE key='current'").fetchone()
-if active:
-    scenario_id = active[0]
+if scenario_mode == 'default':
+    active = cur.execute("SELECT scenario_id FROM active_scenario WHERE key='current'").fetchone()
+    if active:
+        scenario_id = active[0]
+    else:
+        first = cur.execute("SELECT id FROM scenarios ORDER BY created_at ASC LIMIT 1").fetchone()
+        if not first:
+            raise RuntimeError('No scenario found in skills-manager.db')
+        scenario_id = first[0]
+elif scenario_mode == 'custom':
+    if not scenario_name:
+        scenario_name = 'IndieArk Skills'
+    existing_scenario = cur.execute("SELECT id FROM scenarios WHERE name=? LIMIT 1", (scenario_name,)).fetchone()
+    if existing_scenario:
+        scenario_id = existing_scenario[0]
+        cur.execute("UPDATE scenarios SET updated_at=? WHERE id=?", (now, scenario_id))
+    else:
+        scenario_id = str(uuid.uuid4())
+        max_sort = cur.execute("SELECT COALESCE(MAX(sort_order), 0) FROM scenarios").fetchone()[0] or 0
+        cur.execute(
+            "INSERT INTO scenarios (id, name, description, icon, sort_order, created_at, updated_at) VALUES (?, ?, NULL, 'code-2', ?, ?, ?)",
+            (scenario_id, scenario_name, int(max_sort) + 1, now, now)
+        )
 else:
-    first = cur.execute("SELECT id FROM scenarios ORDER BY created_at ASC LIMIT 1").fetchone()
-    if not first:
-        raise RuntimeError('No scenario found in skills-manager.db')
-    scenario_id = first[0]
+    scenario_id = None
 
 for skill in payload['skills']:
     source_type = skill.get('SourceType') or 'local'
@@ -3157,19 +3384,20 @@ for skill in payload['skills']:
             )
         )
 
-    cur.execute(
-        "INSERT OR REPLACE INTO scenario_skills (scenario_id, skill_id, added_at) VALUES (?, ?, ?)",
-        (scenario_id, skill_id, now)
-    )
-
-    cur.execute("DELETE FROM scenario_skill_tools WHERE scenario_id=? AND skill_id=?", (scenario_id, skill_id))
+    if scenario_id:
+        cur.execute(
+            "INSERT OR REPLACE INTO scenario_skills (scenario_id, skill_id, added_at) VALUES (?, ?, ?)",
+            (scenario_id, skill_id, now)
+        )
+        cur.execute("DELETE FROM scenario_skill_tools WHERE scenario_id=? AND skill_id=?", (scenario_id, skill_id))
     cur.execute("DELETE FROM skill_targets WHERE skill_id=?", (skill_id,))
 
     for target in skill.get('Targets', []):
-        cur.execute(
-            "INSERT INTO scenario_skill_tools (scenario_id, skill_id, tool, enabled, updated_at) VALUES (?, ?, ?, 1, ?)",
-            (scenario_id, skill_id, target['Tool'], now)
-        )
+        if scenario_id:
+            cur.execute(
+                "INSERT INTO scenario_skill_tools (scenario_id, skill_id, tool, enabled, updated_at) VALUES (?, ?, ?, 1, ?)",
+                (scenario_id, skill_id, target['Tool'], now)
+            )
         cur.execute(
             '''
             INSERT INTO skill_targets (id, skill_id, tool, target_path, mode, status, synced_at, last_error)
@@ -3213,6 +3441,9 @@ function Install-SkillBundle {
         [switch]$ReplaceForeign,
         [switch]$RenameForeign,
         [switch]$SkipSkillsManagerLaunch,
+        [ValidateSet('prompt', 'default', 'custom', 'skip')]
+        [string]$SkillsManagerScenarioMode = 'prompt',
+        [string]$SkillsManagerScenarioName,
         [switch]$DryRun
     )
 
@@ -3306,10 +3537,10 @@ function Install-SkillBundle {
 
         $registrySyncResult = $null
         if ($importedSkills.Count -gt 0) {
-            $registrySyncResult = Sync-SkillsManagerRegistry -ImportedSkills $importedSkills -SkipSkillsManagerLaunch:$SkipSkillsManagerLaunch -DryRun:$DryRun
+            $registrySyncResult = Sync-SkillsManagerRegistry -ImportedSkills $importedSkills -SkipSkillsManagerLaunch:$SkipSkillsManagerLaunch -ScenarioMode $SkillsManagerScenarioMode -ScenarioName $SkillsManagerScenarioName -DryRun:$DryRun
         }
 
-        if (-not $DryRun -and -not $SkipSkillsManagerLaunch -and $importedSkills.Count -gt 0) {
+        if (-not $DryRun -and -not $SkipSkillsManagerLaunch -and $importedSkills.Count -gt 0 -and $registrySyncResult -and $registrySyncResult.Synchronized) {
             $skillsManagerExe = Get-InstalledSkillsManagerExecutable
             $alreadyLaunchedForDbInit = ($null -ne $registrySyncResult -and $registrySyncResult.LaunchedSkillsManager)
             if ($skillsManagerExe -and -not $alreadyLaunchedForDbInit) {
@@ -3323,7 +3554,7 @@ function Install-SkillBundle {
             Key = 'skills-bundle'
             Status = 'ok'
             Source = 'local-zip'
-            Detail = if ($copiedSkillCount -eq 0) { ConvertFrom-Utf8Base64String -Value '5YWo6YOoIHNraWxsIOW3suWQjOatpQ==' } else { (ConvertFrom-Utf8Base64String -Value '5bey5a+85YWlIHswfSDkuKogc2tpbGw=') -f $copiedSkillCount }
+            Detail = if ($skillDirs.Count -eq 0) { ConvertFrom-Utf8Base64String -Value '5pyq5a+85YWlIFNraWxs' } elseif ($copiedSkillCount -eq 0) { ConvertFrom-Utf8Base64String -Value '5YWo6YOoIHNraWxsIOW3suWQjOatpQ==' } else { (ConvertFrom-Utf8Base64String -Value '5bey5a+85YWlIHswfSDkuKogc2tpbGw=') -f $copiedSkillCount }
         }
     }
     finally {
