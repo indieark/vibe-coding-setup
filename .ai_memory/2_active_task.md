@@ -17,11 +17,13 @@
 - 真实安装触发 UAC 时会优先用 Windows Terminal 承载管理员 PowerShell；系统没有 `wt.exe` 时才回退经典 PowerShell 窗口。
 - 进入 TUI 前会 best-effort 切换到英文键盘布局，减少中文输入法干扰方向键和快捷键。
 - Skill 导入日志已从逐目标长路径明细收敛为按 skill 聚合的进度与结果，正常流程不再刷屏；警告和失败仍保留明确路径与原因。
+- Profile 交互菜单提示已收敛为“可输入序号/名称，多个用逗号分隔；直接回车安装全部 Skill”，不再在交互菜单里展示命令行参数说明。
+- 本轮修复已提交并推送到 `main`；最近提交包括默认安装逻辑、进度/终端体验、Skill 选择提示三组修复。
 
 ## 当前未完成项
 
 - Phase 5 飞书只读镜像尚未实现；`00000-model` 已有执行计划分支 `plan/feishu-readonly-mirror`。
-- 安装器仍缺少日志落盘、JSON 报告、bundle 签名 / checksum、导入计数摘要等增强项。
+- 安装器仍缺少日志落盘、JSON 报告、bundle 签名 / checksum 等增强项。
 - 当前 TUI 是 PowerShell 控制台拟似 TUI，不是独立 GUI；后续如需 GUI，应继续复用 `bootstrap.ps1` 的参数和安装内核。
 
 ## 立即下一步
@@ -36,3 +38,11 @@
 ## 阻断
 
 - 没有当前阻断。
+
+## 最近验证
+
+- `powershell -NoProfile -Command '& { $ErrorActionPreference = "Stop"; [void][scriptblock]::Create((Get-Content -LiteralPath ".\bootstrap.ps1" -Raw)); Import-Module .\modules\common.psm1 -Force; "parse-ok" }'`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only git`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -Tui -DryRun -SkipSkills -SkipCcSwitch`，首屏默认 Enter 后直接执行，没有出现确认页。
+- `git diff --check`
+- `git status --short --branch` 当前为 `main...origin/main` 干净。

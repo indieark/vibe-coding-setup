@@ -231,3 +231,9 @@ TUI 自定义流程新增 Skill Profile 复选页，运行时从 `downloads/skil
 用户反馈 UAC 后打开经典蓝底 PowerShell 窗口观感较差，且 `Write-Progress` 会绘制独立蓝色进度区域。当前结论：非管理员终端不能原地升级为管理员终端，但提权后的新窗口可以优先由 Windows Terminal 承载。
 
 本次修复新增 Windows Terminal 优先提权路径：非管理员执行真实安装时，脚本先尝试用 `wt.exe` 以管理员身份启动 `powershell.exe` 并传入原参数；若系统没有 Windows Terminal 或启动失败，再回退经典 PowerShell。总进度保持 `[当前/总数] 当前步骤` 文字；应用内部下载和 winget 百分比改为脚本自绘进度条，静默 MSI/EXE 无真实百分比时显示运行中和耗时。进入 TUI 前会 best-effort 切到英文键盘布局，降低中文输入法对快捷键的干扰。
+
+## 2026-04-30 — 本轮安装器体验修复最终闭环
+
+本轮最终收敛为三组提交：恢复 TUI 默认安装的原逻辑、优化安装进度和提权终端体验、精简 Skill Profile 交互提示。关键用户可见行为：默认安装首屏确认后直接执行，不再展示“执行确认”；总进度只显示 `[当前/总数] 当前步骤`；应用内部下载和 winget 百分比才显示自绘进度条；UAC 后优先使用 Windows Terminal 承载管理员 PowerShell；Profile 交互菜单不再展示 `-SkillProfile` / `-AllSkills` / `-SkipSkills` 参数说明。
+
+最终验证覆盖脚本解析、模块导入、`-Only git` dry-run、`-Tui -DryRun -SkipSkills -SkipCcSwitch` 首屏默认执行、`git diff --check` 和 `git status --short --branch`。截至本归档，`main` 已推送且工作区干净。
