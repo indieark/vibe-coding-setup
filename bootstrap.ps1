@@ -6,6 +6,10 @@ param(
     [switch]$SkipSkills,
     [string[]]$SkillProfile,
     [switch]$AllSkills,
+    [switch]$NoReplaceOrphan,
+    [switch]$ReplaceForeign,
+    [switch]$RenameForeign,
+    [switch]$SkipSkillsManagerLaunch,
     [switch]$PauseOnExit,
     [switch]$KeepShellOpen,
     [string]$UserHomeOverride,
@@ -408,6 +412,10 @@ if (-not $SkipSkills) {
             -ZipPath (Join-Path $root 'downloads\skills.zip') `
             -SkillProfiles $SkillProfile `
             -AllSkills:$AllSkills `
+            -NoReplaceOrphan:$NoReplaceOrphan `
+            -ReplaceForeign:$ReplaceForeign `
+            -RenameForeign:$RenameForeign `
+            -SkipSkillsManagerLaunch:$SkipSkillsManagerLaunch `
             -DryRun:$DryRun
         $results.Add($skillResult)
     }
