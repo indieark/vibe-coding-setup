@@ -320,6 +320,34 @@ function Get-BootstrapReleaseAssetUrl {
     return 'https://github.com/{0}/releases/download/{1}/{2}' -f $Repo, $Tag, $AssetName
 }
 
+function Write-BootstrapDownloadProgress {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Label,
+        [Parameter(Mandatory)]
+        [int]$Percent,
+        [Parameter(Mandatory)]
+        [string]$Detail,
+        [switch]$Completed
+    )
+
+    $safePercent = [Math]::Min(100, [Math]::Max(0, $Percent))
+    $width = 20
+    $filled = [int][Math]::Round(($safePercent / 100) * $width)
+    $empty = $width - $filled
+    $filledChar = [char]0x2588
+    $emptyChar = [char]0x2591
+    $bar = (([string]$filledChar) * $filled) + (([string]$emptyChar) * $empty)
+    $line = ('[bootstrap] {0} [{1}] {2,3}% {3}' -f $Label, $bar, $safePercent, $Detail)
+
+    if ($Completed) {
+        Write-Host ("`r{0}" -f $line)
+    }
+    else {
+        Write-Host ("`r{0}" -f $line) -NoNewline
+    }
+}
+
 function Invoke-BootstrapDownloadFile {
     param(
         [Parameter(Mandatory)]
@@ -328,13 +356,46 @@ function Invoke-BootstrapDownloadFile {
         [string]$OutFile
     )
 
-    $previousProgressPreference = $ProgressPreference
+    Ensure-BootstrapDirectory -Path (Split-Path -Parent $OutFile)
+    $response = $null
+    $inputStream = $null
+    $outputStream = $null
     try {
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri $Uri -OutFile $OutFile
+        $request = [System.Net.HttpWebRequest]::Create($Uri)
+        $request.AllowAutoRedirect = $true
+        $request.UserAgent = 'VibeCodingSetup/1.0'
+        $response = $request.GetResponse()
+        $totalBytes = [int64]$response.ContentLength
+        $inputStream = $response.GetResponseStream()
+        $outputStream = [System.IO.File]::Open($OutFile, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+        $buffer = New-Object byte[] 1048576
+        $downloadedBytes = [int64]0
+        $lastProgressPercent = -1
+        $detail = Split-Path -Leaf $OutFile
+        $downloadLabel = ConvertFrom-BootstrapUtf8Base64String -Value '5LiL6L29'
+
+        do {
+            $readBytes = $inputStream.Read($buffer, 0, $buffer.Length)
+            if ($readBytes -gt 0) {
+                $outputStream.Write($buffer, 0, $readBytes)
+                $downloadedBytes += $readBytes
+
+                if ($totalBytes -gt 0) {
+                    $progressPercent = [int](($downloadedBytes * 100) / $totalBytes)
+                    if ($progressPercent -ge 100 -or $progressPercent -ge ($lastProgressPercent + 5)) {
+                        Write-BootstrapDownloadProgress -Label $downloadLabel -Percent $progressPercent -Detail $detail
+                        $lastProgressPercent = $progressPercent
+                    }
+                }
+            }
+        } while ($readBytes -gt 0)
+
+        Write-BootstrapDownloadProgress -Label $downloadLabel -Percent 100 -Detail $detail -Completed
     }
     finally {
-        $ProgressPreference = $previousProgressPreference
+        if ($outputStream) { $outputStream.Dispose() }
+        if ($inputStream) { $inputStream.Dispose() }
+        if ($response) { $response.Dispose() }
     }
 }
 
@@ -893,16 +954,54 @@ function New-TuiBootstrapResult {
     }
 }
 
+function Get-BootstrapTuiSkillProfiles {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Repo,
+        [Parameter(Mandatory)]
+        [string]$Tag,
+        [Parameter(Mandatory)]
+        [string]$DestinationRoot,
+        [Parameter(Mandatory)]
+        [bool]$Refresh
+    )
+
+    $skillBundlePath = Join-Path $DestinationRoot 'downloads\skills.zip'
+    Sync-BootstrapSkillBundleAsset `
+        -Repo $Repo `
+        -Tag $Tag `
+        -DestinationRoot $DestinationRoot `
+        -Refresh:$Refresh
+
+    try {
+        return @(Get-SkillBundleProfiles -ZipPath $skillBundlePath)
+    }
+    catch {
+        Write-BootstrapMessage $_.Exception.Message
+        return @()
+    }
+}
+
 function Invoke-BootstrapTui {
     param(
         [Parameter(Mandatory)]
         [object[]]$Apps,
         [object[]]$SkillProfiles = @(),
         [object[]]$InitialOptions = @(),
-        [string[]]$InitialSkillProfiles = @()
+        [string[]]$InitialSkillProfiles = @(),
+        [Parameter(Mandatory)]
+        [string]$BootstrapAssetsRepo,
+        [Parameter(Mandatory)]
+        [string]$BootstrapAssetsTag,
+        [Parameter(Mandatory)]
+        [string]$DestinationRoot,
+        [Parameter(Mandatory)]
+        [bool]$RefreshSkillBundle
     )
 
     $allAppKeys = @($Apps | ForEach-Object { $_.key })
+    $availableSkillProfiles = @($SkillProfiles)
+    $skillProfilesLoaded = $availableSkillProfiles.Count -gt 0
 
     while ($true) {
         $selectedMode = Show-TuiModeSelection
@@ -953,7 +1052,16 @@ function Invoke-BootstrapTui {
         $skipSkillsSelected = [bool]($options | Where-Object { $_.SwitchName -eq 'SkipSkills' -and $_.Enabled } | Select-Object -First 1)
         $selectedSkillProfiles = @()
         if (-not $skipSkillsSelected) {
-            $skillSelection = Show-TuiSkillProfileSelection -Profiles $SkillProfiles
+            if (-not $skillProfilesLoaded) {
+                $availableSkillProfiles = @(Get-BootstrapTuiSkillProfiles `
+                        -Repo $BootstrapAssetsRepo `
+                        -Tag $BootstrapAssetsTag `
+                        -DestinationRoot $DestinationRoot `
+                        -Refresh $RefreshSkillBundle)
+                $skillProfilesLoaded = $true
+            }
+
+            $skillSelection = Show-TuiSkillProfileSelection -Profiles $availableSkillProfiles
             if ($skillSelection -eq 'quit') {
                 return $null
             }
@@ -1087,23 +1195,6 @@ $manifest = Get-AppManifest -ManifestPath $manifestPath
 $shouldUseTui = Test-BootstrapShouldUseTui -BoundParameters $PSBoundParameters -TuiSwitch:$Tui
 $skillBundlePath = Join-Path $root 'downloads\skills.zip'
 
-$tuiSkillProfiles = @()
-if ($shouldUseTui -and -not $SkipSkills) {
-    $shouldRefreshSkillBundle = $RefreshBootstrapDependencies.IsPresent -or (Test-HttpSourceRoot -SourceRoot $BootstrapSourceRoot)
-    Sync-BootstrapSkillBundleAsset `
-        -Repo $BootstrapAssetsRepo `
-        -Tag $BootstrapAssetsTag `
-        -DestinationRoot $root `
-        -Refresh:$shouldRefreshSkillBundle
-
-    try {
-        $tuiSkillProfiles = @(Get-SkillBundleProfiles -ZipPath $skillBundlePath)
-    }
-    catch {
-        Write-BootstrapMessage $_.Exception.Message
-    }
-}
-
 if ($shouldUseTui) {
     Set-BootstrapEnglishInputLayout
     $tuiInitialOptions = @(
@@ -1118,7 +1209,15 @@ if ($shouldUseTui) {
         if ($RefreshBootstrapDependencies) { [pscustomobject]@{ SwitchName = 'RefreshBootstrapDependencies'; Enabled = $true } }
     )
     $initialSkillProfiles = @(ConvertTo-BootstrapNonEmptyStringArray -Value $SkillProfile)
-    $tuiResult = Invoke-BootstrapTui -Apps $manifest.apps -SkillProfiles $tuiSkillProfiles -InitialOptions $tuiInitialOptions -InitialSkillProfiles $initialSkillProfiles
+    $shouldRefreshSkillBundle = $RefreshBootstrapDependencies.IsPresent -or (Test-HttpSourceRoot -SourceRoot $BootstrapSourceRoot)
+    $tuiResult = Invoke-BootstrapTui `
+        -Apps $manifest.apps `
+        -InitialOptions $tuiInitialOptions `
+        -InitialSkillProfiles $initialSkillProfiles `
+        -BootstrapAssetsRepo $BootstrapAssetsRepo `
+        -BootstrapAssetsTag $BootstrapAssetsTag `
+        -DestinationRoot $root `
+        -RefreshSkillBundle $shouldRefreshSkillBundle
     if ($null -eq $tuiResult) {
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5Y+W5raI44CC')
         Invoke-BootstrapExit -Code 0

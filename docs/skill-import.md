@@ -9,6 +9,8 @@
 3. 终端用户运行安装器时，只下载当前仓库公开 `skills.zip`。
 4. 用户机器不需要 `indieark/00000-model` 私库 PAT。
 
+安装器不会在 TUI 首屏预取 `skills.zip`。只有进入 Skill 复选页需要读取 Profile，或后续安装 / 演练实际要导入 Skill 时，才会按需获取 bundle。
+
 ## Profile 选择
 
 `Install-SkillBundle` 解压 `skills.zip` 后，会读取 bundle 内置的 `registry/profiles.yaml`：

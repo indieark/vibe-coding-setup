@@ -275,3 +275,13 @@ TUI 自定义流程新增 Skill Profile 复选页，运行时从 `downloads/skil
 - 中文分隔符 dry-run：`-Only "git，nodejs、cc-switch"`。
 - Profile 中文分隔符 dry-run：`-SkillProfile "飞书办公套件，前端开发套件、GitHub 工作流套件"`。
 - `git diff --check`。
+
+## 2026-04-30 — Skill bundle 按需获取与下载进度修复
+
+用户指出 TUI 一开始显示“正在获取 Release 资产：downloads/skills.zip”会显得卡住。根因是旧流程为了在 TUI 自定义页展示 Profile，进入 TUI 前就同步下载 `skills.zip`；这个动作发生在用户做出选择之前，且 bootstrap 自举下载函数没有自绘进度。
+
+本次修复把 Skill bundle 获取改为按需：TUI 首屏只展示运行模式，不再预取 `skills.zip`；只有用户走到自定义流程的 Skill 复选页时，才获取并读取 Profile。默认安装、安全演练或命令模式如果最终需要导入 Skill，则仍在安装阶段按需获取 bundle。
+
+同时把 `Invoke-BootstrapDownloadFile` 从 `Invoke-WebRequest -OutFile` 改为流式下载，按 `ContentLength` 输出脚本自绘进度条。这样 Release 资产下载会显示百分比；如果服务器没有返回文件大小，则至少会显示完成状态。这个改动不引入 PowerShell `Write-Progress`，保持终端输出风格统一。
+
+验证覆盖脚本解析、TUI 首屏退出不触发 `skills.zip` 获取、自定义流程进入 Skill 复选页才读取缓存 bundle、旧命令模式 dry-run 和 `git diff --check`。

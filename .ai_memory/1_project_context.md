@@ -21,8 +21,9 @@
 ## 稳定事实
 
 - 应用安装先做 precheck，再按主来源 / fallback 执行；主安装失败后会先 post-check，再决定是否 fallback。
-- `skills.zip` 独立于应用安装；只要未传 `-SkipSkills`，脚本就会预取并在应用阶段后尝试导入。
+- `skills.zip` 独立于应用安装；只要未传 `-SkipSkills`，脚本会在需要读取 Profile 或导入 Skill 时按需获取，并在应用阶段后尝试导入。
 - `skills.zip` 由 `indieark/00000-model` registry bundle 构建，经当前仓库 `bootstrap-assets` 镜像为公开资产后分发，终端用户机器不需要 PAT。
+- TUI 首屏不预取 `skills.zip`；只有进入 Skill 复选页需要读取 Profile，或后续安装 / 演练实际要导入 Skill 时才按需获取。
 - Skill 导入是“Profile 选择 + `.skill-meta.json` 来源判定 + 增量同步 + Skills Manager SQLite 注册”的组合流程。
 - 同名 Skill 三态判定已经落地：`Tracked` 增量同步，`Orphan` 默认备份替换，`Foreign` 默认跳过。
 - `CC Switch` Provider 导入只走 `ccswitch://v1/import` deep link，不写 SQLite。

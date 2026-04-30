@@ -21,6 +21,7 @@
 - 从公开 `skills.zip` 按 Profile 导入 Skill。
 - 默认进入拟似 TUI，可在进入脚本后选择原来模式、自定义模式或安全演练。
 - TUI 会尽量切换英文输入布局，Profile / 应用多选支持英文逗号、中文逗号和顿号。
+- `skills.zip` 不在 TUI 首屏预取；只有进入 Skill 选择或实际导入 Skill 时才按需获取。
 - 安装阶段显示总步骤进度，并在命令日志中列出本次实际安装清单。
 - 使用 `.skill-meta.json` 识别 Skill 来源，并写入 Skills Manager SQLite。
 - 对同名 Skill 做安全三态判定：已跟踪、旧孤儿、第三方同名。

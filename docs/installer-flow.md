@@ -16,17 +16,18 @@
 4. 判断是否进入 TUI：无操作参数或显式 `-Tui` 时进入；`-Only`、`-DryRun`、`-SkipSkills` 等命令参数会沿用旧命令模式。
 5. 如进入 TUI，先 best-effort 切换英文输入布局，并向前台终端窗口请求切换输入语言。
 6. 用户选择运行模式。默认安装会直接回到原默认流程；自定义选择和安全演练会继续选择应用、安装选项和 Skill Profile，并把选择结果写回等价参数。
-7. 非 `-DryRun` 且非管理员时，通过 UAC 保留当前参数重新拉起；UAC 交接窗口只提示后续在管理员窗口继续。提权后优先用 Windows Terminal 承载管理员 PowerShell，系统没有 `wt.exe` 时才回退到经典 PowerShell。
-8. 按 `-Only` 过滤应用，并按 `order` 排序。
-9. 如果没有 `-SkipSkills`，预取公开 `bootstrap-assets/skills.zip`。
-10. 如选择 `cc-switch` 且没有 `-SkipCcSwitch`，读取或询问 Provider 配置。
-11. 创建 Codex 默认工作目录。
-12. 对每个应用做版本门禁和安装。
-13. 应用阶段结束后，如果没有 `-SkipSkills`，执行 Skill bundle 导入。
-14. 最后导入 CC Switch Provider deep link。
-15. 输出 Summary；任一项失败则退出码为 `1`，否则为 `0`。
+7. 如果自定义流程进入 Skill 复选页，才按需获取 `skills.zip` 并读取 Profile；TUI 首屏不再预取 Skill bundle。
+8. 非 `-DryRun` 且非管理员时，通过 UAC 保留当前参数重新拉起；UAC 交接窗口只提示后续在管理员窗口继续。提权后优先用 Windows Terminal 承载管理员 PowerShell，系统没有 `wt.exe` 时才回退到经典 PowerShell。
+9. 按 `-Only` 过滤应用，并按 `order` 排序。
+10. 如果没有 `-SkipSkills`，按需获取公开 `bootstrap-assets/skills.zip`。
+11. 如选择 `cc-switch` 且没有 `-SkipCcSwitch`，读取或询问 Provider 配置。
+12. 创建 Codex 默认工作目录。
+13. 对每个应用做版本门禁和安装。
+14. 应用阶段结束后，如果没有 `-SkipSkills`，执行 Skill bundle 导入。
+15. 最后导入 CC Switch Provider deep link。
+16. 输出 Summary；任一项失败则退出码为 `1`，否则为 `0`。
 
-安装阶段总进度输出简洁文字，例如 `[当前/总数] 当前步骤`；应用内部可量化进度才输出脚本自绘进度条，例如下载和 winget 百分比。不再调用 `Write-Progress` 绘制宿主进度条。
+安装阶段总进度输出简洁文字，例如 `[当前/总数] 当前步骤`；应用内部可量化进度才输出脚本自绘进度条，例如下载和 winget 百分比。不再调用 `Write-Progress` 绘制宿主进度条。自举依赖和 Release 资产下载同样使用脚本自绘进度条；如果服务器没有返回文件大小，则只显示完成状态。
 
 `PauseOnExit`、`KeepShellOpen`、`UserHomeOverride`、`BootstrapSourceRoot`、`BootstrapAssetsRepo`、`BootstrapAssetsTag`、`RefreshBootstrapDependencies` 属于启动或自举参数，不会单独触发命令模式。
 
