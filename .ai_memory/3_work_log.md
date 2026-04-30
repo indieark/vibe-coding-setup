@@ -49,3 +49,14 @@
 - 保留显式参数的旧自动化行为：`-DryRun -SkipSkills -SkipCcSwitch -Only git` 这类命令不会进入 TUI。
 - 更新 `docs/operations.md`，说明无参默认 TUI、`-Tui` 强制入口和旧式参数命令的关系。
 - 验证通过：脚本解析、显式参数 dry-run、`-Tui` 退出、无参 TUI 退出、默认安装确认页退出、安全演练命令预览。
+
+## 2026-04-30
+
+- 将 Skill 选择从文档说明推进为运行时功能：TUI 自定义流程新增 Skill Profile 复选页，默认选择“全部 Skill”，也可选择一个或多个 Profile 并生成 `-SkillProfile` 命令预览。
+- 新增 `Get-SkillBundleProfiles`，从 `downloads/skills.zip` 的 registry 中读取 `profiles.yaml`，供 TUI 展示真实 Profile 清单。
+- 修复 `bootstrap.cmd` 传入内部自举参数时误跳过 TUI 的问题；`BootstrapSourceRoot`、`BootstrapAssetsRepo`、`BootstrapAssetsTag` 不再视为用户操作参数。
+- 修复 UAC 提权交接后的误导文案：非管理员窗口现在提示已打开管理员窗口继续安装，不再显示“安装已完成”。
+- 命令模式输出改为“选中的安装应用清单”，逐行列出应用名称与 key。
+- 安装执行阶段新增总步骤进度：工作区、应用安装、Skill 导入和 CC Switch Provider 导入会显示 `[当前/总数]`，并同步使用 PowerShell `Write-Progress`。
+- Skill 导入输出从逐目标长路径明细收敛为按 skill 聚合的进度和结果；dry-run 注册 skills-manager DB 也改为计数摘要。
+- 验证通过：脚本解析、模块导入、Profile 读取、旧命令模式 dry-run、`-SkillProfile "飞书办公套件"` dry-run、内部自举参数进入 TUI 并可退出、`git diff --check`。

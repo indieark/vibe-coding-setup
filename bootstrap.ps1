@@ -64,6 +64,47 @@ function ConvertTo-DisplaySource {
     }
 }
 
+function ConvertTo-BootstrapDisplayStatus {
+    param(
+        [string]$Status
+    )
+
+    if ($Status -eq 'failed') {
+        return (ConvertFrom-BootstrapUtf8Base64String -Value '5aSx6LSl')
+    }
+
+    return (ConvertFrom-BootstrapUtf8Base64String -Value '5oiQ5Yqf')
+}
+
+function Write-BootstrapProgress {
+    param(
+        [Parameter(Mandatory)]
+        [int]$CompletedSteps,
+        [Parameter(Mandatory)]
+        [int]$TotalSteps,
+        [Parameter(Mandatory)]
+        [string]$Status,
+        [switch]$Completed
+    )
+
+    if ($TotalSteps -le 0) {
+        return
+    }
+
+    try {
+        if ($Completed) {
+            Write-Progress -Id 1 -Activity (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF6L+b5bqm') -Completed
+            return
+        }
+
+        $percent = [Math]::Min(100, [Math]::Max(0, [int](($CompletedSteps / $TotalSteps) * 100)))
+        Write-Progress -Id 1 -Activity (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF6L+b5bqm') -Status $Status -PercentComplete $percent
+    }
+    catch {
+        # Some hosts do not render Write-Progress; regular logs remain authoritative.
+    }
+}
+
 function Write-BootstrapMessage {
     param(
         [Parameter(Mandatory)]
@@ -110,7 +151,10 @@ function Invoke-BootstrapExit {
 
     if ($KeepShellOpen) {
         Write-Host ''
-        if ($Code -eq 0) {
+        if ($script:BootstrapAdminHandoffStarted) {
+            Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5omT5byA566h55CG5ZGY56qX5Y+j57un57ut5a6J6KOF44CC6L+Z5Liq56qX5Y+j5Y+v5Lul5YWz6Zet77yb6K+35Zyo566h55CG5ZGY56qX5Y+j5Lit5p+l55yL5ZCO57ut6L+b5bqm44CC')
+        }
+        elseif ($Code -eq 0) {
             Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5bey5a6M5oiQ44CC566h55CG5ZGY56qX5Y+j5Lya5L+d5oyB5omT5byA77yM56Gu6K6k6L6T5Ye65ZCO5Y+v5omL5Yqo5YWz6Zet44CC')
         }
         else {
@@ -123,7 +167,12 @@ function Invoke-BootstrapExit {
 
     if ($PauseOnExit) {
         Write-Host ''
-        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5bey5a6M5oiQ44CC5oyJ5Lu75oSP6ZSu5YWz6Zet56qX5Y+jLi4u')
+        if ($script:BootstrapAdminHandoffStarted) {
+            Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5omT5byA566h55CG5ZGY56qX5Y+j57un57ut5a6J6KOF44CC5oyJ5Lu75oSP6ZSu5YWz6Zet5b2T5YmN56qX5Y+jLi4u')
+        }
+        else {
+            Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5bey5a6M5oiQ44CC5oyJ5Lu75oSP6ZSu5YWz6Zet56qX5Y+jLi4u')
+        }
         try {
             [void][System.Console]::ReadKey($true)
         }
@@ -268,6 +317,27 @@ function Copy-BootstrapReleaseAsset {
     Invoke-WebRequest -Uri $url -OutFile $destinationPath
 }
 
+function Sync-BootstrapSkillBundleAsset {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Repo,
+        [Parameter(Mandatory)]
+        [string]$Tag,
+        [Parameter(Mandatory)]
+        [string]$DestinationRoot,
+        [Parameter(Mandatory)]
+        [bool]$Refresh
+    )
+
+    Copy-BootstrapReleaseAsset `
+        -Repo $Repo `
+        -Tag $Tag `
+        -DestinationRoot $DestinationRoot `
+        -RelativePath 'downloads/skills.zip' `
+        -AssetName 'skills.zip' `
+        -Refresh:$Refresh
+}
+
 function Sync-BootstrapDependencies {
     param(
         [Parameter(Mandatory)]
@@ -348,7 +418,7 @@ function Show-TuiModeSelection {
         New-TuiModeOption `
             -Mode 'custom' `
             -Label (ConvertFrom-BootstrapUtf8Base64String -Value '6Ieq5a6a5LmJ6YCJ5oup') `
-            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5oup5bqU55So44CB5ryU57uDL+WuieijheOAgVNraWxsIOWSjCBDQyBTd2l0Y2gg6YCJ6aG544CC')
+            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5oup5bqU55So44CB5ryU57uDL+WuieijheOAgVNraWxsIOWSjCBDQyBTd2l0Y2gg5aSN6YCJ6aG544CC')
         New-TuiModeOption `
             -Mode 'dryrun' `
             -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J5YWo5ryU57uD') `
@@ -429,7 +499,6 @@ function Show-TuiOptionSelection {
         New-TuiOption -Key 'dryrun' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5ryU57uD5qih5byP77yI5LiN55yf5q2j5a6J6KOF77yJ') -SwitchName 'DryRun' -Enabled $true
         New-TuiOption -Key 'skipcc' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+HIENDIFN3aXRjaCBQcm92aWRlciDlr7zlhaU=') -SwitchName 'SkipCcSwitch' -Enabled $true
         New-TuiOption -Key 'skipskills' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+HIFNraWxsIOWvvOWFpQ==') -SwitchName 'SkipSkills'
-        New-TuiOption -Key 'allskills' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5YWo6YOoIFNraWxs') -SwitchName 'AllSkills'
         New-TuiOption -Key 'noorphan' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5penIFNraWxsIOebruW9leS4jeabv+aNou+8jOWPqui3s+i/hw==') -SwitchName 'NoReplaceOrphan' -Enabled $true
         New-TuiOption -Key 'replaceforeign' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '56ys5LiJ5pa55ZCM5ZCNIFNraWxsIOWFgeiuuOWkh+S7veabv+aNog==') -SwitchName 'ReplaceForeign'
         New-TuiOption -Key 'renameforeign' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '56ys5LiJ5pa55ZCM5ZCNIFNraWxsIOaUueWQjeS4uiAtaW5kaWVhcmsg5a+85YWl') -SwitchName 'RenameForeign'
@@ -438,7 +507,7 @@ function Show-TuiOptionSelection {
 
     $index = 0
     while ($true) {
-        Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF6YCJ6aG5')
+        Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5aSN6YCJ6aG5')
         for ($i = 0; $i -lt $options.Count; $i++) {
             $option = $options[$i]
             $cursor = if ($i -eq $index) { '>' } else { ' ' }
@@ -448,7 +517,7 @@ function Show-TuiOptionSelection {
         }
 
         Write-Host ''
-        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIOepuuagvCDliIfmjaIgIEVudGVyIOS4i+S4gOatpSAgQiDov5Tlm54gIFEg6YCA5Ye6') -ForegroundColor DarkGray
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIOepuuagvCDlpI3pgIkv5Y+W5raIICBFbnRlciDkuIvkuIDmraUgIEIg6L+U5ZueICBRIOmAgOWHug==') -ForegroundColor DarkGray
 
         $key = [Console]::ReadKey($true)
         switch ($key.Key) {
@@ -464,6 +533,102 @@ function Show-TuiOptionSelection {
                 }
             }
             'Enter' { return $options }
+            'B' { return $null }
+            'Q' { return 'quit' }
+        }
+    }
+}
+
+function Show-TuiSkillProfileSelection {
+    param(
+        [object[]]$Profiles = @()
+    )
+
+    $options = New-Object System.Collections.Generic.List[object]
+    $options.Add([pscustomobject]@{
+            Key = 'all'
+            Label = (ConvertFrom-BootstrapUtf8Base64String -Value '5YWo6YOoIFNraWxs77yI6buY6K6k77yJ')
+            ProfileName = $null
+            Enabled = $true
+            IsAllSkills = $true
+        })
+
+    foreach ($profile in @($Profiles)) {
+        $label = if ([string]::IsNullOrWhiteSpace($profile.Description)) {
+            $profile.Name
+        }
+        else {
+            '{0} - {1}' -f $profile.Name, $profile.Description
+        }
+        $options.Add([pscustomobject]@{
+                Key = $profile.Name
+                Label = $label
+                ProfileName = $profile.Name
+                Enabled = $false
+                IsAllSkills = $false
+            })
+    }
+
+    $index = 0
+    while ($true) {
+        Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwg5aSN6YCJ6aG5')
+        if (-not $Profiles -or $Profiles.Count -eq 0) {
+            Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6K+75Y+W5YiwIFByb2ZpbGXvvIzpu5jorqTlr7zlhaXlhajpg6ggU2tpbGzjgII=') -ForegroundColor DarkGray
+            Write-Host ''
+        }
+
+        for ($i = 0; $i -lt $options.Count; $i++) {
+            $option = $options[$i]
+            $cursor = if ($i -eq $index) { '>' } else { ' ' }
+            $mark = if ($option.Enabled) { 'x' } else { ' ' }
+            $color = if ($i -eq $index) { 'Cyan' } else { 'Gray' }
+            Write-Host ('{0} [{1}] {2}' -f $cursor, $mark, $option.Label) -ForegroundColor $color
+        }
+
+        Write-Host ''
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIOepuuagvCDlpI3pgIkv5Y+W5raIICBBIOWFqOmAiSAgTiDmuIXnqbogIEVudGVyIOS4i+S4gOatpSAgQiDov5Tlm54gIFEg6YCA5Ye6') -ForegroundColor DarkGray
+
+        $key = [Console]::ReadKey($true)
+        switch ($key.Key) {
+            'UpArrow' { if ($index -gt 0) { $index-- } }
+            'DownArrow' { if ($index -lt ($options.Count - 1)) { $index++ } }
+            'Spacebar' {
+                $options[$index].Enabled = -not $options[$index].Enabled
+                if ($options[$index].IsAllSkills -and $options[$index].Enabled) {
+                    foreach ($option in $options | Where-Object { -not $_.IsAllSkills }) {
+                        $option.Enabled = $false
+                    }
+                }
+                elseif ((-not $options[$index].IsAllSkills) -and $options[$index].Enabled) {
+                    ($options | Where-Object { $_.IsAllSkills } | Select-Object -First 1).Enabled = $false
+                }
+            }
+            'A' {
+                ($options | Where-Object { $_.IsAllSkills } | Select-Object -First 1).Enabled = $false
+                foreach ($option in $options | Where-Object { -not $_.IsAllSkills }) {
+                    $option.Enabled = $true
+                }
+            }
+            'N' {
+                foreach ($option in $options) {
+                    $option.Enabled = $false
+                }
+            }
+            'Enter' {
+                $allOption = $options | Where-Object { $_.IsAllSkills } | Select-Object -First 1
+                $selectedProfiles = @($options | Where-Object { $_.Enabled -and -not $_.IsAllSkills } | ForEach-Object { $_.ProfileName })
+                if ($allOption.Enabled -or $selectedProfiles.Count -eq 0) {
+                    return [pscustomobject]@{
+                        AllSkills = $true
+                        SkillProfiles = @()
+                    }
+                }
+
+                return [pscustomobject]@{
+                    AllSkills = $false
+                    SkillProfiles = $selectedProfiles
+                }
+            }
             'B' { return $null }
             'Q' { return 'quit' }
         }
@@ -493,6 +658,7 @@ function Get-TuiBootstrapArgumentTokens {
         [Parameter(Mandatory)]
         [AllowEmptyCollection()]
         [object[]]$Options,
+        [string[]]$SkillProfiles = @(),
         [switch]$IncludeOnly
     )
 
@@ -504,6 +670,12 @@ function Get-TuiBootstrapArgumentTokens {
     foreach ($option in $Options | Where-Object { $_.Enabled }) {
         $tokens.Add(('-{0}' -f $option.SwitchName))
     }
+    if ($SkillProfiles -and $SkillProfiles.Count -gt 0) {
+        $tokens.Add('-SkillProfile')
+        foreach ($profile in $SkillProfiles) {
+            $tokens.Add($profile)
+        }
+    }
 
     return $tokens.ToArray()
 }
@@ -514,11 +686,12 @@ function Show-TuiReview {
         [string[]]$SelectedAppKeys,
         [AllowEmptyCollection()]
         [object[]]$Options = @(),
+        [string[]]$SkillProfiles = @(),
         [string]$ModeName,
         [switch]$IncludeOnly
     )
 
-    $tokens = Get-TuiBootstrapArgumentTokens -SelectedAppKeys $SelectedAppKeys -Options $Options -IncludeOnly:$IncludeOnly
+    $tokens = Get-TuiBootstrapArgumentTokens -SelectedAppKeys $SelectedAppKeys -Options $Options -SkillProfiles $SkillProfiles -IncludeOnly:$IncludeOnly
     $commandText = '.\bootstrap.cmd'
     if ($tokens.Count -gt 0) {
         $commandText = '{0} {1}' -f $commandText, (ConvertTo-TuiArgumentText -Tokens $tokens)
@@ -534,9 +707,24 @@ function Show-TuiReview {
         $mode = if (-not [string]::IsNullOrWhiteSpace($ModeName)) { $ModeName } elseif ($isDryRun) { ConvertFrom-BootstrapUtf8Base64String -Value '5ryU57uD' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5byP5a6J6KOF' }
         $enabledOptions = @($Options | Where-Object { $_.Enabled -and $_.SwitchName -ne 'DryRun' } | ForEach-Object { $_.Label })
         $optionText = if ($enabledOptions.Count -gt 0) { $enabledOptions -join ', ' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5peg' }
+        $skipSkillsOption = $Options | Where-Object { $_.SwitchName -eq 'SkipSkills' -and $_.Enabled } | Select-Object -First 1
+        $allSkillsOption = $Options | Where-Object { $_.SwitchName -eq 'AllSkills' -and $_.Enabled } | Select-Object -First 1
+        $skillText = if ($skipSkillsOption) {
+            ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+HIFNraWxsIOWvvOWFpQ=='
+        }
+        elseif ($allSkillsOption) {
+            ConvertFrom-BootstrapUtf8Base64String -Value '5YWo6YOoIFNraWxs'
+        }
+        elseif ($SkillProfiles -and $SkillProfiles.Count -gt 0) {
+            $SkillProfiles -join ', '
+        }
+        else {
+            ConvertFrom-BootstrapUtf8Base64String -Value '5ZG95Luk5qih5byP6buY6K6k'
+        }
 
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5omn6KGM5qih5byP'), $mode) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5Lit5bqU55So'), ($SelectedAppKeys -join ', ')) -ForegroundColor Gray
+        Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwg6YCJ5oup'), $skillText) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '6ZmE5Yqg5Y+C5pWw'), $optionText) -ForegroundColor Gray
         Write-Host ''
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bCG5omn6KGM5ZG95Luk') -ForegroundColor DarkGray
@@ -574,7 +762,8 @@ function New-TuiBootstrapResult {
         [AllowNull()]
         [string[]]$Only,
         [AllowEmptyCollection()]
-        [object[]]$Options = @()
+        [object[]]$Options = @(),
+        [string[]]$SkillProfiles = @()
     )
 
     $switches = @{}
@@ -584,6 +773,7 @@ function New-TuiBootstrapResult {
 
     return [pscustomobject]@{
         Only = $Only
+        SkillProfile = @($SkillProfiles)
         DryRun = [bool]$switches['DryRun']
         SkipCcSwitch = [bool]$switches['SkipCcSwitch']
         SkipSkills = [bool]$switches['SkipSkills']
@@ -599,7 +789,8 @@ function New-TuiBootstrapResult {
 function Invoke-BootstrapTui {
     param(
         [Parameter(Mandatory)]
-        [object[]]$Apps
+        [object[]]$Apps,
+        [object[]]$SkillProfiles = @()
     )
 
     $allAppKeys = @($Apps | ForEach-Object { $_.key })
@@ -662,7 +853,26 @@ function Invoke-BootstrapTui {
             continue
         }
 
-        $review = Show-TuiReview -SelectedAppKeys $selectedAppKeys -Options $options -IncludeOnly
+        $skipSkillsSelected = [bool]($options | Where-Object { $_.SwitchName -eq 'SkipSkills' -and $_.Enabled } | Select-Object -First 1)
+        $selectedSkillProfiles = @()
+        if (-not $skipSkillsSelected) {
+            $skillSelection = Show-TuiSkillProfileSelection -Profiles $SkillProfiles
+            if ($skillSelection -eq 'quit') {
+                return $null
+            }
+            if ($null -eq $skillSelection) {
+                continue
+            }
+
+            if ($skillSelection.AllSkills) {
+                $options = @($options) + (New-TuiOption -Key 'allskills' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5YWo6YOoIFNraWxs') -SwitchName 'AllSkills' -Enabled $true)
+            }
+            else {
+                $selectedSkillProfiles = @($skillSelection.SkillProfiles)
+            }
+        }
+
+        $review = Show-TuiReview -SelectedAppKeys $selectedAppKeys -Options $options -SkillProfiles $selectedSkillProfiles -IncludeOnly
         if ($review -eq 'quit') {
             return $null
         }
@@ -670,7 +880,7 @@ function Invoke-BootstrapTui {
             continue
         }
 
-        return New-TuiBootstrapResult -Only $selectedAppKeys -Options $review.Options
+        return New-TuiBootstrapResult -Only $selectedAppKeys -Options $review.Options -SkillProfiles $selectedSkillProfiles
     }
 }
 
@@ -706,7 +916,10 @@ function Test-BootstrapShouldUseTui {
     $ignoredParameters = @(
         'PauseOnExit',
         'KeepShellOpen',
-        'UserHomeOverride'
+        'UserHomeOverride',
+        'BootstrapSourceRoot',
+        'BootstrapAssetsRepo',
+        'BootstrapAssetsTag'
     )
 
     foreach ($name in $BoundParameters.Keys) {
@@ -752,15 +965,35 @@ if (-not [string]::IsNullOrWhiteSpace($effectiveUserHome)) {
 
 $manifestPath = Join-Path $root 'manifest\apps.json'
 $manifest = Get-AppManifest -ManifestPath $manifestPath
+$shouldUseTui = Test-BootstrapShouldUseTui -BoundParameters $PSBoundParameters -TuiSwitch:$Tui
+$skillBundlePath = Join-Path $root 'downloads\skills.zip'
 
-if (Test-BootstrapShouldUseTui -BoundParameters $PSBoundParameters -TuiSwitch:$Tui) {
-    $tuiResult = Invoke-BootstrapTui -Apps $manifest.apps
+$tuiSkillProfiles = @()
+if ($shouldUseTui -and -not $SkipSkills) {
+    $shouldRefreshSkillBundle = $RefreshBootstrapDependencies.IsPresent -or (Test-HttpSourceRoot -SourceRoot $BootstrapSourceRoot)
+    Sync-BootstrapSkillBundleAsset `
+        -Repo $BootstrapAssetsRepo `
+        -Tag $BootstrapAssetsTag `
+        -DestinationRoot $root `
+        -Refresh:$shouldRefreshSkillBundle
+
+    try {
+        $tuiSkillProfiles = @(Get-SkillBundleProfiles -ZipPath $skillBundlePath)
+    }
+    catch {
+        Write-BootstrapMessage $_.Exception.Message
+    }
+}
+
+if ($shouldUseTui) {
+    $tuiResult = Invoke-BootstrapTui -Apps $manifest.apps -SkillProfiles $tuiSkillProfiles
     if ($null -eq $tuiResult) {
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5Y+W5raI44CC')
         Invoke-BootstrapExit -Code 0
     }
 
     $Only = $tuiResult.Only
+    $SkillProfile = @($tuiResult.SkillProfile)
     $DryRun = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.DryRun)
     $SkipCcSwitch = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.SkipCcSwitch)
     $SkipSkills = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.SkipSkills)
@@ -778,6 +1011,12 @@ if (Test-BootstrapShouldUseTui -BoundParameters $PSBoundParameters -TuiSwitch:$T
     }
     else {
         $PSBoundParameters['Only'] = $Only
+    }
+    if ($SkillProfile.Count -eq 0) {
+        [void]$PSBoundParameters.Remove('SkillProfile')
+    }
+    else {
+        $PSBoundParameters['SkillProfile'] = $SkillProfile
     }
     Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'DryRun' -Present ([bool]$DryRun)
     Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'SkipCcSwitch' -Present ([bool]$SkipCcSwitch)
@@ -818,25 +1057,27 @@ if (-not $DryRun -and -not (Test-IsAdministrator)) {
 
     Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '6ZyA6KaB566h55CG5ZGY5p2D6ZmQ77yM5q2j5Zyo6K+35rGCIFVBQyDmj5DmnYMuLi4=')
     Start-Process -FilePath (Get-CurrentPowerShellExecutable) -Verb RunAs -ArgumentList $argumentList.ToArray() | Out-Null
+    $script:BootstrapAdminHandoffStarted = $true
     Invoke-BootstrapExit -Code 0
 }
 
-$selectedApps = Get-SelectedApps -Apps $manifest.apps -Only $Only
+$selectedApps = @(Get-SelectedApps -Apps $manifest.apps -Only $Only)
 
 if (-not $SkipSkills) {
     $shouldRefreshSkillBundle = $RefreshBootstrapDependencies.IsPresent -or (Test-HttpSourceRoot -SourceRoot $BootstrapSourceRoot)
-    Copy-BootstrapReleaseAsset `
+    Sync-BootstrapSkillBundleAsset `
         -Repo $BootstrapAssetsRepo `
         -Tag $BootstrapAssetsTag `
         -DestinationRoot $root `
-        -RelativePath 'downloads/skills.zip' `
-        -AssetName 'skills.zip' `
         -Refresh:$shouldRefreshSkillBundle
 }
 
 Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '5bel5L2c5Yy677yaezB9') -f $root)
 Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '5qih5byP77yaezB9') -f ($(if ($DryRun) { ConvertFrom-BootstrapUtf8Base64String -Value '5ryU57uD' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF' })))
-Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5Lit55qE5bqU55So77yaezB9') -f (($selectedApps | ForEach-Object { $_.name }) -join ', '))
+Write-Log -Message (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5Lit55qE5a6J6KOF5bqU55So5riF5Y2V77ya')
+foreach ($app in ($selectedApps | Sort-Object order)) {
+    Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'ICAtIHswfSAoezF9KQ==') -f $app.name, $app.key)
+}
 
 $providerInfo = $null
 $providerPrecheckResult = $null
@@ -881,9 +1122,22 @@ if ($providerPrecheckResult) {
     $results.Add($providerPrecheckResult)
 }
 
+$progressTotalSteps = 1 + $selectedApps.Count
+if (-not $SkipSkills) {
+    $progressTotalSteps++
+}
+if (-not $SkipCcSwitch -and $providerInfo -and ($selectedApps | Where-Object { $_.key -eq 'cc-switch' })) {
+    $progressTotalSteps++
+}
+$progressCompletedSteps = 0
+
 try {
+    $workspaceProgressStatus = ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo5YeG5aSHIENvZGV4IOW3peS9nOWMug=='
+    Write-BootstrapProgress -CompletedSteps $progressCompletedSteps -TotalSteps $progressTotalSteps -Status $workspaceProgressStatus
+    Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'W3swfS97MX1dIHsyfQ==') -f ($progressCompletedSteps + 1), $progressTotalSteps, $workspaceProgressStatus)
     $workspaceResult = Initialize-CodexWorkspaceDirectory -DryRun:$DryRun
     $results.Add($workspaceResult)
+    $progressCompletedSteps++
 }
 catch {
     $results.Add([pscustomobject]@{
@@ -894,12 +1148,20 @@ catch {
             Detail = $_.Exception.Message
         })
     Write-Log -Level 'ERROR' -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q29kZXgg5bel5L2c5Yy66K6+572u5aSx6LSl77yaezB9') -f $_.Exception.Message)
+    $progressCompletedSteps++
 }
 
+$appInstallIndex = 0
 foreach ($app in ($selectedApps | Sort-Object order)) {
+    $appInstallIndex++
     try {
+        $appProgressStatus = (ConvertFrom-BootstrapUtf8Base64String -Value '5YeG5aSH5a6J6KOF5bqU55So77yaezB9ICh7MX0vezJ9KQ==') -f $app.name, $appInstallIndex, $selectedApps.Count
+        Write-BootstrapProgress -CompletedSteps $progressCompletedSteps -TotalSteps $progressTotalSteps -Status $appProgressStatus
+        Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'W3swfS97MX1dIHsyfQ==') -f ($progressCompletedSteps + 1), $progressTotalSteps, $appProgressStatus)
         $result = Install-AppFromDefinition -Definition $app -WorkspaceRoot $root -DryRun:$DryRun
         $results.Add($result)
+        $progressCompletedSteps++
+        Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6M5oiQ5bqU55So77yaezB977yb54q25oCBPXsxfQ==') -f $app.name, (ConvertTo-BootstrapDisplayStatus -Status $result.Status))
     }
     catch {
         $results.Add([pscustomobject]@{
@@ -910,13 +1172,18 @@ foreach ($app in ($selectedApps | Sort-Object order)) {
                 Detail = $_.Exception.Message
             })
         Write-Log -Level 'ERROR' -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'ezB9IOWuieijheWksei0pe+8mnsxfQ==') -f $app.name, $_.Exception.Message)
+        $progressCompletedSteps++
+        Write-Log -Level 'ERROR' -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5bqU55So5aSx6LSl77yaezB977yb54q25oCBPeWksei0pQ==') -f $app.name)
     }
 }
 
 if (-not $SkipSkills) {
     try {
+        $skillProgressStatus = ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo5a+85YWlIFNraWxs'
+        Write-BootstrapProgress -CompletedSteps $progressCompletedSteps -TotalSteps $progressTotalSteps -Status $skillProgressStatus
+        Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'W3swfS97MX1dIHsyfQ==') -f ($progressCompletedSteps + 1), $progressTotalSteps, $skillProgressStatus)
         $skillResult = Install-SkillBundle `
-            -ZipPath (Join-Path $root 'downloads\skills.zip') `
+            -ZipPath $skillBundlePath `
             -SkillProfiles $SkillProfile `
             -AllSkills:$AllSkills `
             -NoReplaceOrphan:$NoReplaceOrphan `
@@ -925,6 +1192,8 @@ if (-not $SkipSkills) {
             -SkipSkillsManagerLaunch:$SkipSkillsManagerLaunch `
             -DryRun:$DryRun
         $results.Add($skillResult)
+        $progressCompletedSteps++
+        Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6M5oiQIFNraWxsIOWvvOWFpe+8m+eKtuaAgT17MH0=') -f (ConvertTo-BootstrapDisplayStatus -Status $skillResult.Status))
     }
     catch {
         $results.Add([pscustomobject]@{
@@ -935,11 +1204,15 @@ if (-not $SkipSkills) {
                 Detail = $_.Exception.Message
             })
         Write-Log -Level 'ERROR' -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'c2tpbGxzLnppcCDlr7zlhaXlpLHotKXvvJp7MH0=') -f $_.Exception.Message)
+        $progressCompletedSteps++
     }
 }
 
 if (-not $SkipCcSwitch -and $providerInfo -and ($selectedApps | Where-Object { $_.key -eq 'cc-switch' })) {
     try {
+        $ccSwitchProgressStatus = ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo5a+85YWlIENDIFN3aXRjaCBQcm92aWRlcg=='
+        Write-BootstrapProgress -CompletedSteps $progressCompletedSteps -TotalSteps $progressTotalSteps -Status $ccSwitchProgressStatus
+        Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'W3swfS97MX1dIHsyfQ==') -f ($progressCompletedSteps + 1), $progressTotalSteps, $ccSwitchProgressStatus)
         $ccSwitchInstallResult = @($results | Where-Object { $_.Key -eq 'cc-switch' } | Select-Object -Last 1)
         $ccSwitchInstalledThisRun = $false
         if ($ccSwitchInstallResult.Count -gt 0) {
@@ -951,6 +1224,8 @@ if (-not $SkipCcSwitch -and $providerInfo -and ($selectedApps | Where-Object { $
             -ForceWarmup:$ccSwitchInstalledThisRun `
             -DryRun:$DryRun
         $results.Add($ccResult)
+        $progressCompletedSteps++
+        Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6M5oiQIENDIFN3aXRjaCBQcm92aWRlciDlr7zlhaXvvJvnirbmgIE9ezB9') -f (ConvertTo-BootstrapDisplayStatus -Status $ccResult.Status))
     }
     catch {
         $results.Add([pscustomobject]@{
@@ -961,8 +1236,12 @@ if (-not $SkipCcSwitch -and $providerInfo -and ($selectedApps | Where-Object { $
                 Detail = $_.Exception.Message
             })
         Write-Log -Level 'ERROR' -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIHByb3ZpZGVyIOWvvOWFpeWksei0pe+8mnswfQ==') -f $_.Exception.Message)
+        $progressCompletedSteps++
+        Write-Log -Level 'ERROR' -Message (ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIFByb3ZpZGVyIOWvvOWFpeWksei0pe+8m+eKtuaAgT3lpLHotKU=')
     }
 }
+
+Write-BootstrapProgress -CompletedSteps $progressTotalSteps -TotalSteps $progressTotalSteps -Status (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6M5oiQ5a6J6KOF5rWB56iL') -Completed
 
 Write-Host ''
 Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5omn6KGM5pGY6KaB')

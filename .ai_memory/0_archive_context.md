@@ -203,3 +203,15 @@ Skill 导入的安全边界已经收敛为三态：`Tracked` 表示 IndieArk 可
 1. 如果继续增强 TUI，优先补“窗口宽度自适应”和“更安静的 dry-run 进度显示”，不要先拆新入口。
 2. 如果未来做真正 GUI，应调用同一套参数和安装内核，避免出现 GUI 专属安装路径。
 3. 如新增安装选项，必须同时更新 TUI 选项页、`docs/operations.md` 和 `.ai_memory/2_active_task.md`。
+
+## 2026-04-30 — TUI / Skill 复选与安装进度体验修复归档
+
+用户反馈 `vibe-coding-setup.cmd` 打开后，非管理员窗口请求 UAC 后误报“安装已完成”，而管理员窗口直接进入命令模式安装，没有默认进入 TUI；同时希望选中的应用和安装进度更明确。
+
+本次继续坚持“不新增入口文件”的约束，只在 `bootstrap.ps1` 与 `modules/common.psm1` 内修复体验。`BootstrapSourceRoot`、`BootstrapAssetsRepo`、`BootstrapAssetsTag` 被识别为自举内部参数，不再导致跳过 TUI；UAC 交接后当前窗口提示已打开管理员窗口继续安装，不再显示完成文案。
+
+TUI 自定义流程新增 Skill Profile 复选页，运行时从 `downloads/skills.zip` 的 registry 读取真实 Profile，默认选择“全部 Skill”，也可选择一个或多个 Profile 并生成 `-SkillProfile` 命令预览。命令模式也明确提示 `-SkillProfile`、`-AllSkills`、`-SkipSkills` 的选择方式和默认行为。
+
+安装执行阶段新增总步骤进度：工作区准备、每个应用、Skill 导入和 CC Switch Provider 导入都会显示 `[当前/总数]`，并同步写 PowerShell 进度条。Skill 导入日志从逐目标长路径明细收敛为按 skill 聚合的进度与结果，dry-run 的 skills-manager DB 注册也改为计数摘要。
+
+验证覆盖脚本解析、模块导入、Profile 读取、旧命令模式 dry-run、`-SkillProfile "飞书办公套件"` dry-run、内部自举参数进入 TUI 并退出、`git diff --check`。

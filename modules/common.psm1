@@ -1963,11 +1963,14 @@ function Copy-SkillDirectory {
         [string]$SourcePath,
         [Parameter(Mandatory)]
         [string]$DestinationPath,
-        [switch]$DryRun
+        [switch]$DryRun,
+        [switch]$Quiet
     )
 
     if ($DryRun) {
-        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5aSN5Yi2IHNraWxsIHswfSAtPiB7MX0=') -f $SourcePath, $DestinationPath)
+        if (-not $Quiet) {
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5aSN5Yi2IHNraWxsIHswfSAtPiB7MX0=') -f $SourcePath, $DestinationPath)
+        }
         return
     }
 
@@ -2124,7 +2127,8 @@ function Backup-SkillDirectory {
     param(
         [Parameter(Mandatory)]
         [string]$Path,
-        [switch]$DryRun
+        [switch]$DryRun,
+        [switch]$Quiet
     )
 
     $parent = Split-Path -Parent $Path
@@ -2138,7 +2142,9 @@ function Backup-SkillDirectory {
     }
 
     if ($DryRun) {
-        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5aSH5Lu9IHNraWxsIHswfSAtPiB7MX0=') -f $Path, $backupPath)
+        if (-not $Quiet) {
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5aSH5Lu9IHNraWxsIHswfSAtPiB7MX0=') -f $Path, $backupPath)
+        }
         return $backupPath
     }
 
@@ -2192,16 +2198,17 @@ function Invoke-SkillImportDecision {
         [object]$Decision,
         [Parameter(Mandatory)]
         [string]$SourcePath,
-        [switch]$DryRun
+        [switch]$DryRun,
+        [switch]$Quiet
     )
 
     $backupPath = $null
     if ($Decision.Action -eq 'BackupThenCopy') {
-        $backupPath = Backup-SkillDirectory -Path $Decision.FinalPath -DryRun:$DryRun
-        Copy-SkillDirectory -SourcePath $SourcePath -DestinationPath $Decision.FinalPath -DryRun:$DryRun
+        $backupPath = Backup-SkillDirectory -Path $Decision.FinalPath -DryRun:$DryRun -Quiet:$Quiet
+        Copy-SkillDirectory -SourcePath $SourcePath -DestinationPath $Decision.FinalPath -DryRun:$DryRun -Quiet:$Quiet
     }
     elseif ($Decision.Action -eq 'Copy') {
-        Copy-SkillDirectory -SourcePath $SourcePath -DestinationPath $Decision.FinalPath -DryRun:$DryRun
+        Copy-SkillDirectory -SourcePath $SourcePath -DestinationPath $Decision.FinalPath -DryRun:$DryRun -Quiet:$Quiet
     }
 
     return $backupPath
@@ -2419,6 +2426,35 @@ function Read-SkillProfilesFromRegistry {
     return @($profiles)
 }
 
+function Get-SkillBundleProfiles {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ZipPath
+    )
+
+    if (-not (Test-Path -LiteralPath $ZipPath)) {
+        return @()
+    }
+
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('skills-profile-{0}' -f [guid]::NewGuid().ToString('N'))
+    try {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+        $resolvedZipPath = (Resolve-Path -LiteralPath $ZipPath).ProviderPath
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($resolvedZipPath, $tempRoot)
+        $registryRoot = Expand-BundleRegistryArchive -ExtractedBundleRoot $tempRoot -DestinationPath (Join-Path $tempRoot 'registry')
+        if ($registryRoot) {
+            return @(Read-SkillProfilesFromRegistry -RegistryRoot $registryRoot)
+        }
+
+        return @()
+    }
+    finally {
+        if (Test-Path -LiteralPath $tempRoot) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force
+        }
+    }
+}
+
 function Read-RegistryRequiresMap {
     param(
         [Parameter(Mandatory)]
@@ -2502,6 +2538,7 @@ function Select-SkillDirectoriesForProfiles {
 
     if ($tokens.Count -eq 0) {
         Write-Host ''
+        Write-Host (ConvertFrom-Utf8Base64String -Value '5ZG95Luk5qih5byP6YCJ5oup5pa55byP77yaLVNraWxsUHJvZmlsZSAi5ZCN56ewMSIsIuWQjeensDIiIOmAieaLqSBQcm9maWxl77yMLUFsbFNraWxscyDlr7zlhaXlhajpg6jvvIwtU2tpcFNraWxscyDot7Pov4cgU2tpbGzjgILnm7TmjqXlm57ovabpu5jorqTlr7zlhaXlhajpg6ggU2tpbGzjgII=')
         Write-Host (ConvertFrom-Utf8Base64String -Value '6K+36YCJ5oup6KaB5a6J6KOF55qEIEluZGllQXJrIFByb2ZpbGXvvIjlj6/ovpPlhaXluo/lj7cv5ZCN56ew77yM5aSa5Liq55So6YCX5Y+35YiG6ZqU77yb55u05o6l5Zue6L2m5a6J6KOF5YWo6YOoIHNraWxs77yJ77ya')
         Write-Host (ConvertFrom-Utf8Base64String -Value 'ICAwLiDlhajpg6ggc2tpbGzvvIjlhbzlrrnml6fpgLvovpHvvIk=')
         for ($index = 0; $index -lt $Profiles.Count; $index++) {
@@ -2777,9 +2814,7 @@ function Sync-SkillsManagerRegistry {
     }
 
     if ($DryRun) {
-        foreach ($skill in $ImportedSkills) {
-            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5rOo5YaMIHNraWxsIOWIsCBza2lsbHMtbWFuYWdlciBEQu+8mnswfQ==') -f $skill.Name)
-        }
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5rOo5YaMIHswfSDkuKogc2tpbGwg5YiwIHNraWxscy1tYW5hZ2VyIERC') -f $ImportedSkills.Count)
         return
     }
 
@@ -2980,8 +3015,12 @@ function Install-SkillBundle {
 
         Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5Y+R546wIHswfSDkuKogc2tpbGwg55uu5b2V77yb6YCJ5LitIHsxfSDkuKo=') -f $allSkillDirs.Count, $skillDirs.Count)
 
+        $skillImportIndex = 0
+        $skillImportTotal = $skillDirs.Count
         foreach ($skillDir in $skillDirs) {
+            $skillImportIndex++
             $skillName = Split-Path -Leaf $skillDir
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'U2tpbGwg6L+b5bqm77yaezB9L3sxfSB7Mn0=') -f $skillImportIndex, $skillImportTotal, $skillName)
             $sourcePath = $skillDir
             $centralPath = Join-Path $centralRoot $skillName
             $centralDecision = Get-SkillImportDecision `
@@ -2992,8 +3031,7 @@ function Install-SkillBundle {
                 -ReplaceForeign:$ReplaceForeign `
                 -RenameForeign:$RenameForeign
 
-            $centralBackupPath = Invoke-SkillImportDecision -Decision $centralDecision -SourcePath $sourcePath -DryRun:$DryRun
-            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'U2tpbGwg5a+85YWl5Yaz562W77yaezB9IC0+IHsxfe+8m+eKtuaAgT17Mn3vvJvliqjkvZw9ezN977yb5aSH5Lu9PXs0fe+8m+ivpuaDhT17NX0=') -f $skillName, $centralDecision.FinalPath, $centralDecision.State, $centralDecision.Action, $(if ($centralBackupPath) { $centralBackupPath } else { ConvertFrom-Utf8Base64String -Value '5peg' }), $centralDecision.Detail)
+            $centralBackupPath = Invoke-SkillImportDecision -Decision $centralDecision -SourcePath $sourcePath -DryRun:$DryRun -Quiet
 
             if ($centralDecision.Action -eq 'Skip' -and $centralDecision.State -in @('Orphan', 'Foreign')) {
                 Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '6Lez6L+HIHNraWxs77ya546w5pyJ55uu5b2V54q25oCB5Li6IHswfe+8mnsxfQ==') -f $centralDecision.State, $centralDecision.FinalPath)
@@ -3015,8 +3053,7 @@ function Install-SkillBundle {
                     -NoReplaceOrphan:$NoReplaceOrphan `
                     -ReplaceForeign:$ReplaceForeign `
                     -RenameForeign:$false
-                $targetBackupPath = Invoke-SkillImportDecision -Decision $targetDecision -SourcePath $copySourcePath -DryRun:$DryRun
-                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'U2tpbGwg55uu5qCH5ZCM5q2l5Yaz562W77yaezB9IC0+IHsxfe+8m+eKtuaAgT17Mn3vvJvliqjkvZw9ezN977yb5aSH5Lu9PXs0fe+8m+ivpuaDhT17NX0=') -f $effectiveSkillName, $targetDecision.FinalPath, $targetDecision.State, $targetDecision.Action, $(if ($targetBackupPath) { $targetBackupPath } else { ConvertFrom-Utf8Base64String -Value '5peg' }), $targetDecision.Detail)
+                $targetBackupPath = Invoke-SkillImportDecision -Decision $targetDecision -SourcePath $copySourcePath -DryRun:$DryRun -Quiet
 
                 if ($targetDecision.Action -ne 'Skip' -or $targetDecision.State -eq 'Tracked') {
                     $skillTargets.Add([pscustomobject]@{
@@ -3035,10 +3072,11 @@ function Install-SkillBundle {
             $importedSkills.Add($skillMetadata)
 
             if ($centralDecision.Action -eq 'Skip' -and -not $targetChanged) {
-                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'U2tpbGwg5bey5ZCM5q2l77yM6Lez6L+H77yaezB9') -f $effectiveSkillName)
+                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'U2tpbGwg5bey6Lez6L+H77yaezB9') -f $effectiveSkillName)
                 continue
             }
 
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'U2tpbGwg5bey5ZCM5q2l77yaezB977yb5Yqo5L2cPXsxfe+8m+ebruaghz17Mn0g5Liq') -f $effectiveSkillName, $centralDecision.Action, $skillTargets.Count)
             $copiedSkillCount++
 
         }
@@ -3083,5 +3121,6 @@ Export-ModuleMember -Function @(
     'Get-CcSwitchProviderByName',
     'Read-CodexProviderInput',
     'Import-CcSwitchCodexProvider',
+    'Get-SkillBundleProfiles',
     'Install-SkillBundle'
 )
