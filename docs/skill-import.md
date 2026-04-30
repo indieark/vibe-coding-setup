@@ -9,18 +9,19 @@
 3. 终端用户运行安装器时，只下载当前仓库公开 `skills.zip`。
 4. 用户机器不需要 `indieark/00000-model` 私库 PAT。
 
-安装器不会在 TUI 首屏预取 `skills.zip`。只有进入 Skill 复选页需要读取 Profile，或后续安装 / 演练实际要导入 Skill 时，才会按需获取 bundle。
+安装器不会在 TUI 首屏预取 `skills.zip`。只有进入 TUI 的 Skill 状态页、Skill 复选页，或后续安装 / 演练实际要导入 Skill 时，才会按需获取 bundle。
 
 ## Profile 选择
 
 `Install-SkillBundle` 解压 `skills.zip` 后，会读取 bundle 内置的 `registry/profiles.yaml`：
 
-- TUI 自定义模式会先读取 `skills.zip` 中的 Profile，并以复选项展示；默认选择“全部 Skill”。
+- TUI 模式的“安装 Skill”动作会先读取 `skills.zip` 中的 Profile，并以复选项展示；默认选择“全部 Skill”。
 - TUI 中选择任意 Profile 后，会取消“全部 Skill”，并在确认页生成等价 `-SkillProfile` 命令。
 - 传 `-SkillProfile "名称"`：只导入指定 Profile 引用的 skill。
 - 多个 Profile 可用英文逗号、中文逗号或顿号分隔。
 - 传 `-AllSkills`：显式导入 bundle 内全部 skill。
 - 传 `-SkipSkills`：完全跳过 `skills.zip` 下载和 Skill 导入。
+- 传 `-SkipApps`：跳过软件安装阶段，可用于只导入 Skill 的命令模式或 TUI 工作台路径。
 - 不传 Profile 且处于交互式终端：显示中文选择菜单。
 - 非交互式且未传 Profile：自动回退为全部导入，保持旧逻辑可用。
 

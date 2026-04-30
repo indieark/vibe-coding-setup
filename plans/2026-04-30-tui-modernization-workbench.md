@@ -1,5 +1,7 @@
 # TUI 现代化工作台重做计划
 
+> 状态：已落地。当前 TUI 首屏保留默认安装、TUI 模式、安全演练；TUI 模式已重做为控制台工作台，支持软件状态检查、软件安装 / 更新选择、Skill 状态检查、Skill Profile 复选和执行摘要。
+
 ## Scope
 
 本计划覆盖下一阶段 TUI 信息架构重做。目标是把现有“自定义选择”改成真正的 TUI 模式 / 控制台工作台，而不是把软件、行为和 Skill 全部做成同一种复选列表。
@@ -71,3 +73,12 @@ TUI 模式内部：
 
 先处理当前最影响观感的问题：`skills.zip` 解压阶段仍触发 PowerShell 蓝色进度条。方案是把 `Install-SkillBundle` 中的 `Expand-Archive` 替换为 .NET ZipArchive 流式解压，并使用项目自建的 `Write-OperationProgress`。
 
+## Implemented Result
+
+- 顶层“自定义选择”已改为“TUI 模式”。
+- TUI 模式内部已改为工作台菜单，不再串联“应用复选 -> 行为复选 -> Skill 复选”。
+- 软件状态页会展示当前版本、目标版本和建议动作。
+- 软件安装页支持建议项、全部应用和手动选择应用。
+- Skill 状态页按需读取 `skills.zip`，展示 bundle skill、本机已安装、可能新增和 Profile 数量。
+- Skill 安装页保留 Profile 复选，作为主要复选入口。
+- 新增 `-SkipApps`，支持 TUI 工作台只执行 Skill 导入路径。

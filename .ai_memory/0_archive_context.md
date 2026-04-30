@@ -295,3 +295,13 @@ TUI 自定义流程新增 Skill Profile 复选页，运行时从 `downloads/skil
 同时修复当前最影响观感的问题：Skill bundle 下载已有脚本自绘进度，但解压仍走 `Expand-Archive`，会触发 PowerShell 宿主蓝色进度区域。`Install-SkillBundle` 现在改为调用 .NET `System.IO.Compression.ZipFile` 流式解压，复用 `Write-OperationProgress` 同一行刷新，并加入 zip-slip 路径越界防护。
 
 后续若继续现代化 TUI，应先按计划重做信息架构，而不是继续在旧“自定义选择”里增加复选项。
+
+## 2026-04-30 — TUI 现代化工作台落地
+
+本次按前一阶段计划重做 TUI 信息架构：顶层仍保留“默认安装（原来模式）”和“安全演练”，中间入口从“自定义选择”改为“TUI 模式”。进入 TUI 模式后，不再把软件、行为和 Skill 全部做成同一种复选，而是进入控制台工作台。
+
+工作台内的动作是：检查软件状态、安装 / 更新软件、检查 Skill 状态、安装 Skill、执行摘要。软件状态页复用现有版本门禁判断，展示当前版本、目标版本和建议动作；软件安装动作页提供建议项、全部应用和手动选择。Skill 状态页按需读取 `skills.zip`，展示 bundle skill、本机已安装、可能新增和 Profile 数量；Skill 安装页继续使用 Profile 复选，这是当前主要复选入口。
+
+为了让“只安装 Skill”成为真实路径，而不是被迫携带一个软件项，本次新增 `-SkipApps`。命令模式和 TUI 工作台都可以用它跳过应用安装阶段，只保留工作区准备、Skill 导入和其它被选中的阶段。
+
+验证覆盖脚本解析、模块导入、`-SkipApps` Skill dry-run、TUI 工作台 Skill 复选到执行摘要 dry-run、TUI 软件状态页展示和 `git diff --check`。

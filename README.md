@@ -19,7 +19,7 @@
 - 安装常用 Windows 开发工具：Git、Node.js、Python、VS Code、Codex Desktop、ChatGPT、CC Switch、Codex Provider Sync、Skills Manager。
 - 先走公开主来源，失败后按 `bootstrap-assets` fallback。
 - 从公开 `skills.zip` 按 Profile 导入 Skill。
-- 默认进入拟似 TUI，可在进入脚本后选择原来模式、自定义模式或安全演练。
+- 默认进入拟似 TUI，可在进入脚本后选择原来模式、TUI 工作台或安全演练。
 - TUI 会尽量切换英文输入布局，Profile / 应用多选支持英文逗号、中文逗号和顿号。
 - `skills.zip` 不在 TUI 首屏预取；只有进入 Skill 选择或实际导入 Skill 时才按需获取。
 - 安装阶段显示总步骤进度，并在命令日志中列出本次实际安装清单。
@@ -94,7 +94,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 ## 当前状态
 
 - `main` 已包含按需装机器 Phase 1-4：私库 bundle 镜像、Profile 选择、Skill meta 透传、三态去重。
-- 安装器已包含集成拟似 TUI、运行时 Skill Profile 复选、UAC 交接提示和安装进度展示。
+- 安装器已包含集成拟似 TUI 工作台、运行时 Skill Profile 复选、UAC 交接提示和安装进度展示。
 - Phase 5 飞书只读镜像在 `indieark/00000-model` 侧按计划推进。
 - 下一步安装器增强应优先围绕可观测、可校验、可回滚，而不是继续堆安装项。
 

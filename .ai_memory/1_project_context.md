@@ -30,7 +30,9 @@
 - 同名 Skill 三态判定已经落地：`Tracked` 增量同步，`Orphan` 默认备份替换，`Foreign` 默认跳过。
 - `CC Switch` Provider 导入只走 `ccswitch://v1/import` deep link，不写 SQLite。
 - 面向用户的脚本提示、日志、错误和执行摘要默认使用简体中文；为兼容 Windows PowerShell 5.1，脚本文案通过 UTF-8 base64 解码输出，源码文件保持 UTF-8 无 BOM。
-- `bootstrap.ps1` 内置拟似 TUI 与原命令模式：无安装参数或显式 `-Tui` 时进入 TUI；带 `-Only`、`-DryRun`、`-SkipSkills` 等操作参数时继续走原自动化模式；TUI 内的“默认安装（原来模式）”等价于选择 manifest 中全部应用并继续复用原安装内核。
+- `bootstrap.ps1` 内置拟似 TUI 与原命令模式：无安装参数或显式 `-Tui` 时进入 TUI；带 `-Only`、`-DryRun`、`-SkipSkills` 等操作参数时继续走原自动化模式；TUI 首屏保留“默认安装（原来模式）”“TUI 模式”“安全演练”，其中 TUI 模式进入控制台工作台。
+- TUI 工作台聚焦任务动作：检查软件状态、安装 / 更新软件、检查 Skill 状态、安装 Skill、执行摘要；复选主要用于 Skill Profile，软件选择放在安装 / 更新软件动作下。
+- `-SkipApps` 可跳过应用安装阶段，支持命令模式或 TUI 工作台只执行 Skill 导入。
 - 进入 TUI 前会 best-effort 切换英文输入布局，并向前台终端窗口发送输入语言切换请求；该行为不修改用户系统默认输入法。
 - Profile / 应用多选文本统一支持英文逗号、中文逗号和顿号分隔。
 

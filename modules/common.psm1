@@ -3339,6 +3339,7 @@ Export-ModuleMember -Function @(
     'ConvertTo-ArgumentTokens',
     'Get-AppManifest',
     'Get-SelectedApps',
+    'Get-AppInstallDecision',
     'Initialize-CodexWorkspaceDirectory',
     'Install-AppFromDefinition',
     'Get-CcSwitchProviderByName',

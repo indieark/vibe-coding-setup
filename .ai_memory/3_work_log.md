@@ -104,3 +104,10 @@
 - 写入下一阶段 TUI 现代化工作台重做计划：顶层保留默认安装、TUI 模式、安全演练；TUI 内部聚焦状态检查、软件安装 / 更新、Skill 状态和 Skill 安装选择。
 - 修复 Skill bundle 解压进度：`Install-SkillBundle` 不再调用 `Expand-Archive`，改为 .NET ZipFile 流式解压并复用脚本自绘同一行进度，避免 PowerShell 宿主蓝色进度区域。
 - 解压路径加入 zip-slip 越界写出防护，避免恶意 zip 条目逃出临时解压目录。
+
+## 2026-04-30
+
+- 将顶层“自定义选择”改为“TUI 模式”，并重做为控制台工作台。
+- TUI 工作台新增软件状态页、软件安装 / 更新动作页、Skill 状态页、Skill Profile 复选页和执行摘要页。
+- 新增 `-SkipApps`，支持只执行 Skill 导入；TUI 工作台选择 Skill 后不再被迫带软件安装项。
+- 验证通过：脚本解析、模块导入、`-SkipApps` Skill dry-run、TUI 工作台 Skill 复选到执行摘要 dry-run、TUI 软件状态页展示。

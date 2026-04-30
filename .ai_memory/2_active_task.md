@@ -7,9 +7,11 @@
 - 脚本用户可见输出已中文化：自举提示、日志等级、预检查/安装/fallback/CC Switch/Skill 导入输出、错误信息和最终执行摘要均使用中文展示。
 - `bootstrap.ps1` 现在同时支持原命令模式和拟似 TUI 模式，不再维护单独的 TUI 入口文件。
 - 无安装参数或显式 `-Tui` 时会进入 TUI；带 `-Only`、`-DryRun`、`-SkipSkills`、`-SkipCcSwitch` 等操作参数时继续按原自动化模式执行。
-- TUI 首屏提供“默认安装（原来模式）”“自定义选择”“安全演练”；默认安装不写入 `-Only`，直接复用原脚本默认安装逻辑，自定义和安全演练才生成等价命令预览。
+- TUI 首屏提供“默认安装（原来模式）”“TUI 模式”“安全演练”；默认安装不写入 `-Only`，直接复用原脚本默认安装逻辑，TUI 模式和安全演练才生成等价命令预览。
+- TUI 模式已重做为控制台工作台：检查软件状态、安装 / 更新软件、检查 Skill 状态、安装 Skill、执行摘要。
+- 新增 `-SkipApps`，支持跳过应用安装阶段，TUI 工作台可只执行 Skill 导入。
 - 如果显式用 `-Tui -DryRun` 或 `-Tui -SkipSkills` 等命令进入 TUI，默认安装会保留这些原命令参数。
-- TUI 自定义流程已支持 Skill Profile 复选；默认选“全部 Skill”，也可选择一个或多个 Profile，并生成等价 `-SkillProfile` 命令预览。
+- TUI 工作台的“安装 Skill”动作支持 Skill Profile 复选；默认选“全部 Skill”，也可选择一个或多个 Profile，并生成等价 `-SkillProfile` 命令预览。
 - TUI 首屏不再预取 `skills.zip`；只有进入 Skill 复选页或实际执行 Skill 导入时才按需获取 bundle。
 - `bootstrap.cmd` 远程自举传入的内部参数不再导致跳过 TUI；UAC 提权交接窗口会提示“已打开管理员窗口继续安装”，不再误报“安装已完成”。
 - UAC 重启时数组参数会压缩为逗号形式，避免 `cc-switch` 这类应用 key 被 PowerShell 误解析为位置参数。
@@ -29,12 +31,12 @@
 - Phase 5 飞书只读镜像尚未实现；`00000-model` 已有执行计划分支 `plan/feishu-readonly-mirror`。
 - 安装器仍缺少日志落盘、JSON 报告、bundle 签名 / checksum 等增强项。
 - 当前 TUI 是 PowerShell 控制台拟似 TUI，不是独立 GUI；后续如需 GUI，应继续复用 `bootstrap.ps1` 的参数和安装内核。
-- TUI 现代化工作台重做计划已写入 `plans/2026-04-30-tui-modernization-workbench.md`，但尚未实施；下一阶段应按该计划重做信息架构。
+- TUI 现代化工作台重做计划已实施，状态记录在 `plans/2026-04-30-tui-modernization-workbench.md`。
 
 ## 立即下一步
 
-1. 若继续现代化 TUI，按 `plans/2026-04-30-tui-modernization-workbench.md` 重做信息架构：顶层保留默认安装和安全演练，TUI 内聚焦状态检查、软件安装/更新、Skill 安装选择，避免把应用和行为都做成同一类复选项。
-2. 若继续增强安装器，优先做 `-ReportPath` / JSON summary 和 bundle manifest 校验；GUI 可作为后续独立阶段处理。
+1. 若继续增强安装器，优先做 `-ReportPath` / JSON summary 和 bundle manifest 校验；GUI 可作为后续独立阶段处理。
+2. 若继续打磨 TUI，优先优化状态扫描等待提示、窄窗口表格截断和执行摘要的命令复制显示。
 
 ## 阻断
 
@@ -50,11 +52,14 @@
 - `-SkillProfile "飞书办公套件，前端开发套件、GitHub 工作流套件"` dry-run 验证通过，Profile 多选支持英文逗号、中文逗号和顿号。
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -Tui -DryRun -SkipSkills -SkipCcSwitch` 首屏可进入并退出，用于验证增强后的输入布局切换不会阻断 TUI。
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -Tui -DryRun -SkipSkills -SkipCcSwitch` 首屏退出未触发 `skills.zip` 获取。
-- TUI 自定义流程进入 Skill 复选页时才读取已缓存的 `downloads/skills.zip`。
+- TUI 工作台进入 Skill 状态页或 Skill 复选页时才读取已缓存的 `downloads/skills.zip`。
 - `powershell -NoProfile -Command '$tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path .\bootstrap.ps1), [ref]$tokens, [ref]$errors) | Out-Null; if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }; "bootstrap.ps1 parse ok"'`
 - `powershell -NoProfile -Command '$tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path .\modules\common.psm1), [ref]$tokens, [ref]$errors) | Out-Null; if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }; Import-Module .\modules\common.psm1 -Force; "common.psm1 parse/import ok"'`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -DryRun -SkipCcSwitch -Only git -SkillProfile "飞书办公套件" -NoReplaceOrphan -SkipSkillsManagerLaunch -BootstrapTuiResolved`，验证 Skill bundle 解压显示脚本自绘同一行进度；Codex 捕获输出中会展开 `\r`，真实终端为单行刷新。
 - 临时恶意 zip 演练：`Install-SkillBundle -ZipPath bad.zip -AllSkills -DryRun -SkipSkillsManagerLaunch` 会拦截 `../evil.txt`，输出 `zip-slip guard ok`。
 - 文档入口路径检查：README、docs、规则文档、`.ai_memory/2_active_task.md` 和 TUI 计划文件均存在。
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -DryRun -SkipApps -SkipCcSwitch -SkillProfile "飞书办公套件" -NoReplaceOrphan -SkipSkillsManagerLaunch -BootstrapTuiResolved`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -Tui -DryRun -SkipCcSwitch`，验证 TUI 模式进入工作台、Skill Profile 复选、执行摘要生成 `-SkipApps` 并完成 dry-run。
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -Tui -DryRun -SkipSkills -SkipCcSwitch`，验证 TUI 模式软件状态页可展示当前版本、目标版本和建议动作。
 - `git diff --check`
 - `git status --short --branch` 当前为 `main...origin/main` 干净。
