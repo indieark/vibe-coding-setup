@@ -2,12 +2,12 @@
 
 ## 当前状态
 
-- 本轮目标是让 `vibe-coding-setup` 真正消费 `00000-model` registry，而不是只导入离线 bundled skills。
-- 安装器已经支持 registry 驱动的 bundled skill、external skill、前置 CLI 依赖和 MCP 写入。
-- external skill 支持 `repo`、`archive_url` / `download_url`、`local_path` 自动导入；只有 `homepage` 的条目只提示人工处理。
-- MCP 写入目标覆盖 Codex、Claude Desktop、Claude Code、Cursor、Gemini CLI、Antigravity。
-- `VIBE_CODING_USER_HOME` 隔离环境下会跳过 Claude Code CLI 注册，避免真实用户配置被测试污染。
-- README、`docs/README.md`、`docs/skill-import.md` 已同步索引与单一事实源说明。
+- 本轮目标是重排安装器的用户可见顺序和分区显示：Skill bundle 下载 / 读取要发生在 Skill Profile 选择前；选中的安装清单要在应用预检查后立即展示，并明确每项是安装、更新、跳过还是检查失败。
+- 应用预检查仍并行执行；缺失项不查最新版本，已存在项才查目标版本。预检查后输出“安装计划”和统计，跳过项与检查失败项直接写入 Summary，不再进入后续安装循环。
+- 实际应用阶段只处理安装 / 更新项；安装项显示“准备安装应用”，更新项显示“准备更新应用”。如果没有需要安装或更新的应用，会明确提示。
+- TUI 工作台、执行摘要、Skill Bundle 准备区和 CC Switch Provider 配置区已补充标题和分块说明。
+- CC Switch Provider 的 Provider 名称、Base URL、模型等预填值现在直接显示在输入提示中；回车保持默认值，输入则覆盖。API Key 仍隐藏输入，预设密钥只显示来源。
+- `docs/installer-flow.md` 已同步安装流程顺序和执行语义。
 - 本文件随提交记录本轮闭环；验证通过后提交并推送 `main`。
 
 ## 当前未完成项
@@ -17,8 +17,8 @@
 
 ## 下一步
 
-1. 运行 `Import-Module .\modules\common.psm1 -Force` 验证模块可加载。
-2. 配合 `00000-model` registry dry-run 与安装器 Profile dry-run 做最终验证。
+1. 完成 `.ai_memory` 归档。
+2. 运行 `git diff --check` 和模块导入验证。
 3. 提交并推送 `main`。
 
 ## 阻断
@@ -27,8 +27,8 @@
 
 ## 最近验证
 
-- `Import-Module modules/common.psm1 -Force` 已在本轮通过。
-- `build-bundle.py --dry-run` 已在 `00000-model` 侧通过。
-- 前端、中文办公自动化、媒体创作、演示文稿与文档 Profile dry-run 已通过。
-- 隔离 `VIBE_CODING_USER_HOME` 下已验证 Codex / Claude Desktop / Cursor / Gemini CLI / Antigravity MCP 配置写入。
-- 临时 bundle 已验证 `local_path` 和 `archive_url` external skill 可真实导入。
+- `Import-Module .\modules\common.psm1 -Force` 已通过。
+- `bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only git` 已通过，输出安装计划并将已是最新的 Git 标记为跳过。
+- `bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only codex-provider-sync` 已通过跳过路径验证。
+- `Read-CodexProviderInput` 预设值显示验证已通过，未打印预设 API Key 明文。
+- `git diff --check` 已通过。

@@ -2021,12 +2021,12 @@ function Read-HostWithDefaultValue {
         [string]$DefaultValue
     )
 
-    $suffix = ''
+    $effectivePrompt = $Prompt
     if (-not [string]::IsNullOrWhiteSpace($DefaultValue)) {
-        $suffix = ' [{0}]' -f $DefaultValue
+        $effectivePrompt = (ConvertFrom-Utf8Base64String -Value 'ezB977yI5b2T5YmN77yaezF977yb5Zue6L2m5L+d5oyB77yM6L6T5YWl6KaG55uW77yJ') -f $Prompt, $DefaultValue
     }
 
-    $value = Read-Host ('{0}{1}' -f $Prompt, $suffix)
+    $value = Read-Host $effectivePrompt
     if ([string]::IsNullOrWhiteSpace($value)) {
         return $DefaultValue
     }
@@ -2037,12 +2037,17 @@ function Read-HostWithDefaultValue {
 function Write-CodexProviderInputSection {
     param(
         [Parameter(Mandatory)]
-        [string]$Title
+        [string]$Title,
+        [string]$Detail
     )
 
     Write-Host ''
     Write-Host ('== {0} ==' -f $Title) -ForegroundColor Cyan
     Write-Host ('-' * 64) -ForegroundColor DarkGray
+    if (-not [string]::IsNullOrWhiteSpace($Detail)) {
+        Write-Host ('  {0}' -f $Detail) -ForegroundColor DarkGray
+        Write-Host ''
+    }
 }
 
 function Write-CodexProviderInputLine {
@@ -2233,29 +2238,39 @@ function Read-CodexProviderInput {
         $modelSource = ConvertFrom-Utf8Base64String -Value '5YaF572u6buY6K6k'
     }
 
-    Write-CodexProviderInputSection -Title (ConvertFrom-Utf8Base64String -Value '6K+05piO')
+    Write-CodexProviderInputSection `
+        -Title 'CC Switch Provider' `
+        -Detail (ConvertFrom-Utf8Base64String -Value '6L+Z5LiA5q616K+05piO5pys5qyhIENDIFN3aXRjaCBQcm92aWRlciDphY3nva7nmoTnlKjpgJTlkozmlY/mhJ/kv6Hmga/mmL7npLrop4TliJnjgII=')
     Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value '55So6YCU') -Value (ConvertFrom-Utf8Base64String -Value '5bCG5a+85YWl5YiwIENDIFN3aXRjaCDnmoQgQ29kZXggcHJvdmlkZXLjgII=')
     Write-CodexProviderInputLine -Label 'API Key' -Value (ConvertFrom-Utf8Base64String -Value 'QVBJIEtleSDovpPlhaXml7bkvJrpmpDol4/vvJvmkZjopoHlj6rmmL7npLrmmK/lkKblt7LloavlhpnvvIzkuI3mmL7npLrlr4bpkqXjgII=')
     Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value '5o+Q56S6') -Value (ConvertFrom-Utf8Base64String -Value '5oyJIEVudGVyIOS9v+eUqOaLrOWPt+S4reeahOm7mOiupOWAvO+8m+eVmeepuiBBUEkgS2V5IOS8muWGmeWFpeWNoOS9jeWAvCBzay3jgII=')
 
-    Write-CodexProviderInputSection -Title (ConvertFrom-Utf8Base64String -Value '5b2T5YmN6buY6K6k5YC8')
+    Write-CodexProviderInputSection `
+        -Title (ConvertFrom-Utf8Base64String -Value '5b2T5YmN6buY6K6k5YC8') `
+        -Detail (ConvertFrom-Utf8Base64String -Value '6L+Z6YeM5pi+56S65bCG5bim5YWl6L6T5YWl5Yy655qE5b2T5YmN5YC877yb5p2l5rqQ55So5LqO56Gu6K6k6buY6K6k5YC85LuO5ZOq6YeM5p2l44CC')
     Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value 'UHJvdmlkZXIg5ZCN56ew') -Value ('{0} ({1}: {2})' -f $name, (ConvertFrom-Utf8Base64String -Value '5p2l5rqQ'), $nameSource)
     Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value 'QVBJIOWcsOWdgCAvIEJhc2UgVVJM') -Value ('{0} ({1}: {2})' -f $baseUrl, (ConvertFrom-Utf8Base64String -Value '5p2l5rqQ'), $baseUrlSource)
     Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value '5qih5Z6L5ZCN56ew') -Value ('{0} ({1}: {2})' -f $model, (ConvertFrom-Utf8Base64String -Value '5p2l5rqQ'), $modelSource)
 
-    Write-CodexProviderInputSection -Title (ConvertFrom-Utf8Base64String -Value '6L6T5YWl5Yy6')
+    Write-CodexProviderInputSection `
+        -Title (ConvertFrom-Utf8Base64String -Value '6L6T5YWl5Yy6') `
+        -Detail (ConvertFrom-Utf8Base64String -Value '55u05o6l6L6T5YWl5paw5YC85Lya6KaG55uW5b2T5YmN5YC877yb55u05o6l5Zue6L2m5L+d5oyB5LiN5Y+Y44CC')
     $name = Read-HostWithDefaultValue -Prompt (ConvertFrom-Utf8Base64String -Value 'UHJvdmlkZXIg5ZCN56ew') -DefaultValue $name
     $baseUrl = Read-HostWithDefaultValue -Prompt (ConvertFrom-Utf8Base64String -Value 'QVBJIOWcsOWdgCAvIEJhc2UgVVJM') -DefaultValue $baseUrl
     $model = Read-HostWithDefaultValue -Prompt (ConvertFrom-Utf8Base64String -Value '5qih5Z6L5ZCN56ew') -DefaultValue $model
 
     $apiKey = $PresetApiKey
     if ([string]::IsNullOrWhiteSpace($apiKey)) {
-        Write-CodexProviderInputSection -Title (ConvertFrom-Utf8Base64String -Value 'QVBJIEtleQ==')
+        Write-CodexProviderInputSection `
+            -Title (ConvertFrom-Utf8Base64String -Value 'QVBJIEtleQ==') `
+            -Detail (ConvertFrom-Utf8Base64String -Value 'QVBJIEtleSDkvJrpmpDol4/ovpPlhaXvvJvnm7TmjqXlm57ovabkvJrkvb/nlKjljaDkvY3lgLwgc2st44CC')
         $secureApiKey = Read-Host ('API Key ({0})' -f (ConvertFrom-Utf8Base64String -Value '6L6T5YWl5pe26ZqQ6JeP')) -AsSecureString
         $apiKey = ConvertFrom-SecureStringPlainText -SecureString $secureApiKey
     }
     else {
-        Write-CodexProviderInputSection -Title (ConvertFrom-Utf8Base64String -Value 'QVBJIEtleQ==')
+        Write-CodexProviderInputSection `
+            -Title (ConvertFrom-Utf8Base64String -Value 'QVBJIEtleQ==') `
+            -Detail (ConvertFrom-Utf8Base64String -Value 'QVBJIEtleSDkvJrpmpDol4/ovpPlhaXvvJvnm7TmjqXlm57ovabkvJrkvb/nlKjljaDkvY3lgLwgc2st44CC')
         Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value '5p2l5rqQ') -Value (ConvertFrom-Utf8Base64String -Value '5bey5LuO5ZG95Luk5Y+C5pWw6K+75Y+W77yM5LiN5pi+56S65YaF5a65')
     }
 
@@ -2267,7 +2282,9 @@ function Read-CodexProviderInput {
         ConvertFrom-Utf8Base64String -Value '5bey5aGr5YaZ'
     }
 
-    Write-CodexProviderInputSection -Title (ConvertFrom-Utf8Base64String -Value '6YWN572u5pGY6KaB')
+    Write-CodexProviderInputSection `
+        -Title (ConvertFrom-Utf8Base64String -Value '6YWN572u5pGY6KaB') `
+        -Detail (ConvertFrom-Utf8Base64String -Value '6L+Z6YeM56Gu6K6k5pyA57uI5bCG5YaZ5YWlIENDIFN3aXRjaCBkZWVwIGxpbmsg55qE6YWN572u77ybQVBJIEtleSDlj6rmmL7npLrnirbmgIHjgII=')
     Write-CodexProviderInputLine -Label 'Provider' -Value $name.Trim()
     Write-CodexProviderInputLine -Label 'Base URL' -Value $baseUrl.Trim()
     Write-CodexProviderInputLine -Label 'Model' -Value $model.Trim()

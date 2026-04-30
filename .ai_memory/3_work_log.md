@@ -129,3 +129,11 @@
 - external skill 支持 git repo、zip/tar archive、local_path 三类自动来源；homepage-only 只告警提示人工处理。
 - MCP 写入覆盖 Codex、Claude Desktop、Claude Code、Cursor、Gemini CLI、Antigravity；隔离用户目录时跳过 Claude Code CLI 注册，避免污染真实配置。
 - 同步 README、docs 索引、Skill 导入契约和 `.ai_memory`，把 `00000-model/00-编程配置/registry/*.yaml` 明确为 Skill / MCP / prereq / Profile 唯一来源。
+
+## 2026-04-30
+
+- 重排应用安装顺序：预检查后立即输出“安装计划”，逐项标明安装、更新、跳过或检查失败，并给出统计。
+- 跳过项和检查失败项不再进入后续安装循环，只进入 Summary；实际安装阶段只处理安装 / 更新项，并区分“准备安装应用”和“准备更新应用”。
+- Skill 安装路径新增 `Skill Bundle 准备` 分区，先显示下载 / 读取 bundle 的阶段，再进入 Skill Profile 选择。
+- TUI 工作台、执行摘要和 CC Switch Provider 配置区补齐标题与分块说明；Provider 名称、Base URL、模型等预填值直接出现在输入提示里，回车保持、输入覆盖。
+- 同步 `docs/installer-flow.md` 和 `.ai_memory`，准备提交推送。

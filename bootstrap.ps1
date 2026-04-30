@@ -575,12 +575,17 @@ function Write-TuiHeader {
 function Write-TuiSection {
     param(
         [Parameter(Mandatory)]
-        [string]$Title
+        [string]$Title,
+        [string]$Detail
     )
 
     Write-Host ''
     Write-Host ('[{0}]' -f $Title) -ForegroundColor Cyan
     Write-Host ('-' * 64) -ForegroundColor DarkGray
+    if (-not [string]::IsNullOrWhiteSpace($Detail)) {
+        Write-Host $Detail -ForegroundColor DarkGray
+        Write-Host ''
+    }
 }
 
 function New-TuiOption {
@@ -700,18 +705,122 @@ function Get-TuiAppDecisionText {
         [pscustomobject]$Decision
     )
 
-    if ($Decision.Action -eq 'skip') {
-        if ($Decision.Reason -eq 'current') {
-            return ConvertFrom-BootstrapUtf8Base64String -Value '5bey5piv5pyA5paw'
-        }
+    return Get-BootstrapAppDecisionModeText -Decision $Decision
+}
 
+function Get-BootstrapAppDecisionModeText {
+    param(
+        [AllowNull()]
+        [pscustomobject]$Decision,
+        [switch]$Failed
+    )
+
+    if ($Failed) {
+        return ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l5aSx6LSl'
+    }
+
+    if ($null -eq $Decision) {
+        return ConvertFrom-BootstrapUtf8Base64String -Value '6ZyA6KaB56Gu6K6k'
+    }
+
+    if ($Decision.Action -eq 'skip') {
         return ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+H'
     }
 
-    switch ($Decision.Reason) {
-        'missing' { return (ConvertFrom-BootstrapUtf8Base64String -Value '57y65aSx') }
-        'outdated' { return (ConvertFrom-BootstrapUtf8Base64String -Value '5Y+v5pu05paw') }
-        default { return (ConvertFrom-BootstrapUtf8Base64String -Value '6ZyA56Gu6K6k') }
+    if ($Decision.Reason -eq 'outdated') {
+        return ConvertFrom-BootstrapUtf8Base64String -Value '5pu05paw'
+    }
+
+    if ($Decision.Action -eq 'install') {
+        return ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF'
+    }
+
+    return ConvertFrom-BootstrapUtf8Base64String -Value '6ZyA6KaB56Gu6K6k'
+}
+
+function Write-BootstrapAppPlan {
+    param(
+        [Parameter(Mandatory)]
+        [object[]]$Apps,
+        [Parameter(Mandatory)]
+        [hashtable]$PrecheckByKey
+    )
+
+    Write-Log -Message (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF6K6h5YiS')
+    Write-Log -Message (ConvertFrom-BootstrapUtf8Base64String -Value '6aKE5qOA5p+l5ZCO5b6X5Yiw55qE5bqU55So5omn6KGM6K6h5YiS77yb6Lez6L+H6aG55Y+q6K6w5b2V5Yiw5pGY6KaB77yM5LiN5YaN6L+b5YWl5a6J6KOF5q2l6aqk44CC')
+
+    $installCount = 0
+    $updateCount = 0
+    $skipCount = 0
+    $failedCount = 0
+
+    Write-Log -Message (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5Lit55qE5a6J6KOF5bqU55So5riF5Y2V77ya')
+    foreach ($app in ($Apps | Sort-Object order)) {
+        $precheck = $PrecheckByKey[[string]$app.key]
+        $failed = ($null -ne $precheck -and $precheck.Status -eq 'failed')
+        $decision = if ($null -ne $precheck) { $precheck.Decision } else { $null }
+        $mode = Get-BootstrapAppDecisionModeText -Decision $decision -Failed:$failed
+
+        if ($failed) {
+            $failedCount++
+        }
+        elseif ($null -ne $decision -and $decision.Action -eq 'skip') {
+            $skipCount++
+        }
+        elseif ($null -ne $decision -and $decision.Reason -eq 'outdated') {
+            $updateCount++
+        }
+        else {
+            $installCount++
+        }
+
+        Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'ICAtIHswfSAoezF9Ke+8mnsyfQ==') -f $app.name, $app.key, $mode)
+    }
+
+    Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '5bqU55So5omn6KGM6K6h5YiS77ya5a6J6KOFIHswfe+8jOabtOaWsCB7MX3vvIzot7Pov4cgezJ977yM5qOA5p+l5aSx6LSlIHszfQ==') -f $installCount, $updateCount, $skipCount, $failedCount)
+}
+
+function New-BootstrapAppPrecheckResult {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$App,
+        [Parameter(Mandatory)]
+        [pscustomobject]$Precheck
+    )
+
+    if ($Precheck.Status -eq 'failed') {
+        return [pscustomobject]@{
+            Name = $App.name
+            Key = $App.key
+            Status = 'failed'
+            Source = $App.strategy
+            Detail = ((ConvertFrom-BootstrapUtf8Base64String -Value '6aKE5qOA5p+l5byC5bi477yaezB9') -f $Precheck.Error)
+        }
+    }
+
+    $decision = $Precheck.Decision
+    if ($null -eq $decision -or $decision.Action -ne 'skip') {
+        return $null
+    }
+
+    $skipDetail = if ($decision.Reason -eq 'present') {
+        if ([string]::IsNullOrWhiteSpace([string]$decision.InstalledVersion)) {
+            ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5rWL5Yiw5bey5a6J6KOF77yb5bey5ZCv55SoIGluc3RhbGxJZk1pc3NpbmdPbmx5'
+        }
+        else {
+            (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5rWL5Yiw5bey5a6J6KOF77yIezB977yJ77yb5bey5ZCv55SoIGluc3RhbGxJZk1pc3NpbmdPbmx5') -f $decision.InstalledVersion
+        }
+    }
+    else {
+        '{0} >= {1}' -f $decision.InstalledVersion, $decision.DesiredVersion
+    }
+
+    return [pscustomobject]@{
+        Name = $App.name
+        Key = $App.key
+        Status = 'ok'
+        Source = 'precheck-skip'
+        Detail = $skipDetail
     }
 }
 
@@ -1287,15 +1396,18 @@ function Show-TuiReview {
             default { ConvertFrom-BootstrapUtf8Base64String -Value '5ZG95Luk5qih5byP6buY6K6k' }
         }
 
-        Write-TuiSection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5oup5pGY6KaB')
+        Write-TuiSection `
+            -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5oup5pGY6KaB') `
+            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6L+Z6YeM5rGH5oC75pys5qyh5bCG5omn6KGM55qE6L2v5Lu244CBU2tpbGzjgIHlnLrmma/lkozpmYTliqDlj4LmlbDjgII=')
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5omn6KGM5qih5byP'), $mode) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5Lit5bqU55So'), $appText) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwg6YCJ5oup'), $skillText) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGxzIE1hbmFnZXIg5Zy65pmv'), $scenarioText) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '6ZmE5Yqg5Y+C5pWw'), $optionText) -ForegroundColor Gray
 
-        Write-TuiSection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5omn6KGM5ZG95Luk')
-        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '56Gu6K6k5ZCO5bCG5omn6KGM5LiL6Z2i55qE5ZG95Luk44CC') -ForegroundColor DarkGray
+        Write-TuiSection `
+            -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5omn6KGM5ZG95Luk') `
+            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '56Gu6K6k5ZCO5bCG5omn6KGM5LiL6Z2i55qE5ZG95Luk77yb5Y+v5YWI5aSN5Yi25YaN6L+Q6KGM44CC')
         Write-Host $commandText -ForegroundColor Cyan
         Write-Host ''
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value 'RW50ZXIg5byA5aeL5omn6KGMICBDIOWkjeWItuWRveS7pCAgQiDov5Tlm54gIFEg6YCA5Ye6') -ForegroundColor DarkGray
@@ -1585,12 +1697,16 @@ function Show-TuiWorkbenchMenu {
         $summary = Get-TuiWorkbenchSummaryText -State $State
         Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value 'VFVJIOW3peS9nOWPsA==')
 
-        Write-TuiSection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5b2T5YmN6YCJ5oup')
+        Write-TuiSection `
+            -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5b2T5YmN6YCJ5oup') `
+            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6L+Z6YeM5pi+56S65bey6YCJ5oup55qE6L2v5Lu244CBU2tpbGwg5ZKM5Zy65pmv44CC')
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '6L2v5Lu2'), $summary.Software) -ForegroundColor DarkGray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGw='), $summary.Skill) -ForegroundColor DarkGray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5Zy65pmv5rOo5YaM'), $summary.Scenario) -ForegroundColor DarkGray
 
-        Write-TuiSection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5Y+v5omn6KGM5Yqo5L2c')
+        Write-TuiSection `
+            -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5Y+v5omn6KGM5Yqo5L2c') `
+            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5oup5LiL5LiA5q2l6KaB5qOA5p+l44CB6YCJ5oup5oiW5omn6KGM55qE5pON5L2c44CC')
         for ($i = 0; $i -lt $actions.Count; $i++) {
             $action = $actions[$i]
             $cursor = if ($i -eq $index) { '>' } else { ' ' }
@@ -1599,7 +1715,9 @@ function Show-TuiWorkbenchMenu {
             Write-Host ('  {0}' -f $action.Detail) -ForegroundColor DarkGray
         }
 
-        Write-TuiSection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5pON5L2c5o+Q56S6')
+        Write-TuiSection `
+            -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5pON5L2c5o+Q56S6') `
+            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5L2/55So5pa55ZCR6ZSu56e75Yqo77yMRW50ZXIg56Gu6K6k44CC')
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIEVudGVyIOmAieaLqSAgQiDov5Tlm54gIFEg6YCA5Ye6') -ForegroundColor DarkGray
         $key = [Console]::ReadKey($true)
         switch ($key.Key) {
@@ -1671,6 +1789,10 @@ function Invoke-BootstrapTuiWorkbench {
             }
             'skill-install' {
                 if (-not $skillProfilesLoaded) {
+                    Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwgQnVuZGxlIOWHhuWkhw==')
+                    Write-TuiSection `
+                        -Title (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwgQnVuZGxlIOWHhuWkhw==') `
+                        -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5YWI5LiL6L295oiW6K+75Y+WIHNraWxscy56aXDvvIznhLblkI7lho3ov5vlhaUgU2tpbGwgUHJvZmlsZSDpgInmi6njgII=')
                     $availableSkillProfiles = @(Get-BootstrapTuiSkillProfiles `
                             -Repo $BootstrapAssetsRepo `
                             -Tag $BootstrapAssetsTag `
@@ -2045,6 +2167,7 @@ if (-not $SkipApps -and $selectedApps.Count -gt 0) {
     foreach ($precheck in @(Get-AppInstallDecisionBatch -Definitions $selectedApps)) {
         $appPrecheckByKey[[string]$precheck.Key] = $precheck
     }
+    Write-BootstrapAppPlan -Apps $selectedApps -PrecheckByKey $appPrecheckByKey
 }
 
 if (-not $SkipSkills) {
@@ -2058,14 +2181,9 @@ if (-not $SkipSkills) {
 
 Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '5bel5L2c5Yy677yaezB9') -f $root)
 Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '5qih5byP77yaezB9') -f ($(if ($DryRun) { ConvertFrom-BootstrapUtf8Base64String -Value '5ryU57uD' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF' })))
-Write-Log -Message (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5Lit55qE5a6J6KOF5bqU55So5riF5Y2V77ya')
 if ($SkipApps) {
+    Write-Log -Message (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF6K6h5YiS')
     Write-Log -Message (ConvertFrom-BootstrapUtf8Base64String -Value 'ICAtIOi3s+i/h+i9r+S7tuWuieijhQ==')
-}
-else {
-    foreach ($app in ($selectedApps | Sort-Object order)) {
-        Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'ICAtIHswfSAoezF9KQ==') -f $app.name, $app.key)
-    }
 }
 
 $providerInfo = $null
@@ -2111,7 +2229,25 @@ if ($providerPrecheckResult) {
     $results.Add($providerPrecheckResult)
 }
 
-$progressTotalSteps = 1 + $selectedApps.Count
+$appsToRun = New-Object System.Collections.Generic.List[object]
+foreach ($app in ($selectedApps | Sort-Object order)) {
+    $appPrecheck = $appPrecheckByKey[[string]$app.key]
+    if ($null -ne $appPrecheck) {
+        $precheckResult = New-BootstrapAppPrecheckResult -App $app -Precheck $appPrecheck
+        if ($null -ne $precheckResult) {
+            $results.Add($precheckResult)
+            continue
+        }
+    }
+
+    $appsToRun.Add($app)
+}
+
+if (-not $SkipApps -and $appsToRun.Count -eq 0) {
+    Write-Log -Message (ConvertFrom-BootstrapUtf8Base64String -Value '5rKh5pyJ6ZyA6KaB5a6J6KOF5oiW5pu05paw55qE5bqU55So44CC')
+}
+
+$progressTotalSteps = 1 + $appsToRun.Count
 if (-not $SkipSkills) {
     $progressTotalSteps++
 }
@@ -2140,17 +2276,21 @@ catch {
 }
 
 $appInstallIndex = 0
-foreach ($app in ($selectedApps | Sort-Object order)) {
+foreach ($app in $appsToRun) {
     $appInstallIndex++
     try {
-        $appProgressStatus = (ConvertFrom-BootstrapUtf8Base64String -Value '5YeG5aSH5a6J6KOF5bqU55So77yaezB9ICh7MX0vezJ9KQ==') -f $app.name, $appInstallIndex, $selectedApps.Count
-        Write-BootstrapProgress -CompletedSteps $progressCompletedSteps -TotalSteps $progressTotalSteps -Status $appProgressStatus
         $appPrecheck = $appPrecheckByKey[[string]$app.key]
-        if ($null -ne $appPrecheck -and $appPrecheck.Status -eq 'failed') {
-            throw ((ConvertFrom-BootstrapUtf8Base64String -Value '6aKE5qOA5p+l5byC5bi477yaezB9') -f $appPrecheck.Error)
-        }
-
         $installDecision = if ($null -ne $appPrecheck) { $appPrecheck.Decision } else { $null }
+        $appProgressStatus = if ($null -ne $installDecision -and $installDecision.Reason -eq 'outdated') {
+            (ConvertFrom-BootstrapUtf8Base64String -Value '5YeG5aSH5pu05paw5bqU55So77yaezB9ICh7MX0vezJ9KQ==') -f $app.name, $appInstallIndex, $appsToRun.Count
+        }
+        elseif ($null -ne $installDecision -and $installDecision.Action -ne 'install') {
+            (ConvertFrom-BootstrapUtf8Base64String -Value '5YeG5aSH5aSE55CG5bqU55So77yaezB9ICh7MX0vezJ9KQ==') -f $app.name, $appInstallIndex, $appsToRun.Count
+        }
+        else {
+            (ConvertFrom-BootstrapUtf8Base64String -Value '5YeG5aSH5a6J6KOF5bqU55So77yaezB9ICh7MX0vezJ9KQ==') -f $app.name, $appInstallIndex, $appsToRun.Count
+        }
+        Write-BootstrapProgress -CompletedSteps $progressCompletedSteps -TotalSteps $progressTotalSteps -Status $appProgressStatus
         $result = Install-AppFromDefinition -Definition $app -WorkspaceRoot $root -InstallDecision $installDecision -DryRun:$DryRun
         $results.Add($result)
         $progressCompletedSteps++

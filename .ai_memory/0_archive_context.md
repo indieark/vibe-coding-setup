@@ -354,3 +354,33 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 - 多个 Profile dry-run 通过：前端开发套件、中文办公自动化套件、媒体创作套件、演示文稿与文档套件。
 - 隔离用户目录下 MCP 写入覆盖 Codex、Claude Desktop、Cursor、Gemini CLI、Antigravity。
 - 临时 bundle 验证 `local_path` 和 `archive_url` external skill 可真实导入。
+
+## 2026-04-30 — 安装计划顺序与分区显示重排
+
+### 核心议题背景
+
+用户在并行预检查落地后继续指出，安装器虽然已经先检查是否存在、已存在才查版本，但整体顺序和显示仍不够清晰：Skill 下载应在 Skill 选择前可见；预检查后的选中安装清单应立即展示每项模式；跳过项不应继续出现后续安装提示；每个区域都应有标题、分块和必要播报，特别是 CC Switch Provider 的地址、API、名称等输入区。
+
+### Cognitive Evolution Path
+
+1. 先保留既有核心约束：应用预检查并行，但实际安装继续按 manifest `order` 串行，避免多个安装器同时竞争锁。
+2. 把预检查结果前置为用户可见的“安装计划”：逐项输出安装、更新、跳过或检查失败，并统计四类数量。
+3. 把跳过和检查失败从安装循环中剥离：它们只写入 Summary，不再占用实际安装进度，也不再打印“准备安装”提示。
+4. 区分安装与更新的执行播报：安装项显示“准备安装应用”，更新项显示“准备更新应用”，避免用户把更新误读为重装。
+5. 重排 Skill 安装入口：进入 Skill Profile 选择前先展示 `Skill Bundle 准备` 分区，让下载 / 读取 bundle 的动作有明确阶段。
+6. 补齐分区显示：TUI 工作台、执行摘要和 CC Switch Provider 配置区都增加标题与说明；Provider 预填值直接进入输入提示，回车保持，输入覆盖；API Key 仍保持隐藏和脱敏。
+
+### 当前结论
+
+- 预检查现在不仅决定执行策略，也成为后续安装计划的唯一来源。
+- “跳过”语义已经从后续安装流程中移出，只保留在计划和 Summary 中。
+- CC Switch Provider 配置区已经按说明、默认值、输入区、API Key、配置摘要拆分，减少阅读压力。
+- `docs/installer-flow.md` 已同步新的阶段顺序。
+
+### 验证闭环
+
+- `Import-Module .\modules\common.psm1 -Force`。
+- `bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only git`。
+- `bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only codex-provider-sync`。
+- `Read-CodexProviderInput` 预设值显示验证，未打印 API Key 明文。
+- `git diff --check`。

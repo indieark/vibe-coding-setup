@@ -22,7 +22,7 @@
 
 ## 稳定事实
 
-- 应用安装先做 precheck，再按主来源 / fallback 执行；主安装失败后会先 post-check，再决定是否 fallback。
+- 应用安装先做并行 precheck，再输出“安装计划”；缺失项不查版本并进入安装，已存在项才查目标版本并决定更新或跳过。跳过项和检查失败项只进入执行摘要，不再进入后续安装循环；实际安装阶段只处理“安装 / 更新”项。
 - `skills.zip` 独立于应用安装；只要未传 `-SkipSkills`，脚本会在需要读取 Profile 或导入 Skill 时按需获取，并在应用阶段后尝试导入。
 - `skills.zip` 由 `indieark/00000-model` registry bundle 构建，经当前仓库 `bootstrap-assets` 镜像为公开资产后分发，终端用户机器不需要 PAT。
 - TUI 首屏不预取 `skills.zip`；只有进入 Skill 复选页需要读取 Profile，或后续安装 / 演练实际要导入 Skill 时才按需获取。
@@ -33,6 +33,7 @@
 - MCP 写入由 `registry/mcp.yaml` 与 Profile 引用驱动，目前覆盖 Codex、Claude Desktop、Claude Code、Cursor、Gemini CLI 和 Antigravity；Antigravity 的目标文件是 `~/.gemini/antigravity/mcp_config.json`。
 - 同名 Skill 三态判定已经落地：`Tracked` 增量同步，`Orphan` 默认备份替换，`Foreign` 默认跳过。
 - `CC Switch` Provider 导入只走 `ccswitch://v1/import` deep link，不写 SQLite。
+- `CC Switch` Provider 配置区按“说明 / 当前默认值 / 输入区 / API Key / 配置摘要”分块展示，每块都有标题和说明；Provider 名称、Base URL、模型等预填值直接显示在输入提示里，回车保持，输入则覆盖。API Key 继续隐藏输入，预设密钥只显示来源不显示内容。
 - 面向用户的脚本提示、日志、错误和执行摘要默认使用简体中文；为兼容 Windows PowerShell 5.1，脚本文案通过 UTF-8 base64 解码输出，源码文件保持 UTF-8 无 BOM。
 - `bootstrap.ps1` 内置拟似 TUI 与原命令模式：无安装参数或显式 `-Tui` 时进入 TUI；带 `-Only`、`-DryRun`、`-SkipSkills` 等操作参数时继续走原自动化模式；TUI 首屏保留“默认安装（原来模式）”“TUI 模式”“安全演练”，其中 TUI 模式进入控制台工作台。
 - TUI 工作台聚焦任务动作：检查软件状态、安装 / 更新软件、检查 Skill 状态、安装 Skill、执行摘要；复选主要用于 Skill Profile，软件选择放在安装 / 更新软件动作下。
