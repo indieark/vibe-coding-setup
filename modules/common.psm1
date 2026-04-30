@@ -25,6 +25,15 @@ function Write-Log {
     Write-Host ('[{0}] [{1}] {2}' -f $timestamp, $levelText, $Message)
 }
 
+function Test-ConsoleProgressRendering {
+    try {
+        return ([Environment]::UserInteractive -and -not [Console]::IsOutputRedirected)
+    }
+    catch {
+        return $false
+    }
+}
+
 function Write-OperationProgress {
     param(
         [Parameter(Mandatory)]
@@ -35,6 +44,7 @@ function Write-OperationProgress {
     )
 
     $barWidth = 20
+    $canRenderInPlace = Test-ConsoleProgressRendering
     if ($Completed) {
         $percentValue = 100
     }
@@ -62,6 +72,10 @@ function Write-OperationProgress {
     }
 
     if ($null -eq $Percent -and -not $Completed) {
+        if (-not $canRenderInPlace) {
+            return
+        }
+
         $line = Format-OperationProgressLine -Text ('  {0} {1}{2}' -f $Label, (ConvertFrom-Utf8Base64String -Value '6L+Q6KGM5Lit'), $suffix)
         Write-Host ("`r{0}" -f $line) -ForegroundColor Cyan -NoNewline
         $script:OperationProgressLineActive = $true
@@ -81,6 +95,13 @@ function Write-OperationProgress {
     $percentText = if ($null -ne $Percent -or $Completed) { '{0,3}%' -f $percentValue } else { ConvertFrom-Utf8Base64String -Value '6L+Q6KGM5Lit' }
 
     $line = Format-OperationProgressLine -Text ('  {0} {1} {2}{3}' -f $Label, $bar, $percentText, $suffix)
+    if (-not $canRenderInPlace) {
+        if ($Completed) {
+            Write-Host $line -ForegroundColor Cyan
+        }
+        return
+    }
+
     if ($Completed) {
         Write-Host ("`r{0}" -f $line) -ForegroundColor Cyan
         $script:OperationProgressLineActive = $false

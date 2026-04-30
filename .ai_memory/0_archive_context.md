@@ -318,3 +318,11 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 文档同步到 `README.md`、`docs/README.md`、`docs/operations.md`、`docs/installer-flow.md`、`docs/skill-import.md` 和 `docs/roadmap.md`；稳定事实同步到 `.ai_memory/1_project_context.md`，当前状态同步到 `.ai_memory/2_active_task.md`，流水追加到 `.ai_memory/3_work_log.md`。
 
 验证覆盖脚本解析、模块导入、`git diff --check`、旧 `-Only git` dry-run、`-SkillsManagerScenarioMode skip` dry-run、`-SkillsManagerScenarioMode custom` dry-run，以及 TUI 工作台从 Skill 复选到场景注册和执行摘要的冒烟验证。
+
+## 2026-04-30 — 捕获输出中的进度刷屏修复
+
+用户发现 `skills.zip` 解压进度在 Codex 输出里又变成多段连续文本。根因不是重新调用了 `Expand-Archive`，而是脚本自绘进度使用 `\r` 回车覆盖，真实终端会覆盖同一行，但 Codex / CI / 日志重定向这类捕获环境会把每次刷新保留下来，看起来像多行刷屏。
+
+本次在 `modules/common.psm1` 的 `Write-OperationProgress` 和 `bootstrap.ps1` 的 `Write-BootstrapDownloadProgress` 增加输出环境判断：只有交互式且 stdout 未重定向时才使用回车覆盖动态刷新；非交互或捕获输出环境跳过中间百分比，只打印完成行。这样真实 Windows Terminal 仍保持现代化单行进度，聊天 / 日志捕获里不会再展开 4%、9%、14% 等中间状态。
+
+文档同步到 `docs/operations.md` 和 `docs/installer-flow.md`，长期事实同步到 `.ai_memory/1_project_context.md`，当前状态与流水同步到 `.ai_memory/2_active_task.md` 和 `.ai_memory/3_work_log.md`。

@@ -18,7 +18,7 @@
 - `bootstrap.cmd` 远程自举传入的内部参数不再导致跳过 TUI；UAC 提权交接窗口会提示“已打开管理员窗口继续安装”，不再误报“安装已完成”。
 - UAC 重启时数组参数会压缩为逗号形式，避免 `cc-switch` 这类应用 key 被 PowerShell 误解析为位置参数。
 - 命令模式启动时会输出“选中的安装应用清单”，按行列出应用名称与 key，便于确认本次实际安装范围。
-- 安装执行阶段总进度使用 `[当前/总数] 当前步骤` 文字；应用内部下载、winget 下载 / 安装和 Skill bundle 解压使用脚本自绘进度条，静默 MSI/EXE 无真实百分比时显示运行中和耗时；不再调用 `Write-Progress` 绘制独立宿主进度区域。winget 输出会过滤许可证、免责声明和重复进度行，并中文化常见状态。
+- 安装执行阶段总进度使用 `[当前/总数] 当前步骤` 文字；应用内部下载、winget 下载 / 安装和 Skill bundle 解压使用脚本自绘进度条，静默 MSI/EXE 无真实百分比时显示运行中和耗时；不再调用 `Write-Progress` 绘制独立宿主进度区域。winget 输出会过滤许可证、免责声明和重复进度行，并中文化常见状态；Codex / CI / 日志重定向这类捕获输出只保留进度完成行，避免回车覆盖被展开成多行。
 - 自举依赖和 Release 资产下载也使用脚本自绘进度条，避免 `downloads/skills.zip` 这类大资产下载时看起来卡住。
 - Skill bundle 解压已从 `Expand-Archive` 改为 .NET `ZipFile` 流式解压，并复用脚本自绘同一行进度；同时加入 zip-slip 越界路径防护，避免 PowerShell 宿主蓝色进度区域。
 - 真实安装触发 UAC 时会优先用 Windows Terminal 承载管理员 PowerShell；系统没有 `wt.exe` 时才回退经典 PowerShell 窗口。
@@ -26,7 +26,7 @@
 - Skill 导入日志已从逐目标长路径明细收敛为按 skill 聚合的进度与结果，正常流程不再刷屏；警告和失败仍保留明确路径与原因。
 - Profile 交互菜单提示已收敛为“可输入序号/名称，多个可用英文逗号、中文逗号或顿号分隔；输入 0 安装全部 Skill”，不再在交互菜单里展示命令行参数说明；直接回车会跳过 Skill 导入。
 - TUI 默认安装在未选择 Skill Profile 时不会再把空 `-SkillProfile` 带入 UAC / Windows Terminal 重启参数；空数组会被清洗并跳过。
-- 本轮安装器体验修复正在收尾；最近改动覆盖默认安装逻辑、进度/终端体验、Skill 选择提示、空 `SkillProfile`、中文多选分隔符、TUI 英文输入布局增强、Skill bundle 按需获取、winget 输出收敛和 Skills Manager 场景注册选择。当前待完成最终验证、提交和推送。
+- 本轮安装器体验修复已收口并推送；最近改动覆盖默认安装逻辑、进度/终端体验、Skill 选择提示、空 `SkillProfile`、中文多选分隔符、TUI 英文输入布局增强、Skill bundle 按需获取、winget 输出收敛、捕获输出进度降噪和 Skills Manager 场景注册选择。
 
 ## 当前未完成项
 

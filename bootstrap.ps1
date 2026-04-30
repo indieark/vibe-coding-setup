@@ -112,6 +112,15 @@ function Write-BootstrapMessage {
     Write-Host ('[bootstrap] {0}' -f $Message)
 }
 
+function Test-BootstrapProgressRendering {
+    try {
+        return ([Environment]::UserInteractive -and -not [Console]::IsOutputRedirected)
+    }
+    catch {
+        return $false
+    }
+}
+
 function Get-CurrentPowerShellExecutable {
     try {
         $currentProcess = Get-Process -Id $PID -ErrorAction Stop
@@ -355,6 +364,14 @@ function Write-BootstrapDownloadProgress {
     $emptyChar = [char]0x2591
     $bar = (([string]$filledChar) * $filled) + (([string]$emptyChar) * $empty)
     $line = ('[bootstrap] {0} [{1}] {2,3}% {3}' -f $Label, $bar, $safePercent, $Detail)
+    $canRenderInPlace = Test-BootstrapProgressRendering
+
+    if (-not $canRenderInPlace) {
+        if ($Completed) {
+            Write-Host $line
+        }
+        return
+    }
 
     if ($Completed) {
         Write-Host ("`r{0}" -f $line)
