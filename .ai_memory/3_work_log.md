@@ -83,3 +83,8 @@
 
 - 提升多选输入兼容性：Profile / app 选择解析现在支持英文逗号 `,`、中文逗号 `，` 和顿号 `、`。
 - 同步更新 Profile 交互提示与 `docs/skill-import.md`，避免文档仍只写“逗号分隔”。
+
+## 2026-04-30
+
+- 强化 TUI 进入前的英文输入布局切换：保留 `LoadKeyboardLayout` / `ActivateKeyboardLayout` 当前进程路径，并补充向前台终端窗口发送 `WM_INPUTLANGCHANGEREQUEST`。
+- 该实现仍按 Windows 会话和焦点限制做 best-effort，不改用户系统输入法配置；验证通过脚本解析和 `-Tui -DryRun -SkipSkills -SkipCcSwitch` 首屏退出。

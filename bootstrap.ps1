@@ -149,13 +149,31 @@ public static class BootstrapKeyboardLayout
 
     [DllImport("user32.dll")]
     public static extern IntPtr ActivateKeyboardLayout(IntPtr hkl, uint Flags);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool PostMessage(IntPtr hWnd, uint Msg, UIntPtr wParam, IntPtr lParam);
 }
 '@
         }
 
-        $englishLayout = [BootstrapKeyboardLayout]::LoadKeyboardLayout('00000409', 1)
+        $klfActivate = 0x00000001
+        $klfSubstituteOk = 0x00000002
+        $klfReorder = 0x00000008
+        $klfSetForProcess = 0x00000100
+        $wmInputLangChangeRequest = 0x0050
+        $inputLangChangeSysCharset = [UIntPtr]::new(0x0001)
+
+        $englishLayout = [BootstrapKeyboardLayout]::LoadKeyboardLayout('00000409', ($klfActivate -bor $klfSubstituteOk -bor $klfReorder -bor $klfSetForProcess))
         if ($englishLayout -ne [IntPtr]::Zero) {
-            [void][BootstrapKeyboardLayout]::ActivateKeyboardLayout($englishLayout, 0)
+            [void][BootstrapKeyboardLayout]::ActivateKeyboardLayout($englishLayout, ($klfReorder -bor $klfSetForProcess))
+
+            $foregroundWindow = [BootstrapKeyboardLayout]::GetForegroundWindow()
+            if ($foregroundWindow -ne [IntPtr]::Zero) {
+                [void][BootstrapKeyboardLayout]::PostMessage($foregroundWindow, $wmInputLangChangeRequest, $inputLangChangeSysCharset, $englishLayout)
+            }
         }
     }
     catch {
