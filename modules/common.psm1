@@ -2641,7 +2641,7 @@ function Select-SkillDirectoriesForProfiles {
 
     if ($tokens.Count -eq 0) {
         Write-Host ''
-        Write-Host (ConvertFrom-Utf8Base64String -Value '5ZG95Luk5qih5byP6YCJ5oup5pa55byP77yaLVNraWxsUHJvZmlsZSAi5ZCN56ewMSIsIuWQjeensDIiIOmAieaLqSBQcm9maWxl77yMLUFsbFNraWxscyDlr7zlhaXlhajpg6jvvIwtU2tpcFNraWxscyDot7Pov4cgU2tpbGzjgILnm7TmjqXlm57ovabpu5jorqTlr7zlhaXlhajpg6ggU2tpbGzjgII=')
+        Write-Host (ConvertFrom-Utf8Base64String -Value '5Y+v6L6T5YWl5bqP5Y+3L+WQjeensO+8jOWkmuS4queUqOmAl+WPt+WIhumalO+8m+ebtOaOpeWbnui9puWuieijheWFqOmDqCBTa2lsbOOAgg==')
         Write-Host (ConvertFrom-Utf8Base64String -Value '6K+36YCJ5oup6KaB5a6J6KOF55qEIEluZGllQXJrIFByb2ZpbGXvvIjlj6/ovpPlhaXluo/lj7cv5ZCN56ew77yM5aSa5Liq55So6YCX5Y+35YiG6ZqU77yb55u05o6l5Zue6L2m5a6J6KOF5YWo6YOoIHNraWxs77yJ77ya')
         Write-Host (ConvertFrom-Utf8Base64String -Value 'ICAwLiDlhajpg6ggc2tpbGzvvIjlhbzlrrnml6fpgLvovpHvvIk=')
         for ($index = 0; $index -lt $Profiles.Count; $index++) {

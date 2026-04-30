@@ -69,3 +69,4 @@
 - 修复 UAC 重启时数组参数被拆成多个位置参数的问题：`ConvertTo-ArgumentTokens` 会把数组压缩成逗号形式，例如 `-Only "git,nodejs,cc-switch"`。
 - 验证通过：脚本解析、数组参数 token 生成、默认安装内部标记 dry-run 全量路径、`-Only "git,nodejs,cc-switch"` dry-run、`-Tui` 首屏退出、`git diff --check`。
 - 调整提权窗口与进度显示体验：UAC 后优先用 Windows Terminal 承载管理员 PowerShell；关闭 `Write-Progress`；总进度保留文字，应用内部下载和 winget 百分比显示自绘进度条，静默 MSI/EXE 显示运行中和耗时；进入 TUI 前 best-effort 切换英文键盘布局。
+- 精简 Profile 交互菜单提示：移除 `-SkillProfile` / `-AllSkills` / `-SkipSkills` 参数说明，只保留序号/名称、逗号多选和回车安装全部 Skill。

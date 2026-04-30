@@ -22,7 +22,7 @@
 - 不传 Profile 且处于交互式终端：显示中文选择菜单。
 - 非交互式且未传 Profile：自动回退为全部导入，保持旧逻辑可用。
 
-命令模式会在 Profile 交互菜单前提示选择方式：`-SkillProfile "名称1","名称2"` 选择 Profile，`-AllSkills` 导入全部，`-SkipSkills` 跳过 Skill；直接回车默认导入全部 Skill。
+Profile 交互菜单只提示：可输入序号/名称，多个用逗号分隔；直接回车安装全部 Skill。
 
 ## 目标目录
 

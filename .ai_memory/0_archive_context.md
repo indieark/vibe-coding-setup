@@ -210,7 +210,7 @@ Skill 导入的安全边界已经收敛为三态：`Tracked` 表示 IndieArk 可
 
 本次继续坚持“不新增入口文件”的约束，只在 `bootstrap.ps1` 与 `modules/common.psm1` 内修复体验。`BootstrapSourceRoot`、`BootstrapAssetsRepo`、`BootstrapAssetsTag` 被识别为自举内部参数，不再导致跳过 TUI；UAC 交接后当前窗口提示已打开管理员窗口继续安装，不再显示完成文案。
 
-TUI 自定义流程新增 Skill Profile 复选页，运行时从 `downloads/skills.zip` 的 registry 读取真实 Profile，默认选择“全部 Skill”，也可选择一个或多个 Profile 并生成 `-SkillProfile` 命令预览。命令模式也明确提示 `-SkillProfile`、`-AllSkills`、`-SkipSkills` 的选择方式和默认行为。
+TUI 自定义流程新增 Skill Profile 复选页，运行时从 `downloads/skills.zip` 的 registry 读取真实 Profile，默认选择“全部 Skill”，也可选择一个或多个 Profile 并生成 `-SkillProfile` 命令预览。Profile 交互菜单保持简洁，只提示可输入序号/名称、多个用逗号分隔、直接回车安装全部 Skill。
 
 安装执行阶段新增总步骤进度：工作区准备、每个应用、Skill 导入和 CC Switch Provider 导入都会显示 `[当前/总数]`。Skill 导入日志从逐目标长路径明细收敛为按 skill 聚合的进度与结果，dry-run 的 skills-manager DB 注册也改为计数摘要。
 
