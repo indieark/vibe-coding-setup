@@ -326,3 +326,31 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 本次在 `modules/common.psm1` 的 `Write-OperationProgress` 和 `bootstrap.ps1` 的 `Write-BootstrapDownloadProgress` 增加输出环境判断：只有交互式且 stdout 未重定向时才使用回车覆盖动态刷新；非交互或捕获输出环境跳过中间百分比，只打印完成行。这样真实 Windows Terminal 仍保持现代化单行进度，聊天 / 日志捕获里不会再展开 4%、9%、14% 等中间状态。
 
 文档同步到 `docs/operations.md` 和 `docs/installer-flow.md`，长期事实同步到 `.ai_memory/1_project_context.md`，当前状态与流水同步到 `.ai_memory/2_active_task.md` 和 `.ai_memory/3_work_log.md`。
+
+## 2026-04-30 — registry 驱动 Skill / MCP 安装闭环
+
+### 核心议题背景
+
+用户指出 `vibe-coding-setup` 的来源应是 `00000-model`，而 `00000-model` 里额外整理的视频、办公等 Skill 套件没有被安装器正常打包安装；同时 CLI 依赖、GitHub / 飞书工具、MCP 和 Antigravity 也需要纳入后续可扩展安装边界。
+
+### Cognitive Evolution Path
+
+1. 先确认根因不是单个 Profile 漏选，而是旧安装器主要消费离线 bundled skills，没有完整消费 `registry.tar.gz` 里的 external skills、MCP 和 prereqs。
+2. 把来源责任收敛到 `00000-model/00-编程配置/registry/*.yaml`：profiles 只引用 skill / mcp 名称，requires 只引用 prereqs，安装器不再维护另一份清单。
+3. 扩展安装器行为：external skill 支持 git repo、archive、local_path；homepage-only 只提示人工处理，避免把不可安装来源伪装成成功。
+4. 扩展 prereq / CLI 处理：按 `check` 先判定缺失，再走平台字段或通用包管理器命令；单项失败汇总告警，不阻断其它可安装项。
+5. 扩展 MCP 写入目标：Codex、Claude Desktop、Claude Code、Cursor、Gemini CLI、Antigravity。Antigravity 独立写入 `~/.gemini/antigravity/mcp_config.json`。
+6. 测试路径引入 `VIBE_CODING_USER_HOME` 隔离；在隔离环境下跳过 Claude Code CLI 注册，防止真实用户配置被测试污染。
+
+### 当前结论
+
+- `vibe-coding-setup` 现在是 registry 消费者；Skill / MCP / prereq / Profile 来源仍由 `00000-model` 维护。
+- 用户手册入口已同步到 `README.md`、`docs/README.md` 和 `docs/skill-import.md`，不复制 registry 清单。
+- 下一步若新增 github、飞书或其它 CLI，只应先加 `00000-model` 的 `prereqs.yaml` 和引用方 `requires`。
+
+### 验证闭环
+
+- `modules/common.psm1` import 通过。
+- 多个 Profile dry-run 通过：前端开发套件、中文办公自动化套件、媒体创作套件、演示文稿与文档套件。
+- 隔离用户目录下 MCP 写入覆盖 Codex、Claude Desktop、Cursor、Gemini CLI、Antigravity。
+- 临时 bundle 验证 `local_path` 和 `archive_url` external skill 可真实导入。

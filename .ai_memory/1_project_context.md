@@ -15,6 +15,7 @@
 - 资产刷新说明：`docs/asset-refresh.md`
 - 本机运行命令：`docs/operations.md`
 - 后续路线：`docs/roadmap.md`
+- Skill / MCP / prereq / Profile 来源数据：`indieark/00000-model/00-编程配置/registry/*.yaml`
 - TUI 现代化工作台计划：`plans/2026-04-30-tui-modernization-workbench.md`
 - PAT / Secret 治理：`.agent/rules/pat-secret-governance.md`
 - 文档治理规则：`.agent/rules/documentation-governance.md`
@@ -27,6 +28,9 @@
 - TUI 首屏不预取 `skills.zip`；只有进入 Skill 复选页需要读取 Profile，或后续安装 / 演练实际要导入 Skill 时才按需获取。
 - 下载、winget 下载 / 安装和 Skill bundle 解压统一使用脚本自绘同一行进度；winget 输出会过滤许可证、免责声明和重复进度行，并中文化常见状态；Skill bundle 解压不再调用 `Expand-Archive`，避免 PowerShell 宿主蓝色进度区域。非交互捕获输出不打印中间百分比，只保留完成行，避免 `\r` 被展开成多行刷屏。
 - Skill 导入是“Profile 选择 + `.skill-meta.json` 来源判定 + 增量同步 + Skills Manager SQLite 注册”的组合流程。
+- registry 驱动导入已经支持 bundled skill、external skill、MCP 和前置依赖。external skill 可从 `repo`、`archive_url` / `download_url`、`local_path` 自动导入；只有 `homepage` 的条目只提示人工处理。
+- 前置依赖由 `registry/prereqs.yaml` 驱动，安装器按 `check` 先判定，再根据平台和 `command` / `npm` / `pipx` / `pip` / `brew` / `winget` / `scoop` 等安装方式处理；单项失败汇总告警，不阻断后续可安装项。
+- MCP 写入由 `registry/mcp.yaml` 与 Profile 引用驱动，目前覆盖 Codex、Claude Desktop、Claude Code、Cursor、Gemini CLI 和 Antigravity；Antigravity 的目标文件是 `~/.gemini/antigravity/mcp_config.json`。
 - 同名 Skill 三态判定已经落地：`Tracked` 增量同步，`Orphan` 默认备份替换，`Foreign` 默认跳过。
 - `CC Switch` Provider 导入只走 `ccswitch://v1/import` deep link，不写 SQLite。
 - 面向用户的脚本提示、日志、错误和执行摘要默认使用简体中文；为兼容 Windows PowerShell 5.1，脚本文案通过 UTF-8 base64 解码输出，源码文件保持 UTF-8 无 BOM。
@@ -41,6 +45,6 @@
 - README 只做入口索引，不维护应用来源表、PAT 表或完整安装流程。
 - 一个专题只能有一个说明入口；其它文件只链接，不复制完整规则。
 - 修改应用安装项时，先改 `manifest/apps.json`，再按需要更新 `docs/installer-flow.md` 或 `docs/asset-refresh.md`。
-- 修改 Skill 导入行为时，更新 `docs/skill-import.md` 和 `.ai_memory/2_active_task.md`。
+- 修改 Skill / MCP / prereq / Profile 来源时，先更新 `00000-model/00-编程配置/registry/*.yaml`；修改安装器消费行为时，再更新 `docs/skill-import.md` 和 `.ai_memory/2_active_task.md`。
 - 修改 PAT / Secret 规则时，只更新 `.agent/rules/pat-secret-governance.md`，其它文档保留链接。
 - 修改文档结构时，遵循 `.agent/rules/documentation-governance.md`。

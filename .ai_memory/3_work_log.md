@@ -122,3 +122,10 @@
 - 主安装循环复用预检查结果，实际安装仍按 manifest `order` 串行执行，避免多个安装器同时运行产生锁冲突。
 - TUI 软件状态页复用批量预检查结果；工作台菜单、执行确认页和 CC Switch Provider 输入流程增加分段标题、默认值来源和密钥摘要显示。
 - 验证通过：缺失项单项/批量决策不会查询 latest，`-DryRun -SkipSkills -SkipCcSwitch -Only git` 主流程 dry-run，`git diff --check`。
+
+## 2026-04-30
+
+- 扩展 Skill bundle 消费逻辑：安装器读取 registry 中的 skills / mcp / prereqs / profiles，支持 bundled skill、external skill、前置 CLI 依赖和 MCP 写入。
+- external skill 支持 git repo、zip/tar archive、local_path 三类自动来源；homepage-only 只告警提示人工处理。
+- MCP 写入覆盖 Codex、Claude Desktop、Claude Code、Cursor、Gemini CLI、Antigravity；隔离用户目录时跳过 Claude Code CLI 注册，避免污染真实配置。
+- 同步 README、docs 索引、Skill 导入契约和 `.ai_memory`，把 `00000-model/00-编程配置/registry/*.yaml` 明确为 Skill / MCP / prereq / Profile 唯一来源。

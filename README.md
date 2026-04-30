@@ -26,6 +26,7 @@
 - 安装阶段显示总步骤进度，并在命令日志中列出本次实际安装清单。
 - 使用 `.skill-meta.json` 识别 Skill 来源，并由用户选择是否写入 Skills Manager 默认场景或自定义场景。
 - 对同名 Skill 做安全三态判定：已跟踪、旧孤儿、第三方同名。
+- 按 `00000-model` registry 自动处理 bundled / external Skill、MCP 配置和前置 CLI 依赖。
 ## 快速开始
 
 ### 本地仓库运行
@@ -59,7 +60,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 | 失败回退 | 主来源失败后 post-check，仍失败才使用 fallback |
 | 资产镜像 | 私库资产只在 GitHub Actions 中读取，终端用户只访问公开 `bootstrap-assets` |
 | TUI 入口 | 无安装参数默认进入拟似 TUI；显式参数继续支持旧命令模式 |
-| Skill 导入 | `skills.zip` 内置 registry 和 Profile，TUI 与命令模式都支持按需导入，并可选择 Skills Manager 场景注册方式 |
+| Skill / MCP 导入 | `skills.zip` 内置 registry 和 Profile，TUI 与命令模式都支持按需导入 bundled / external Skill、前置 CLI 依赖和 MCP 配置，并可选择 Skills Manager 场景注册方式 |
 | 输入兼容 | TUI 进入前 best-effort 切英文输入布局；多选分隔支持 `,`、`，`、`、` |
 | 去重安全 | `Tracked / Orphan / Foreign` 三态判定，默认备份不删除 |
 | 进度展示 | 工作区、应用、Skill 和 CC Switch Provider 阶段显示 `[当前/总数]`；winget 输出会过滤噪音并中文化常见状态 |
@@ -89,12 +90,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 
 - 应用名称、安装策略、版本门禁和 fallback 文件名只在 `manifest/apps.json` 定义。
 - 安装执行行为以 `bootstrap.ps1` 和 `modules/common.psm1` 为准。
-- Skill registry / Profile / bundle 来源以 `indieark/00000-model` 的 `registry/*.yaml` 和 bundle 构建结果为准。
+- Skill / MCP / prereq / Profile / bundle 来源以 `indieark/00000-model` 的 `00-编程配置/registry/*.yaml` 和 bundle 构建结果为准；安装器行为说明入口是 [Skill 导入契约](docs/skill-import.md)。
 - PAT / Secret 规则只在 `.agent/rules/pat-secret-governance.md` 维护。
 - `.ai_memory/` 只记录接手上下文，不作为用户手册或规则源。
 ## 当前状态
 
-- `main` 已包含按需装机器 Phase 1-4：私库 bundle 镜像、Profile 选择、Skill meta 透传、三态去重。
+- `main` 已包含按需装机器 Phase 1-4：私库 bundle 镜像、Profile 选择、Skill meta 透传、三态去重，以及 registry 驱动的 external Skill / prereq / MCP 写入。
 - 安装器已包含集成拟似 TUI 工作台、运行时 Skill Profile 复选、UAC 交接提示和安装进度展示。
 - Phase 5 飞书只读镜像在 `indieark/00000-model` 侧按计划推进。
 - 下一步安装器增强应优先围绕可观测、可校验、可回滚，而不是继续堆安装项。

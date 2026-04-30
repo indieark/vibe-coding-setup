@@ -262,6 +262,19 @@ function Get-UserLocalAppDataDirectory {
     return $null
 }
 
+function Get-UserRoamingAppDataDirectory {
+    $homeDir = Get-UserHomeDirectory
+    if (-not [string]::IsNullOrWhiteSpace($homeDir)) {
+        return (Join-Path $homeDir 'AppData\Roaming')
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:APPDATA)) {
+        return $env:APPDATA
+    }
+
+    return $null
+}
+
 function Initialize-CodexWorkspaceDirectory {
     param(
         [switch]$DryRun
@@ -3057,6 +3070,755 @@ function Get-ProfilePrereqNames {
     return @($prereqs | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
 }
 
+function Read-RegistrySkillEntries {
+    param(
+        [Parameter(Mandatory)]
+        [string]$RegistryRoot
+    )
+
+    $path = Join-Path $RegistryRoot 'skills.yaml'
+    if (-not (Test-Path -LiteralPath $path)) {
+        return @()
+    }
+
+    $entries = New-Object System.Collections.Generic.List[object]
+    $section = ''
+    $current = $null
+    $inSource = $false
+    foreach ($rawLine in (Get-Content -Encoding UTF8 -LiteralPath $path)) {
+        $line = $rawLine.TrimEnd()
+        $trimmed = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#')) {
+            continue
+        }
+
+        if ($line -match '^(?<section>[A-Za-z_]+):\s*$') {
+            if ($null -ne $current) {
+                $entries.Add([pscustomobject]$current)
+                $current = $null
+            }
+            $section = $Matches['section']
+            $inSource = $false
+            continue
+        }
+
+        if ($section -notin @('custom', 'vendored', 'external')) {
+            continue
+        }
+
+        if ($trimmed -match '^-\s+name\s*:\s*(.+)$') {
+            if ($null -ne $current) {
+                $entries.Add([pscustomobject]$current)
+            }
+            $current = [ordered]@{
+                Name = ConvertFrom-ProfileScalar -Value $Matches[1]
+                Section = $section
+                Category = ''
+                Description = ''
+                Requires = @()
+                SourceType = ''
+                Repo = ''
+                Subpath = ''
+                Homepage = ''
+                ArchiveUrl = ''
+                DownloadUrl = ''
+                LocalPath = ''
+                Branch = ''
+            }
+            $inSource = $false
+            continue
+        }
+
+        if ($null -eq $current) {
+            continue
+        }
+
+        if ($trimmed -match '^category\s*:\s*(.*)$') {
+            $current['Category'] = ConvertFrom-ProfileScalar -Value $Matches[1]
+            $inSource = $false
+        }
+        elseif ($trimmed -match '^description\s*:\s*(.*)$') {
+            $current['Description'] = ConvertFrom-ProfileScalar -Value $Matches[1]
+            $inSource = $false
+        }
+        elseif ($trimmed -match '^requires\s*:\s*(.*)$') {
+            $current['Requires'] = @(ConvertFrom-ProfileInlineList -Value $Matches[1])
+            $inSource = $false
+        }
+        elseif ($trimmed -match '^source\s*:\s*\{\s*(.+)\s*\}\s*$') {
+            foreach ($part in (Split-DelimitedSelectionText -Value $Matches[1])) {
+                if ($part -match '^\s*(?<key>[A-Za-z_]+)\s*:\s*(?<value>.+?)\s*$') {
+                    $key = $Matches['key']
+                    $value = ConvertFrom-ProfileScalar -Value $Matches['value']
+                    switch ($key) {
+                        'type' { $current['SourceType'] = $value }
+                        'repo' { $current['Repo'] = $value }
+                        'upstream' { if ([string]::IsNullOrWhiteSpace($current['Repo'])) { $current['Repo'] = $value } }
+                        'subpath' { $current['Subpath'] = $value }
+                        'homepage' { $current['Homepage'] = $value }
+                        'archive' { $current['ArchiveUrl'] = $value }
+                        'archive_url' { $current['ArchiveUrl'] = $value }
+                        'download_url' { $current['DownloadUrl'] = $value }
+                        'url' { $current['DownloadUrl'] = $value }
+                        'path' { $current['LocalPath'] = $value }
+                        'local_path' { $current['LocalPath'] = $value }
+                        'branch' { $current['Branch'] = $value }
+                    }
+                }
+            }
+            $inSource = $false
+        }
+        elseif ($trimmed -match '^source\s*:\s*$') {
+            $inSource = $true
+        }
+        elseif ($inSource -and $trimmed -match '^(type|repo|upstream|subpath|homepage|archive|archive_url|download_url|url|path|local_path|branch)\s*:\s*(.*)$') {
+            $key = $Matches[1]
+            $value = ConvertFrom-ProfileScalar -Value $Matches[2]
+            switch ($key) {
+                'type' { $current['SourceType'] = $value }
+                'repo' { $current['Repo'] = $value }
+                'upstream' { if ([string]::IsNullOrWhiteSpace($current['Repo'])) { $current['Repo'] = $value } }
+                'subpath' { $current['Subpath'] = $value }
+                'homepage' { $current['Homepage'] = $value }
+                'archive' { $current['ArchiveUrl'] = $value }
+                'archive_url' { $current['ArchiveUrl'] = $value }
+                'download_url' { $current['DownloadUrl'] = $value }
+                'url' { $current['DownloadUrl'] = $value }
+                'path' { $current['LocalPath'] = $value }
+                'local_path' { $current['LocalPath'] = $value }
+                'branch' { $current['Branch'] = $value }
+            }
+        }
+        elseif ($trimmed -match '^(compat|bundle)\s*:') {
+            $inSource = $false
+        }
+    }
+
+    if ($null -ne $current) {
+        $entries.Add([pscustomobject]$current)
+    }
+
+    return $entries.ToArray()
+}
+
+function Read-RegistryPrereqEntries {
+    param(
+        [Parameter(Mandatory)]
+        [string]$RegistryRoot
+    )
+
+    $path = Join-Path $RegistryRoot 'prereqs.yaml'
+    if (-not (Test-Path -LiteralPath $path)) {
+        return @()
+    }
+
+    $entries = New-Object System.Collections.Generic.List[object]
+    $current = $null
+    $inInstall = $false
+    foreach ($rawLine in (Get-Content -Encoding UTF8 -LiteralPath $path)) {
+        $line = $rawLine.TrimEnd()
+        $trimmed = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#')) {
+            continue
+        }
+
+        if ($trimmed -match '^-\s+name\s*:\s*(.+)$') {
+            if ($null -ne $current) {
+                $entries.Add([pscustomobject]$current)
+            }
+            $current = [ordered]@{
+                Name = ConvertFrom-ProfileScalar -Value $Matches[1]
+                Kind = ''
+                Check = ''
+                Install = @{}
+            }
+            $inInstall = $false
+            continue
+        }
+
+        if ($null -eq $current) {
+            continue
+        }
+
+        if ($trimmed -match '^kind\s*:\s*(.*)$') {
+            $current['Kind'] = ConvertFrom-ProfileScalar -Value $Matches[1]
+            $inInstall = $false
+        }
+        elseif ($trimmed -match '^check\s*:\s*(.*)$') {
+            $current['Check'] = ConvertFrom-ProfileScalar -Value $Matches[1]
+            $inInstall = $false
+        }
+        elseif ($trimmed -match '^install\s*:\s*$') {
+            $inInstall = $true
+        }
+        elseif ($inInstall -and $trimmed -match '^(?<key>[A-Za-z_]+)\s*:\s*(?<value>.*)$') {
+            $current['Install'][$Matches['key']] = ConvertFrom-ProfileScalar -Value $Matches['value']
+        }
+        elseif ($trimmed -match '^(auth|notes|source|tags|category|description)\s*:') {
+            $inInstall = $false
+        }
+    }
+
+    if ($null -ne $current) {
+        $entries.Add([pscustomobject]$current)
+    }
+
+    return $entries.ToArray()
+}
+
+function Read-RegistryMcpEntries {
+    param(
+        [Parameter(Mandatory)]
+        [string]$RegistryRoot
+    )
+
+    $path = Join-Path $RegistryRoot 'mcp.yaml'
+    if (-not (Test-Path -LiteralPath $path)) {
+        return @()
+    }
+
+    $entries = New-Object System.Collections.Generic.List[object]
+    $current = $null
+    $inInstall = $false
+    foreach ($rawLine in (Get-Content -Encoding UTF8 -LiteralPath $path)) {
+        $line = $rawLine.TrimEnd()
+        $trimmed = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#')) {
+            continue
+        }
+
+        if ($trimmed -match '^-\s+name\s*:\s*(.+)$') {
+            if ($null -ne $current) {
+                $entries.Add([pscustomobject]$current)
+            }
+            $current = [ordered]@{
+                Name = ConvertFrom-ProfileScalar -Value $Matches[1]
+                Transport = 'stdio'
+                Command = ''
+                Args = @()
+                Url = ''
+                Env = @()
+            }
+            $inInstall = $false
+            continue
+        }
+
+        if ($null -eq $current) {
+            continue
+        }
+
+        if ($trimmed -match '^transport\s*:\s*(.*)$') {
+            $current['Transport'] = ConvertFrom-ProfileScalar -Value $Matches[1]
+            $inInstall = $false
+        }
+        elseif ($trimmed -match '^install\s*:\s*$') {
+            $inInstall = $true
+        }
+        elseif ($inInstall -and $trimmed -match '^command\s*:\s*(.*)$') {
+            $current['Command'] = ConvertFrom-ProfileScalar -Value $Matches[1]
+        }
+        elseif ($inInstall -and $trimmed -match '^args\s*:\s*(.*)$') {
+            $argsText = (ConvertFrom-ProfileScalar -Value $Matches[1]).Trim()
+            if ([string]::IsNullOrWhiteSpace($argsText) -or $argsText -eq '[]') {
+                $current['Args'] = @()
+            }
+            else {
+                try {
+                    $current['Args'] = @($argsText | ConvertFrom-Json)
+                }
+                catch {
+                    $current['Args'] = @(ConvertFrom-ProfileInlineList -Value $argsText)
+                }
+            }
+        }
+        elseif ($inInstall -and $trimmed -match '^url\s*:\s*(.*)$') {
+            $current['Url'] = ConvertFrom-ProfileScalar -Value $Matches[1]
+        }
+        elseif ($inInstall -and $trimmed -match '^env\s*:\s*(.*)$') {
+            $current['Env'] = @(ConvertFrom-ProfileInlineList -Value $Matches[1])
+        }
+        elseif ($trimmed -match '^(source|requires|compat|tags|notes|category|description)\s*:') {
+            $inInstall = $false
+        }
+    }
+
+    if ($null -ne $current) {
+        $entries.Add([pscustomobject]$current)
+    }
+
+    return $entries.ToArray()
+}
+
+function Test-RegistryCommandSucceeded {
+    param(
+        [string]$CommandText
+    )
+
+    if ([string]::IsNullOrWhiteSpace($CommandText)) {
+        return $false
+    }
+
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command $CommandText *> $null
+    return $LASTEXITCODE -eq 0
+}
+
+function Invoke-PrereqInstallCommand {
+    param(
+        [Parameter(Mandatory)]
+        [string]$CommandText,
+        [switch]$DryRun
+    )
+
+    if ($CommandText -match '^winget\s+install(?:\s+--id)?\s+(?<id>[^\s]+)') {
+        $packageId = $Matches['id']
+        Invoke-WingetAction -Action 'install' -PackageId $packageId -DryRun:$DryRun
+        return
+    }
+
+    if ($DryRun) {
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5a6J6KOF5YmN572u5L6d6LWW77yaezB9') -f $CommandText)
+        return
+    }
+
+    if ($CommandText -match '^powershell(?:\.exe)?\s+-c\s+"(?<body>.*)"$') {
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command $Matches['body']
+        if ($LASTEXITCODE -ne 0) {
+            throw ('Prereq install command failed: {0}' -f $CommandText)
+        }
+        return
+    }
+
+    $tokens = @($CommandText -split '\s+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($tokens.Count -eq 0) {
+        return
+    }
+
+    $command = $tokens[0]
+    $args = @($tokens | Select-Object -Skip 1)
+    & $command @args
+    if ($LASTEXITCODE -ne 0) {
+        throw ('Prereq install command failed: {0}' -f $CommandText)
+    }
+}
+
+function Get-RegistryPrereqInstallCommand {
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$Install
+    )
+
+    $platformKeys = if ($IsWindows -or $env:OS -eq 'Windows_NT') {
+        @('windows', 'winget', 'scoop')
+    }
+    elseif ($IsMacOS) {
+        @('macos', 'brew', 'unix')
+    }
+    else {
+        @('linux', 'unix')
+    }
+
+    foreach ($key in @($platformKeys + @('command', 'npm', 'pipx', 'pip', 'brew', 'winget', 'scoop'))) {
+        if (-not $Install.ContainsKey($key)) {
+            continue
+        }
+
+        $value = [string]$Install[$key]
+        if ([string]::IsNullOrWhiteSpace($value)) {
+            continue
+        }
+
+        switch ($key) {
+            'npm' { return 'npm i -g {0}' -f $value }
+            'pip' { return 'pip install {0}' -f $value }
+            'pipx' { return 'pipx install {0}' -f $value }
+            'brew' { return 'brew install {0}' -f $value }
+            'winget' { return 'winget install --id {0}' -f $value }
+            'scoop' { return 'scoop install {0}' -f $value }
+            default { return $value }
+        }
+    }
+
+    return $null
+}
+
+function Install-RegistryPrereqs {
+    param(
+        [Parameter(Mandatory)]
+        [string]$RegistryRoot,
+        [string[]]$PrereqNames,
+        [switch]$DryRun
+    )
+
+    $names = @($PrereqNames | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    $result = [ordered]@{
+        Already = @()
+        Installed = @()
+        Manual = @()
+        Missing = @()
+        Failed = @()
+    }
+
+    if ($names.Count -eq 0) {
+        return [pscustomobject]$result
+    }
+
+    $entries = @(Read-RegistryPrereqEntries -RegistryRoot $RegistryRoot)
+    foreach ($name in $names) {
+        $entry = $entries | Where-Object { $_.Name -eq $name } | Select-Object -First 1
+        if (-not $entry) {
+            Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '5YmN572u5L6d6LWW5pyq5ZyoIHByZXJlcXMueWFtbCDkuK3lr7vliLDvvJp7MH0=') -f $name)
+            $result.Missing += $name
+            continue
+        }
+
+        if ((-not $DryRun) -and (Test-RegistryCommandSucceeded -CommandText $entry.Check)) {
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5YmN572u5L6d6LWW5bey5a6J6KOF77yaezB9') -f $name)
+            $result.Already += $name
+            continue
+        }
+
+        $install = $entry.Install
+        if ($install.ContainsKey('manual') -and [string]$install['manual'] -eq 'true') {
+            Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '5YmN572u5L6d6LWW6ZyA6KaB5omL5Yqo5a6J6KOF77yaezB9') -f $name)
+            $result.Manual += $name
+            continue
+        }
+
+        $commandText = Get-RegistryPrereqInstallCommand -Install $install
+
+        if ([string]::IsNullOrWhiteSpace($commandText)) {
+            Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '5YmN572u5L6d6LWW57y65bCR5Y+v5omT6KGM5a6J6KOF5ZG95Luk77yaezB9') -f $name)
+            $result.Missing += $name
+            continue
+        }
+
+        try {
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5a6J6KOF5YmN572u5L6d6LWW77yaezB9') -f $name)
+            Invoke-PrereqInstallCommand -CommandText $commandText -DryRun:$DryRun
+            $result.Installed += $name
+        }
+        catch {
+            Write-Log -Level 'WARN' -Message ('Prereq install failed: {0}; {1}' -f $name, $_.Exception.Message)
+            $result.Failed += $name
+        }
+    }
+
+    if ($result.Failed.Count -gt 0) {
+        Write-Log -Level 'WARN' -Message ('Prereq failed summary: {0}' -f ($result.Failed -join ', '))
+    }
+
+    return [pscustomobject]$result
+}
+
+function ConvertTo-TomlQuotedString {
+    param([AllowNull()][string]$Value)
+    return '"{0}"' -f (([string]$Value) -replace '\\', '\\' -replace '"', '\"')
+}
+
+function ConvertTo-TomlStringArray {
+    param([string[]]$Values)
+    $quoted = @($Values | ForEach-Object { ConvertTo-TomlQuotedString -Value $_ })
+    return '[{0}]' -f ($quoted -join ', ')
+}
+
+function New-McpServerConfigObject {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Entry,
+        [switch]$IncludeType
+    )
+
+    $config = [ordered]@{}
+    $transport = ([string]$Entry.Transport).ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($transport)) {
+        $transport = 'stdio'
+    }
+
+    if ($transport -eq 'stdio') {
+        if ($IncludeType) {
+            $config['type'] = 'stdio'
+        }
+        $config['command'] = [string]$Entry.Command
+        $config['args'] = @($Entry.Args)
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($Entry.Url)) {
+        $config['type'] = $transport
+        $config['url'] = [string]$Entry.Url
+    }
+    else {
+        return $null
+    }
+
+    if ($Entry.Env.Count -gt 0) {
+        $envMap = [ordered]@{}
+        foreach ($envName in @($Entry.Env)) {
+            if (-not [string]::IsNullOrWhiteSpace($envName)) {
+                $envMap[$envName] = '${' + $envName + '}'
+            }
+        }
+        if ($envMap.Count -gt 0) {
+            $config['env'] = $envMap
+        }
+    }
+
+    return [pscustomobject]$config
+}
+
+function Set-JsonMcpServerConfig {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ConfigPath,
+        [Parameter(Mandatory)]
+        [object[]]$Entries,
+        [Parameter(Mandatory)]
+        [string]$TargetName,
+        [switch]$DryRun
+    )
+
+    $serverEntries = @($Entries | Where-Object {
+            (($_.Transport -eq 'stdio' -and -not [string]::IsNullOrWhiteSpace($_.Command)) -or
+                ($_.Transport -ne 'stdio' -and -not [string]::IsNullOrWhiteSpace($_.Url)))
+        })
+    if ($serverEntries.Count -eq 0) {
+        return
+    }
+
+    if ($DryRun) {
+        Write-Log -Message ('[dry-run] write {0} MCP config: {1} -> {2}' -f $TargetName, (($serverEntries | ForEach-Object { $_.Name }) -join ', '), $ConfigPath)
+        return
+    }
+
+    Initialize-Directory -Path (Split-Path -Parent $ConfigPath)
+    $config = $null
+    if (Test-Path -LiteralPath $ConfigPath) {
+        $raw = Get-Content -Raw -Encoding UTF8 -LiteralPath $ConfigPath
+        if (-not [string]::IsNullOrWhiteSpace($raw)) {
+            $config = $raw | ConvertFrom-Json
+        }
+    }
+    if (-not $config) {
+        $config = [pscustomobject]@{}
+    }
+    $configPropertyNames = @($config.PSObject.Properties | ForEach-Object { $_.Name })
+    if (-not ($configPropertyNames -contains 'mcpServers')) {
+        $config | Add-Member -MemberType NoteProperty -Name 'mcpServers' -Value ([pscustomobject]@{})
+    }
+
+    foreach ($entry in $serverEntries) {
+        $serverConfig = New-McpServerConfigObject -Entry $entry
+        if (-not $serverConfig) {
+            continue
+        }
+        $mcpPropertyNames = @($config.mcpServers.PSObject.Properties | ForEach-Object { $_.Name })
+        if ($mcpPropertyNames -contains $entry.Name) {
+            $config.mcpServers.PSObject.Properties.Remove($entry.Name)
+        }
+        $config.mcpServers | Add-Member -MemberType NoteProperty -Name $entry.Name -Value $serverConfig
+    }
+
+    if (Test-Path -LiteralPath $ConfigPath) {
+        $backupPath = '{0}.bak.{1}' -f $ConfigPath, (Get-Date -Format 'yyyyMMdd-HHmmss')
+        Copy-Item -LiteralPath $ConfigPath -Destination $backupPath -Force
+    }
+
+    $json = $config | ConvertTo-Json -Depth 24
+    [System.IO.File]::WriteAllText($ConfigPath, ($json + "`n"), [System.Text.UTF8Encoding]::new($false))
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $ConfigPath | ConvertFrom-Json | Out-Null
+    Write-Log -Message ('Wrote {0} MCP config: {1}' -f $TargetName, (($serverEntries | ForEach-Object { $_.Name }) -join ', '))
+}
+
+function Sync-ClaudeCodeMcpServers {
+    param(
+        [Parameter(Mandatory)]
+        [object[]]$Entries,
+        [switch]$DryRun
+    )
+
+    $serverEntries = @($Entries | Where-Object {
+            (($_.Transport -eq 'stdio' -and -not [string]::IsNullOrWhiteSpace($_.Command)) -or
+                ($_.Transport -ne 'stdio' -and -not [string]::IsNullOrWhiteSpace($_.Url)))
+        })
+    if ($serverEntries.Count -eq 0) {
+        return
+    }
+
+    if ($DryRun) {
+        Write-Log -Message ('[dry-run] register Claude Code user MCP: {0}' -f (($serverEntries | ForEach-Object { $_.Name }) -join ', '))
+        return
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:VIBE_CODING_USER_HOME)) {
+        Write-Log -Level 'WARN' -Message ('Sandbox home is active; skip Claude Code CLI MCP registration: {0}' -f (($serverEntries | ForEach-Object { $_.Name }) -join ', '))
+        return
+    }
+
+    $claude = Get-Command claude -ErrorAction SilentlyContinue
+    if (-not $claude) {
+        Write-Log -Level 'WARN' -Message ('Claude Code CLI not found; skip Claude Code MCP config: {0}' -f (($serverEntries | ForEach-Object { $_.Name }) -join ', '))
+        return
+    }
+
+    foreach ($entry in $serverEntries) {
+        $serverConfig = New-McpServerConfigObject -Entry $entry -IncludeType
+        if (-not $serverConfig) {
+            continue
+        }
+        $serverJson = $serverConfig | ConvertTo-Json -Depth 16 -Compress
+        & $claude.Source mcp add-json $entry.Name $serverJson --scope user
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log -Level 'WARN' -Message ('Claude Code MCP registration failed: {0}' -f $entry.Name)
+        }
+    }
+}
+
+function Sync-JsonMcpClientConfigs {
+    param(
+        [Parameter(Mandatory)]
+        [object[]]$Entries,
+        [switch]$DryRun
+    )
+
+    $homeDir = Get-UserHomeDirectory
+    $roamingDir = Get-UserRoamingAppDataDirectory
+    if (-not [string]::IsNullOrWhiteSpace($roamingDir)) {
+        Set-JsonMcpServerConfig -TargetName 'Claude Desktop' -ConfigPath (Join-Path $roamingDir 'Claude\claude_desktop_config.json') -Entries $Entries -DryRun:$DryRun
+    }
+    if (-not [string]::IsNullOrWhiteSpace($homeDir)) {
+        Set-JsonMcpServerConfig -TargetName 'Cursor' -ConfigPath (Join-Path $homeDir '.cursor\mcp.json') -Entries $Entries -DryRun:$DryRun
+        Set-JsonMcpServerConfig -TargetName 'Gemini CLI' -ConfigPath (Join-Path $homeDir '.gemini\settings.json') -Entries $Entries -DryRun:$DryRun
+        Set-JsonMcpServerConfig -TargetName 'Antigravity' -ConfigPath (Join-Path $homeDir '.gemini\antigravity\mcp_config.json') -Entries $Entries -DryRun:$DryRun
+    }
+
+    Sync-ClaudeCodeMcpServers -Entries $Entries -DryRun:$DryRun
+}
+
+function Remove-TomlMcpServerBlock {
+    param(
+        [string]$Content,
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+
+    $lines = @($Content -split "`r?`n")
+    $output = New-Object System.Collections.Generic.List[string]
+    $skip = $false
+    $headerPattern = '^\[mcp_servers\.{0}\]\s*$' -f [regex]::Escape($Name)
+    foreach ($line in $lines) {
+        if ($line -match $headerPattern) {
+            $skip = $true
+            continue
+        }
+        if ($skip -and $line -match '^\[') {
+            $skip = $false
+        }
+        if (-not $skip) {
+            $output.Add($line)
+        }
+    }
+
+    return (($output.ToArray() -join "`r`n").TrimEnd() + "`r`n")
+}
+
+function Sync-CodexMcpServers {
+    param(
+        [Parameter(Mandatory)]
+        [string]$RegistryRoot,
+        [string[]]$McpNames,
+        [switch]$DryRun
+    )
+
+    $names = @($McpNames | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    if ($names.Count -eq 0) {
+        return
+    }
+
+    $entries = @(Read-RegistryMcpEntries -RegistryRoot $RegistryRoot)
+    $homeDir = Get-UserHomeDirectory
+    $configDir = Join-Path $homeDir '.codex'
+    $configPath = Join-Path $configDir 'config.toml'
+    $content = if (Test-Path -LiteralPath $configPath) { Get-Content -Raw -Encoding UTF8 -LiteralPath $configPath } else { '' }
+    $blocks = New-Object System.Collections.Generic.List[string]
+
+    foreach ($name in $names) {
+        $entry = $entries | Where-Object { $_.Name -eq $name } | Select-Object -First 1
+        if (-not $entry) {
+            Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'TUNQIOacquWcqCBtY3AueWFtbCDkuK3lr7vliLDvvJp7MH0=') -f $name)
+            continue
+        }
+
+        if ($entry.Transport -ne 'stdio' -or [string]::IsNullOrWhiteSpace($entry.Command)) {
+            Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'TUNQIOWwmuacquaUr+aMgeiHquWKqOWGmeWFpSBDb2RleCDphY3nva7vvJp7MH0=') -f $name)
+            continue
+        }
+
+        $content = Remove-TomlMcpServerBlock -Content $content -Name $name
+        $blockLines = New-Object System.Collections.Generic.List[string]
+        $blockLines.Add(('[mcp_servers.{0}]' -f $name))
+        $blockLines.Add(('command = {0}' -f (ConvertTo-TomlQuotedString -Value $entry.Command)))
+        $blockLines.Add(('args = {0}' -f (ConvertTo-TomlStringArray -Values @($entry.Args))))
+        if ($entry.Env.Count -gt 0) {
+            $envPairs = @($entry.Env | ForEach-Object { '{0} = "${{{0}}}"' -f $_ })
+            $blockLines.Add(('env = {{ {0} }}' -f ($envPairs -join ', ')))
+        }
+        $blocks.Add(($blockLines.ToArray() -join "`r`n"))
+    }
+
+    if ($blocks.Count -eq 0) {
+        return
+    }
+
+    if ($DryRun) {
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5YaZ5YWlIENvZGV4IE1DUCDphY3nva7vvJp7MH0=') -f ($names -join ', '))
+        return
+    }
+
+    Initialize-Directory -Path $configDir
+    if (Test-Path -LiteralPath $configPath) {
+        $backupPath = '{0}.bak.{1}' -f $configPath, (Get-Date -Format 'yyyyMMdd-HHmmss')
+        Copy-Item -LiteralPath $configPath -Destination $backupPath -Force
+    }
+
+    $newContent = ($content.TrimEnd() + "`r`n`r`n" + ($blocks.ToArray() -join "`r`n`r`n") + "`r`n")
+    [System.IO.File]::WriteAllText($configPath, $newContent, [System.Text.UTF8Encoding]::new($false))
+
+    $python = Get-PythonLauncher
+    if ($python) {
+        & $python -c "import sys,tomllib; tomllib.load(open(sys.argv[1],'rb'))" $configPath
+        if ($LASTEXITCODE -ne 0) {
+            throw ('Codex config TOML validation failed: {0}' -f $configPath)
+        }
+    }
+
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5bey5YaZ5YWlIENvZGV4IE1DUCDphY3nva7vvJp7MH0=') -f ($names -join ', '))
+}
+
+function Sync-RegistryMcpServers {
+    param(
+        [Parameter(Mandatory)]
+        [string]$RegistryRoot,
+        [string[]]$McpNames,
+        [switch]$DryRun
+    )
+
+    $names = @($McpNames | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    if ($names.Count -eq 0) {
+        return
+    }
+
+    $entries = @(Read-RegistryMcpEntries -RegistryRoot $RegistryRoot | Where-Object { $names -contains $_.Name })
+    $missingNames = @($names | Where-Object { $entries.Name -notcontains $_ })
+    foreach ($name in $missingNames) {
+        Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'TUNQIOacquWcqCBtY3AueWFtbCDkuK3lr7vliLDvvJp7MH0=') -f $name)
+    }
+
+    if ($entries.Count -eq 0) {
+        return
+    }
+
+    Sync-CodexMcpServers -RegistryRoot $RegistryRoot -McpNames $names -DryRun:$DryRun
+    Sync-JsonMcpClientConfigs -Entries $entries -DryRun:$DryRun
+}
+
 function Select-SkillDirectoriesForProfiles {
     param(
         [Parameter(Mandatory)]
@@ -3068,6 +3830,15 @@ function Select-SkillDirectoriesForProfiles {
     )
 
     if ($AllSkills -or -not $Profiles -or $Profiles.Count -eq 0) {
+        $script:LastSkillSelection = [pscustomobject]@{
+            RegistryRoot = $RegistryRoot
+            Profiles = @()
+            WantedSkills = @()
+            BundledSkillDirs = @($SkillDirectories)
+            MissingSkills = @()
+            Mcp = @()
+            Prereqs = @()
+        }
         return @($SkillDirectories)
     }
 
@@ -3094,6 +3865,15 @@ function Select-SkillDirectoriesForProfiles {
             return @()
         }
         if ($tokens -contains '0') {
+            $script:LastSkillSelection = [pscustomobject]@{
+                RegistryRoot = $RegistryRoot
+                Profiles = @()
+                WantedSkills = @()
+                BundledSkillDirs = @($SkillDirectories)
+                MissingSkills = @()
+                Mcp = @()
+                Prereqs = @()
+            }
             return @($SkillDirectories)
         }
     }
@@ -3190,6 +3970,16 @@ function Select-SkillDirectoriesForProfiles {
     Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6YCJ5Lit55qEIE1DUO+8mnswfQ==') -f $mcpDetail)
     Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6Kej5p6Q5Yiw55qE5YmN572u5L6d6LWW77yaezB9') -f $prereqDetail)
 
+    $script:LastSkillSelection = [pscustomobject]@{
+        RegistryRoot = $RegistryRoot
+        Profiles = @($selectedProfiles | ForEach-Object { $_.Name })
+        WantedSkills = @($wantedSkills)
+        BundledSkillDirs = @($selectedSkillDirs)
+        MissingSkills = @($missingSkills)
+        Mcp = @($wantedMcp)
+        Prereqs = @($wantedPrereqs)
+    }
+
     return @($selectedSkillDirs)
 }
 
@@ -3217,7 +4007,7 @@ function Get-OptionalSkillTargets {
             })
     }
 
-    return $targets
+    return $targets.ToArray()
 }
 
 function Get-PythonLauncher {
@@ -3612,6 +4402,396 @@ conn.close()
     }
 }
 
+function Import-SkillDirectoryToTargets {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SourcePath,
+        [Parameter(Mandatory)]
+        [string]$SkillName,
+        [Parameter(Mandatory)]
+        [string]$CentralRoot,
+        [Parameter(Mandatory)]
+        [object[]]$Targets,
+        [switch]$NoReplaceOrphan,
+        [switch]$ReplaceForeign,
+        [switch]$RenameForeign,
+        [switch]$DryRun
+    )
+
+    $centralPath = Join-Path $CentralRoot $SkillName
+    $centralDecision = Get-SkillImportDecision `
+        -SourcePath $SourcePath `
+        -DestinationPath $centralPath `
+        -SkillName $SkillName `
+        -NoReplaceOrphan:$NoReplaceOrphan `
+        -ReplaceForeign:$ReplaceForeign `
+        -RenameForeign:$RenameForeign
+
+    [void](Invoke-SkillImportDecision -Decision $centralDecision -SourcePath $SourcePath -DryRun:$DryRun -Quiet)
+
+    if ($centralDecision.Action -eq 'Skip' -and $centralDecision.State -in @('Orphan', 'Foreign')) {
+        Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '6Lez6L+HIHNraWxs77ya546w5pyJ55uu5b2V54q25oCB5Li6IHswfe+8mnsxfQ==') -f $centralDecision.State, $centralDecision.FinalPath)
+        return [pscustomobject]@{
+            Imported = $false
+            Copied = $false
+            Metadata = $null
+            EffectiveName = $centralDecision.FinalName
+            TargetCount = 0
+        }
+    }
+
+    $effectiveSkillName = $centralDecision.FinalName
+    $effectiveCentralPath = $centralDecision.FinalPath
+    $skillTargets = New-Object System.Collections.Generic.List[object]
+    $targetChanged = $false
+    $copySourcePath = if ((-not $DryRun) -and (Test-Path -LiteralPath $effectiveCentralPath)) { $effectiveCentralPath } else { $SourcePath }
+
+    foreach ($target in $Targets | Where-Object { $_.Enabled }) {
+        $targetPath = Join-Path $target.Path $effectiveSkillName
+        $targetDecision = Get-SkillImportDecision `
+            -SourcePath $SourcePath `
+            -DestinationPath $targetPath `
+            -SkillName $effectiveSkillName `
+            -NoReplaceOrphan:$NoReplaceOrphan `
+            -ReplaceForeign:$ReplaceForeign `
+            -RenameForeign:$false
+        [void](Invoke-SkillImportDecision -Decision $targetDecision -SourcePath $copySourcePath -DryRun:$DryRun -Quiet)
+
+        if ($targetDecision.Action -ne 'Skip' -or $targetDecision.State -eq 'Tracked') {
+            $skillTargets.Add([pscustomobject]@{
+                    Tool = $target.Name
+                    Path = $targetDecision.FinalPath
+                })
+        }
+
+        if ($targetDecision.Action -ne 'Skip') {
+            $targetChanged = $true
+        }
+    }
+
+    $skillMetadata = Read-SkillMetadata -SkillPath $SourcePath -SkillName $effectiveSkillName -CentralPath $effectiveCentralPath
+    $skillMetadata | Add-Member -MemberType NoteProperty -Name 'Targets' -Value $skillTargets -Force
+
+    return [pscustomobject]@{
+        Imported = $true
+        Copied = -not ($centralDecision.Action -eq 'Skip' -and -not $targetChanged)
+        Metadata = $skillMetadata
+        EffectiveName = $effectiveSkillName
+        TargetCount = $skillTargets.Count
+        Action = $centralDecision.Action
+    }
+}
+
+function ConvertTo-GitHubUrl {
+    param([string]$Repo)
+
+    if ([string]::IsNullOrWhiteSpace($Repo)) {
+        return ''
+    }
+    if ($Repo -match '^(https?://|git@)') {
+        return $Repo
+    }
+    return 'https://github.com/{0}' -f $Repo
+}
+
+function Get-ExternalSkillSourceLabel {
+    param([Parameter(Mandatory)][object]$Entry)
+
+    if (-not [string]::IsNullOrWhiteSpace($Entry.Repo)) {
+        $repoUrl = ConvertTo-GitHubUrl -Repo $Entry.Repo
+        if (-not [string]::IsNullOrWhiteSpace($Entry.Subpath)) {
+            return '{0}#{1}' -f $repoUrl, $Entry.Subpath
+        }
+        return $repoUrl
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Entry.ArchiveUrl)) {
+        return $Entry.ArchiveUrl
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Entry.DownloadUrl)) {
+        return $Entry.DownloadUrl
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Entry.LocalPath)) {
+        return $Entry.LocalPath
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Entry.Homepage)) {
+        return $Entry.Homepage
+    }
+    return '(no source)'
+}
+
+function Resolve-RegistryLocalSkillPath {
+    param(
+        [Parameter(Mandatory)]
+        [string]$RegistryRoot,
+        [Parameter(Mandatory)]
+        [string]$LocalPath
+    )
+
+    $expanded = [Environment]::ExpandEnvironmentVariables($LocalPath)
+    if ([IO.Path]::IsPathRooted($expanded)) {
+        return $expanded
+    }
+    return (Join-Path $RegistryRoot $expanded)
+}
+
+function Expand-ExternalSkillArchive {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ArchivePath,
+        [Parameter(Mandatory)]
+        [string]$DestinationPath
+    )
+
+    Initialize-Directory -Path $DestinationPath
+    $lower = $ArchivePath.ToLowerInvariant()
+    if ($lower.EndsWith('.zip')) {
+        Expand-ZipArchiveWithProgress -ZipPath $ArchivePath -DestinationPath $DestinationPath
+        return
+    }
+
+    if ($lower.EndsWith('.tar.gz') -or $lower.EndsWith('.tgz')) {
+        $tar = Get-Command tar -ErrorAction SilentlyContinue
+        if (-not $tar) {
+            throw 'tar is required to extract external skill archive'
+        }
+        & $tar.Source -xzf $ArchivePath -C $DestinationPath
+        if ($LASTEXITCODE -ne 0) {
+            throw ('external skill archive extraction failed: {0}' -f $ArchivePath)
+        }
+        return
+    }
+
+    throw ('unsupported external skill archive: {0}' -f $ArchivePath)
+}
+
+function Invoke-GitCloneWithRetry {
+    param(
+        [Parameter(Mandatory)]
+        [string]$GitPath,
+        [Parameter(Mandatory)]
+        [string[]]$CloneArgs,
+        [int]$MaxAttempts = 2
+    )
+
+    for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+        & $GitPath @CloneArgs
+        if ($LASTEXITCODE -eq 0) {
+            return
+        }
+        if ($attempt -lt $MaxAttempts) {
+            Write-Log -Level 'WARN' -Message ('git clone failed; retrying ({0}/{1})' -f $attempt, $MaxAttempts)
+            Start-Sleep -Seconds 2
+        }
+    }
+
+    throw ('git clone failed after {0} attempts' -f $MaxAttempts)
+}
+
+function Write-ExternalSkillMeta {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SkillPath,
+        [Parameter(Mandatory)]
+        [object]$Entry,
+        [string]$Revision
+    )
+
+    $meta = [ordered]@{
+        name = $Entry.Name
+        registry_entry_name = $Entry.Name
+        source_type = if ([string]::IsNullOrWhiteSpace($Entry.SourceType)) { 'external' } else { $Entry.SourceType }
+        source_ref = Get-ExternalSkillSourceLabel -Entry $Entry
+        source_subpath = $Entry.Subpath
+        source_branch = $Entry.Branch
+        source_revision = $Revision
+        registry_source_type = 'external'
+    }
+    $json = ($meta | ConvertTo-Json -Depth 5)
+    [System.IO.File]::WriteAllText((Join-Path $SkillPath '.skill-meta.json'), ($json + "`n"), [System.Text.UTF8Encoding]::new($false))
+}
+
+function Resolve-ExternalSkillPath {
+    param(
+        [Parameter(Mandatory)]
+        [string]$RepoRoot,
+        [Parameter(Mandatory)]
+        [object]$Entry
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($Entry.Subpath)) {
+        return (Join-Path $RepoRoot $Entry.Subpath)
+    }
+
+    $direct = Join-Path $RepoRoot 'SKILL.md'
+    if (Test-Path -LiteralPath $direct) {
+        return $RepoRoot
+    }
+
+    $named = Join-Path $RepoRoot $Entry.Name
+    if (Test-Path -LiteralPath (Join-Path $named 'SKILL.md')) {
+        return $named
+    }
+
+    $skillFile = Get-ChildItem -LiteralPath $RepoRoot -Filter 'SKILL.md' -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($skillFile) {
+        return $skillFile.Directory.FullName
+    }
+
+    return $null
+}
+
+function Import-ExternalSkillsFromSelection {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Selection,
+        [Parameter(Mandatory)]
+        [string]$CentralRoot,
+        [Parameter(Mandatory)]
+        [object[]]$Targets,
+        [switch]$NoReplaceOrphan,
+        [switch]$ReplaceForeign,
+        [switch]$RenameForeign,
+        [switch]$DryRun
+    )
+
+    $importedSkills = New-Object System.Collections.Generic.List[object]
+    $copiedCount = 0
+    $failedCount = 0
+    $missingNames = @($Selection.MissingSkills | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    if ($missingNames.Count -eq 0 -or [string]::IsNullOrWhiteSpace($Selection.RegistryRoot)) {
+        return [pscustomobject]@{ ImportedSkills = @(); CopiedCount = 0; PlannedCount = 0; FailedCount = 0; RequiredPrereqs = @() }
+    }
+
+    $entries = @(Read-RegistrySkillEntries -RegistryRoot $Selection.RegistryRoot)
+    $externalEntries = @($entries | Where-Object { $_.Section -eq 'external' -and ($missingNames -contains $_.Name) })
+    $requiredPrereqs = New-Object System.Collections.Generic.List[string]
+    if (@($externalEntries | Where-Object { -not [string]::IsNullOrWhiteSpace($_.Repo) }).Count -gt 0) {
+        $requiredPrereqs.Add('git')
+    }
+
+    foreach ($entry in $externalEntries) {
+        foreach ($required in @($entry.Requires)) {
+            if (-not [string]::IsNullOrWhiteSpace($required)) {
+                $requiredPrereqs.Add($required)
+            }
+        }
+
+        $sourceLabel = Get-ExternalSkillSourceLabel -Entry $entry
+        $hasAutoSource = (-not [string]::IsNullOrWhiteSpace($entry.Repo)) -or
+            (-not [string]::IsNullOrWhiteSpace($entry.ArchiveUrl)) -or
+            (-not [string]::IsNullOrWhiteSpace($entry.DownloadUrl)) -or
+            (-not [string]::IsNullOrWhiteSpace($entry.LocalPath))
+
+        if (-not $hasAutoSource) {
+            Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'ZXh0ZXJuYWwgc2tpbGwg57y65bCRIHJlcG/vvIzml6Dms5Xoh6rliqjlronoo4XvvJp7MH0=') -f $entry.Name)
+            continue
+        }
+
+        if ($DryRun) {
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5a6J6KOFIGV4dGVybmFsIHNraWxs77yaezB9IC0+IHsxfQ==') -f $entry.Name, $sourceLabel)
+            $copiedCount++
+            continue
+        }
+
+        $workRoot = $null
+        try {
+            $sourceRoot = $null
+            $revision = ''
+
+            if (-not [string]::IsNullOrWhiteSpace($entry.Repo)) {
+                $git = Get-Command git -ErrorAction SilentlyContinue
+                if (-not $git) {
+                    throw (ConvertFrom-Utf8Base64String -Value '5a6J6KOFIGV4dGVybmFsIHNraWxsIOmcgOimgeWPr+eUqCBnaXQ=')
+                }
+
+                $repoUrl = ConvertTo-GitHubUrl -Repo $entry.Repo
+                $workRoot = Join-Path ([IO.Path]::GetTempPath()) ('external-skill-' + [guid]::NewGuid().ToString('N'))
+                $cloneArgs = @('clone', '--depth', '1')
+                if (-not [string]::IsNullOrWhiteSpace($entry.Branch)) {
+                    $cloneArgs += @('--branch', $entry.Branch)
+                }
+                $cloneArgs += @($repoUrl, $workRoot)
+                Invoke-GitCloneWithRetry -GitPath $git.Source -CloneArgs $cloneArgs
+                $sourceRoot = $workRoot
+                $revision = (& $git.Source -C $workRoot rev-parse HEAD 2>$null | Select-Object -First 1)
+            }
+            elseif (-not [string]::IsNullOrWhiteSpace($entry.LocalPath)) {
+                $sourceRoot = Resolve-RegistryLocalSkillPath -RegistryRoot $Selection.RegistryRoot -LocalPath $entry.LocalPath
+                if (-not (Test-Path -LiteralPath $sourceRoot)) {
+                    throw ('external skill local path not found: {0}' -f $sourceRoot)
+                }
+            }
+            else {
+                $archiveUrl = if (-not [string]::IsNullOrWhiteSpace($entry.ArchiveUrl)) { $entry.ArchiveUrl } else { $entry.DownloadUrl }
+                $workRoot = Join-Path ([IO.Path]::GetTempPath()) ('external-skill-' + [guid]::NewGuid().ToString('N'))
+                Initialize-Directory -Path $workRoot
+                if ($archiveUrl -match '^https?://') {
+                    $fileName = Split-Path -Leaf ([uri]$archiveUrl).AbsolutePath
+                    if ([string]::IsNullOrWhiteSpace($fileName)) {
+                        $fileName = 'archive.zip'
+                    }
+                    $archivePath = Join-Path $workRoot $fileName
+                    Invoke-DownloadFile -Url $archiveUrl -DestinationPath $archivePath
+                }
+                else {
+                    $archivePath = Resolve-RegistryLocalSkillPath -RegistryRoot $Selection.RegistryRoot -LocalPath $archiveUrl
+                }
+                $sourceRoot = Join-Path $workRoot 'src'
+                Expand-ExternalSkillArchive -ArchivePath $archivePath -DestinationPath $sourceRoot
+            }
+
+            $skillPath = Resolve-ExternalSkillPath -RepoRoot $sourceRoot -Entry $entry
+            if ([string]::IsNullOrWhiteSpace($skillPath) -or -not (Test-Path -LiteralPath (Join-Path $skillPath 'SKILL.md'))) {
+                throw ('SKILL.md not found in external skill source: {0}' -f $entry.Name)
+            }
+
+            Write-ExternalSkillMeta -SkillPath $skillPath -Entry $entry -Revision $revision
+            $importResult = Import-SkillDirectoryToTargets `
+                -SourcePath $skillPath `
+                -SkillName $entry.Name `
+                -CentralRoot $CentralRoot `
+                -Targets $Targets `
+                -NoReplaceOrphan:$NoReplaceOrphan `
+                -ReplaceForeign:$ReplaceForeign `
+                -RenameForeign:$RenameForeign `
+                -DryRun:$DryRun
+
+            if ($importResult.Imported) {
+                $importedSkills.Add($importResult.Metadata)
+            }
+            if ($importResult.Copied) {
+                $copiedCount++
+            }
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'ZXh0ZXJuYWwgc2tpbGwg5bey5ZCM5q2l77yaezB977yb5Yqo5L2cPXsxfe+8m+ebruaghz17Mn0g5Liq') -f $entry.Name, $importResult.Action, $importResult.TargetCount)
+        }
+        catch {
+            $failedCount++
+            Write-Log -Level 'WARN' -Message ('external skill install failed: {0}; {1}' -f $entry.Name, $_.Exception.Message)
+        }
+        finally {
+            if ($workRoot -and (Test-Path -LiteralPath $workRoot)) {
+                Remove-Item -LiteralPath $workRoot -Recurse -Force
+            }
+        }
+    }
+
+    $unknownMissing = @($missingNames | Where-Object { $externalEntries.Name -notcontains $_ })
+    foreach ($name in $unknownMissing) {
+        Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'cHJvZmlsZSDlvJXnlKjnmoQgc2tpbGwg5peg5rOV5Yy56YWNIGJ1bmRsZSDmiJYgZXh0ZXJuYWzvvJp7MH0=') -f $name)
+    }
+
+    $importedSkillItems = $importedSkills.ToArray()
+    $requiredPrereqItems = @($requiredPrereqs.ToArray() | Sort-Object -Unique)
+
+    return [pscustomobject]@{
+        ImportedSkills = $importedSkillItems
+        CopiedCount = $copiedCount
+        PlannedCount = $externalEntries.Count
+        FailedCount = $failedCount
+        RequiredPrereqs = $requiredPrereqItems
+    }
+}
+
 function Install-SkillBundle {
     param(
         [Parameter(Mandatory)]
@@ -3650,70 +4830,71 @@ function Install-SkillBundle {
 
         Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5Y+R546wIHswfSDkuKogc2tpbGwg55uu5b2V77yb6YCJ5LitIHsxfSDkuKo=') -f $allSkillDirs.Count, $skillDirs.Count)
 
+        $selection = $script:LastSkillSelection
+        $featurePrereqs = @()
+        if ($selection -and -not [string]::IsNullOrWhiteSpace($selection.RegistryRoot)) {
+            $featurePrereqs += @($selection.Prereqs)
+            if ($selection.MissingSkills.Count -gt 0) {
+                $registrySkillEntries = @(Read-RegistrySkillEntries -RegistryRoot $selection.RegistryRoot)
+                $externalEntries = @($registrySkillEntries | Where-Object { $_.Section -eq 'external' -and ($selection.MissingSkills -contains $_.Name) })
+                if ($externalEntries.Count -gt 0) {
+                    if (@($externalEntries | Where-Object { -not [string]::IsNullOrWhiteSpace($_.Repo) }).Count -gt 0) {
+                        $featurePrereqs += 'git'
+                    }
+                    foreach ($externalEntry in $externalEntries) {
+                        $featurePrereqs += @($externalEntry.Requires)
+                    }
+                }
+            }
+            $null = Install-RegistryPrereqs -RegistryRoot $selection.RegistryRoot -PrereqNames $featurePrereqs -DryRun:$DryRun
+        }
+
         $skillImportIndex = 0
         $skillImportTotal = $skillDirs.Count
         foreach ($skillDir in $skillDirs) {
             $skillImportIndex++
             $skillName = Split-Path -Leaf $skillDir
             Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'U2tpbGwg6L+b5bqm77yaezB9L3sxfSB7Mn0=') -f $skillImportIndex, $skillImportTotal, $skillName)
-            $sourcePath = $skillDir
-            $centralPath = Join-Path $centralRoot $skillName
-            $centralDecision = Get-SkillImportDecision `
-                -SourcePath $sourcePath `
-                -DestinationPath $centralPath `
+            $importResult = Import-SkillDirectoryToTargets `
+                -SourcePath $skillDir `
                 -SkillName $skillName `
+                -CentralRoot $centralRoot `
+                -Targets $targets `
                 -NoReplaceOrphan:$NoReplaceOrphan `
                 -ReplaceForeign:$ReplaceForeign `
-                -RenameForeign:$RenameForeign
+                -RenameForeign:$RenameForeign `
+                -DryRun:$DryRun
 
-            $centralBackupPath = Invoke-SkillImportDecision -Decision $centralDecision -SourcePath $sourcePath -DryRun:$DryRun -Quiet
+            if ($importResult.Imported) {
+                $importedSkills.Add($importResult.Metadata)
+            }
 
-            if ($centralDecision.Action -eq 'Skip' -and $centralDecision.State -in @('Orphan', 'Foreign')) {
-                Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '6Lez6L+HIHNraWxs77ya546w5pyJ55uu5b2V54q25oCB5Li6IHswfe+8mnsxfQ==') -f $centralDecision.State, $centralDecision.FinalPath)
+            if (-not $importResult.Copied) {
+                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'U2tpbGwg5bey6Lez6L+H77yaezB9') -f $importResult.EffectiveName)
                 continue
             }
 
-            $effectiveSkillName = $centralDecision.FinalName
-            $effectiveCentralPath = $centralDecision.FinalPath
-            $skillTargets = New-Object System.Collections.Generic.List[object]
-            $targetChanged = $false
-            $copySourcePath = if ((-not $DryRun) -and (Test-Path -LiteralPath $effectiveCentralPath)) { $effectiveCentralPath } else { $sourcePath }
-
-            foreach ($target in $targets | Where-Object { $_.Enabled }) {
-                $targetPath = Join-Path $target.Path $effectiveSkillName
-                $targetDecision = Get-SkillImportDecision `
-                    -SourcePath $sourcePath `
-                    -DestinationPath $targetPath `
-                    -SkillName $effectiveSkillName `
-                    -NoReplaceOrphan:$NoReplaceOrphan `
-                    -ReplaceForeign:$ReplaceForeign `
-                    -RenameForeign:$false
-                $targetBackupPath = Invoke-SkillImportDecision -Decision $targetDecision -SourcePath $copySourcePath -DryRun:$DryRun -Quiet
-
-                if ($targetDecision.Action -ne 'Skip' -or $targetDecision.State -eq 'Tracked') {
-                    $skillTargets.Add([pscustomobject]@{
-                            Tool = $target.Name
-                            Path = $targetDecision.FinalPath
-                        })
-                }
-
-                if ($targetDecision.Action -ne 'Skip') {
-                    $targetChanged = $true
-                }
-            }
-
-            $skillMetadata = Read-SkillMetadata -SkillPath $sourcePath -SkillName $effectiveSkillName -CentralPath $effectiveCentralPath
-            $skillMetadata | Add-Member -MemberType NoteProperty -Name 'Targets' -Value $skillTargets -Force
-            $importedSkills.Add($skillMetadata)
-
-            if ($centralDecision.Action -eq 'Skip' -and -not $targetChanged) {
-                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'U2tpbGwg5bey6Lez6L+H77yaezB9') -f $effectiveSkillName)
-                continue
-            }
-
-            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'U2tpbGwg5bey5ZCM5q2l77yaezB977yb5Yqo5L2cPXsxfe+8m+ebruaghz17Mn0g5Liq') -f $effectiveSkillName, $centralDecision.Action, $skillTargets.Count)
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'U2tpbGwg5bey5ZCM5q2l77yaezB977yb5Yqo5L2cPXsxfe+8m+ebruaghz17Mn0g5Liq') -f $importResult.EffectiveName, $importResult.Action, $importResult.TargetCount)
             $copiedSkillCount++
 
+        }
+
+        if ($selection -and -not [string]::IsNullOrWhiteSpace($selection.RegistryRoot)) {
+            $externalResult = Import-ExternalSkillsFromSelection `
+                -Selection $selection `
+                -CentralRoot $centralRoot `
+                -Targets $targets `
+                -NoReplaceOrphan:$NoReplaceOrphan `
+                -ReplaceForeign:$ReplaceForeign `
+                -RenameForeign:$RenameForeign `
+                -DryRun:$DryRun
+
+            foreach ($metadata in @($externalResult.ImportedSkills)) {
+                $importedSkills.Add($metadata)
+            }
+            $copiedSkillCount += [int]$externalResult.CopiedCount
+
+            Sync-RegistryMcpServers -RegistryRoot $selection.RegistryRoot -McpNames $selection.Mcp -DryRun:$DryRun
         }
 
         $registrySyncResult = $null
@@ -3735,7 +4916,7 @@ function Install-SkillBundle {
             Key = 'skills-bundle'
             Status = 'ok'
             Source = 'local-zip'
-            Detail = if ($skillDirs.Count -eq 0) { ConvertFrom-Utf8Base64String -Value '5pyq5a+85YWlIFNraWxs' } elseif ($copiedSkillCount -eq 0) { ConvertFrom-Utf8Base64String -Value '5YWo6YOoIHNraWxsIOW3suWQjOatpQ==' } else { (ConvertFrom-Utf8Base64String -Value '5bey5a+85YWlIHswfSDkuKogc2tpbGw=') -f $copiedSkillCount }
+            Detail = if ($copiedSkillCount -gt 0) { (ConvertFrom-Utf8Base64String -Value '5bey5a+85YWlIHswfSDkuKogc2tpbGw=') -f $copiedSkillCount } elseif ($skillDirs.Count -eq 0) { ConvertFrom-Utf8Base64String -Value '5pyq5a+85YWlIFNraWxs' } else { ConvertFrom-Utf8Base64String -Value '5YWo6YOoIHNraWxsIOW3suWQjOatpQ==' }
         }
     }
     finally {
