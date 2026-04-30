@@ -2049,6 +2049,336 @@ function Get-SkillDirectoriesFromZip {
     }
 }
 
+function Test-InteractiveConsole {
+    return ([Environment]::UserInteractive -and -not [Console]::IsInputRedirected)
+}
+
+function ConvertFrom-Utf8Base64String {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Value
+    )
+
+    return [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($Value))
+}
+
+function Split-SelectionTokens {
+    param(
+        [string[]]$Values
+    )
+
+    return @(
+        $Values |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        ForEach-Object { $_.Replace([char]0xFF0C, ',') -split ',' } |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+}
+
+function ConvertFrom-ProfileScalar {
+    param(
+        [string]$Value
+    )
+
+    if ($null -eq $Value) {
+        return ''
+    }
+
+    $trimmed = $Value.Trim()
+    if (($trimmed.StartsWith('"') -and $trimmed.EndsWith('"')) -or ($trimmed.StartsWith("'") -and $trimmed.EndsWith("'"))) {
+        return $trimmed.Substring(1, $trimmed.Length - 2)
+    }
+
+    return $trimmed
+}
+
+function ConvertFrom-ProfileInlineList {
+    param(
+        [string]$Value
+    )
+
+    $trimmed = (ConvertFrom-ProfileScalar -Value $Value).Trim()
+    if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed -eq '[]') {
+        return @()
+    }
+
+    if ($trimmed.StartsWith('[') -and $trimmed.EndsWith(']')) {
+        $trimmed = $trimmed.Substring(1, $trimmed.Length - 2)
+    }
+
+    return @(
+        $trimmed.Replace([char]0xFF0C, ',') -split ',' |
+        ForEach-Object { ConvertFrom-ProfileScalar -Value $_ } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+}
+
+function Expand-BundleRegistryArchive {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ExtractedBundleRoot,
+        [Parameter(Mandatory)]
+        [string]$DestinationPath
+    )
+
+    $archivePath = Join-Path $ExtractedBundleRoot 'registry.tar.gz'
+    if (-not (Test-Path -LiteralPath $archivePath)) {
+        return $null
+    }
+
+    Initialize-Directory -Path $DestinationPath
+    $tar = Get-Command tar -ErrorAction SilentlyContinue
+    if (-not $tar) {
+        Write-Log -Level 'WARN' -Message 'tar is not available; skip profile registry extraction'
+        return $null
+    }
+
+    & $tar.Source -xzf $archivePath -C $DestinationPath
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log -Level 'WARN' -Message ('Failed to extract registry.tar.gz, exit={0}; skip profile menu' -f $LASTEXITCODE)
+        return $null
+    }
+
+    return $DestinationPath
+}
+
+function Read-SkillProfilesFromRegistry {
+    param(
+        [Parameter(Mandatory)]
+        [string]$RegistryRoot
+    )
+
+    $profilesPath = Join-Path $RegistryRoot 'profiles.yaml'
+    if (-not (Test-Path -LiteralPath $profilesPath)) {
+        return @()
+    }
+
+    $profiles = @()
+    $current = $null
+    $currentList = $null
+
+    foreach ($rawLine in (Get-Content -Encoding UTF8 -LiteralPath $profilesPath)) {
+        $line = $rawLine.TrimEnd()
+        $trimmed = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#')) {
+            continue
+        }
+
+        if ($trimmed -match '^-\s+name\s*:\s*(.+)$') {
+            if ($null -ne $current) {
+                $profiles += [pscustomobject]$current
+            }
+
+            $current = [ordered]@{
+                Name = ConvertFrom-ProfileScalar -Value $Matches[1]
+                Description = ''
+                Tags = @()
+                Mcp = @()
+                Skills = @()
+            }
+            $currentList = $null
+            continue
+        }
+
+        if ($null -eq $current) {
+            continue
+        }
+
+        if ($trimmed -match '^description\s*:\s*(.*)$') {
+            $current.Description = ConvertFrom-ProfileScalar -Value $Matches[1]
+            $currentList = $null
+            continue
+        }
+
+        if ($trimmed -match '^tags\s*:\s*(.*)$') {
+            $current.Tags = @(ConvertFrom-ProfileInlineList -Value $Matches[1])
+            $currentList = $null
+            continue
+        }
+
+        if ($trimmed -match '^(mcp|skills)\s*:\s*(.*)$') {
+            $key = $Matches[1]
+            $value = $Matches[2]
+            $currentList = if ($key -eq 'mcp') { 'Mcp' } else { 'Skills' }
+            if (-not [string]::IsNullOrWhiteSpace($value)) {
+                $current[$currentList] = @(ConvertFrom-ProfileInlineList -Value $value)
+                $currentList = $null
+            }
+            continue
+        }
+
+        if ($currentList -and $trimmed -match '^-\s+(.+)$') {
+            $current[$currentList] = @($current[$currentList]) + (ConvertFrom-ProfileScalar -Value $Matches[1])
+        }
+    }
+
+    if ($null -ne $current) {
+        $profiles += [pscustomobject]$current
+    }
+
+    return @($profiles)
+}
+
+function Read-RegistryRequiresMap {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    $requiresByName = @{}
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return $requiresByName
+    }
+
+    $currentName = $null
+    foreach ($rawLine in (Get-Content -Encoding UTF8 -LiteralPath $Path)) {
+        $trimmed = $rawLine.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#')) {
+            continue
+        }
+
+        if ($trimmed -match '^-\s+name\s*:\s*(.+)$') {
+            $currentName = ConvertFrom-ProfileScalar -Value $Matches[1]
+            $requiresByName[$currentName.ToLowerInvariant()] = @()
+            continue
+        }
+
+        if ($currentName -and $trimmed -match '^requires\s*:\s*(.*)$') {
+            $requiresByName[$currentName.ToLowerInvariant()] = @(ConvertFrom-ProfileInlineList -Value $Matches[1])
+        }
+    }
+
+    return $requiresByName
+}
+
+function Get-ProfilePrereqNames {
+    param(
+        [Parameter(Mandatory)]
+        [string]$RegistryRoot,
+        [string[]]$SkillNames,
+        [string[]]$McpNames
+    )
+
+    $skillsRequires = Read-RegistryRequiresMap -Path (Join-Path $RegistryRoot 'skills.yaml')
+    $mcpRequires = Read-RegistryRequiresMap -Path (Join-Path $RegistryRoot 'mcp.yaml')
+    $prereqs = @()
+
+    foreach ($skillName in @($SkillNames)) {
+        $key = $skillName.ToLowerInvariant()
+        if ($skillsRequires.ContainsKey($key)) {
+            $prereqs += @($skillsRequires[$key])
+        }
+    }
+
+    foreach ($mcpName in @($McpNames)) {
+        $key = $mcpName.ToLowerInvariant()
+        if ($mcpRequires.ContainsKey($key)) {
+            $prereqs += @($mcpRequires[$key])
+        }
+    }
+
+    return @($prereqs | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+}
+
+function Select-SkillDirectoriesForProfiles {
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$SkillDirectories,
+        [object[]]$Profiles,
+        [string[]]$RequestedProfiles,
+        [string]$RegistryRoot,
+        [switch]$AllSkills
+    )
+
+    if ($AllSkills -or -not $Profiles -or $Profiles.Count -eq 0) {
+        return @($SkillDirectories)
+    }
+
+    $tokens = @(Split-SelectionTokens -Values $RequestedProfiles)
+    if ($tokens.Count -eq 0 -and -not (Test-InteractiveConsole)) {
+        Write-Log -Message 'No interactive console detected; install all skills from bundle'
+        return @($SkillDirectories)
+    }
+
+    if ($tokens.Count -eq 0) {
+        Write-Host ''
+        Write-Host (ConvertFrom-Utf8Base64String -Value '6K+36YCJ5oup6KaB5a6J6KOF55qEIEluZGllQXJrIFByb2ZpbGXvvIjlj6/ovpPlhaXluo/lj7cv5ZCN56ew77yM5aSa5Liq55So6YCX5Y+35YiG6ZqU77yb55u05o6l5Zue6L2m5a6J6KOF5YWo6YOoIHNraWxs77yJ77ya')
+        Write-Host (ConvertFrom-Utf8Base64String -Value 'ICAwLiDlhajpg6ggc2tpbGzvvIjlhbzlrrnml6fpgLvovpHvvIk=')
+        for ($index = 0; $index -lt $Profiles.Count; $index++) {
+            $profile = $Profiles[$index]
+            Write-Host ('  {0}. {1} - {2}' -f ($index + 1), $profile.Name, $profile.Description)
+        }
+
+        $answer = Read-Host 'Profile'
+        $tokens = @(Split-SelectionTokens -Values @($answer))
+        if ($tokens.Count -eq 0 -or $tokens -contains '0') {
+            return @($SkillDirectories)
+        }
+    }
+
+    $selectedProfiles = New-Object System.Collections.Generic.List[object]
+    foreach ($token in $tokens) {
+        $matched = $null
+        [int]$numeric = 0
+        if ([int]::TryParse($token, [ref]$numeric) -and $numeric -ge 1 -and $numeric -le $Profiles.Count) {
+            $matched = $Profiles[$numeric - 1]
+        }
+        else {
+            $matched = $Profiles | Where-Object { $_.Name -eq $token -or $_.Name.ToLowerInvariant() -eq $token.ToLowerInvariant() } | Select-Object -First 1
+        }
+
+        if (-not $matched) {
+            throw ('Unknown skill profile: {0}' -f $token)
+        }
+
+        $selectedProfiles.Add($matched)
+    }
+
+    $wantedSkills = @($selectedProfiles | ForEach-Object { $_.Skills } | Sort-Object -Unique)
+    $wantedMcp = @($selectedProfiles | ForEach-Object { $_.Mcp } | Sort-Object -Unique)
+    $wantedPrereqs = @()
+    if (-not [string]::IsNullOrWhiteSpace($RegistryRoot)) {
+        $wantedPrereqs = @(Get-ProfilePrereqNames -RegistryRoot $RegistryRoot -SkillNames $wantedSkills -McpNames $wantedMcp)
+    }
+
+    if ($wantedSkills.Count -eq 0) {
+        Write-Log -Level 'WARN' -Message 'Selected profiles do not reference any skills; install all skills from bundle'
+        return @($SkillDirectories)
+    }
+
+    $skillByName = @{}
+    foreach ($skillDir in $SkillDirectories) {
+        $skillByName[(Split-Path -Leaf $skillDir).ToLowerInvariant()] = $skillDir
+    }
+
+    $selectedSkillDirs = New-Object System.Collections.Generic.List[string]
+    $missingSkills = New-Object System.Collections.Generic.List[string]
+    foreach ($skillName in $wantedSkills) {
+        $key = $skillName.ToLowerInvariant()
+        if ($skillByName.ContainsKey($key)) {
+            $selectedSkillDirs.Add($skillByName[$key])
+        }
+        else {
+            $missingSkills.Add($skillName)
+        }
+    }
+
+    if ($missingSkills.Count -gt 0) {
+        Write-Log -Level 'WARN' -Message ('Profiles reference skills not found in bundle: {0}' -f ($missingSkills -join ', '))
+    }
+
+    $selectedProfileNames = @($selectedProfiles | ForEach-Object { $_.Name }) -join ', '
+    $mcpDetail = if ($wantedMcp.Count -gt 0) { $wantedMcp -join ', ' } else { '(none)' }
+    $prereqDetail = if ($wantedPrereqs.Count -gt 0) { $wantedPrereqs -join ', ' } else { '(none)' }
+    Write-Log -Message ('Selected profiles: {0}' -f $selectedProfileNames)
+    Write-Log -Message ('Selected skills: {0}/{1}' -f $selectedSkillDirs.Count, $SkillDirectories.Count)
+    Write-Log -Message ('Selected MCP: {0}' -f $mcpDetail)
+    Write-Log -Message ('Resolved prereqs: {0}' -f $prereqDetail)
+
+    return @($selectedSkillDirs)
+}
+
 function Get-OptionalSkillTargets {
     $homeDir = Get-UserHomeDirectory
     $targets = New-Object System.Collections.Generic.List[object]
@@ -2381,6 +2711,8 @@ function Install-SkillBundle {
     param(
         [Parameter(Mandatory)]
         [string]$ZipPath,
+        [string[]]$SkillProfiles,
+        [switch]$AllSkills,
         [switch]$DryRun
     )
 
@@ -2399,9 +2731,12 @@ function Install-SkillBundle {
         Write-Log -Message ('Skill source-of-truth root: {0}' -f $centralRoot)
         Initialize-Directory -Path $tempRoot
         Expand-Archive -LiteralPath $ZipPath -DestinationPath $tempRoot -Force
-        $skillDirs = @(Get-SkillDirectoriesFromExtractedRoot -RootPath $tempRoot)
+        $allSkillDirs = @(Get-SkillDirectoriesFromExtractedRoot -RootPath $tempRoot)
+        $registryRoot = Expand-BundleRegistryArchive -ExtractedBundleRoot $tempRoot -DestinationPath (Join-Path $tempRoot 'registry')
+        $profiles = if ($registryRoot) { @(Read-SkillProfilesFromRegistry -RegistryRoot $registryRoot) } else { @() }
+        $skillDirs = @(Select-SkillDirectoriesForProfiles -SkillDirectories $allSkillDirs -Profiles $profiles -RequestedProfiles $SkillProfiles -RegistryRoot $registryRoot -AllSkills:$AllSkills)
 
-        Write-Log -Message ('Discovered {0} skill directories' -f $skillDirs.Count)
+        Write-Log -Message ('Discovered {0} skill directories; selected {1}' -f $allSkillDirs.Count, $skillDirs.Count)
 
         foreach ($skillDir in $skillDirs) {
             $skillName = Split-Path -Leaf $skillDir
