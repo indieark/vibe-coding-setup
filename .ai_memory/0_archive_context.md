@@ -114,3 +114,13 @@
 1. 以后每次改 `manifest/apps.json` 或 `common.psm1`，都应同步回看 README 中的“执行顺序”和“来源/回退”章节。
 2. 如果未来把 `skills.zip` 的触发条件改成“仅在选择 `skills-manager` 时运行”，需要同时改代码和 README，而不是只改文档。
 3. 如果新增新的 fallback 类型，优先先补 `README` 的通用安装逻辑，再补应用级来源表。
+
+## 2026-04-30 — 按需装机器 Phase 1-4 归档
+
+本轮路线把 `vibe-coding-setup` 从普通 Windows 装机脚本推进到按需装机器底座。关键转折是：不再把 Skill 当作无来源的目录拷贝，而是把 `00000-model` registry bundle 镜像成公开 `skills.zip`，并在导入时读取 `.skill-meta.json`，让 Skills Manager 能识别真实上游来源。
+
+核心决策：终端用户不需要 PAT；PAT 只存在于刷新 `bootstrap-assets` 的 GitHub Actions secret 中。安装路径只访问当前仓库公开 release 资产，避免把私库权限扩散到用户机器。
+
+Skill 导入的安全边界已经收敛为三态：`Tracked` 表示 IndieArk 可追更目录，按内容增量同步；`Orphan` 表示旧版或手工拷贝目录，默认备份后替换；`Foreign` 表示第三方同名目录，默认跳过。用户测试时优先用 `-DryRun -NoReplaceOrphan -SkipSkillsManagerLaunch`，确认日志后再真实导入。
+
+后续先进化方向不应继续堆安装项，而应增强可观测和可校验：日志落盘、JSON report、bundle manifest / checksum、导入结果计数、`-Plan` 或 `-ReportPath` 模式。路线图下一阶段是 `00000-model` Phase 5：registry → 飞书 bitable 只读镜像，继续保持 yaml 为 SSOT。

@@ -16,3 +16,10 @@
 - 为通用安装逻辑补充 `uri` 型 fallback，支持拉起 `ms-windows-store://` 或官方网页详情页。
 - 删除 release 中旧的 `Codex-26.325.31654.Setup.exe` 资产。
 - 重新通读整个仓库后，修正了 `README.md` 中三处与代码不一致的描述：`skills.zip` 触发条件、实际使用策略集合、以及 primary failure 后的 post-check / fallback 顺序。
+
+## 2026-04-30
+
+- 完成并合并 Phase 4：Skill 三态去重判定，PR #6 合入 `main`，merge commit `85aea1b`。
+- 验证通过：`git diff --check`、PowerShell 5.1 / 7 模块导入、飞书办公套件 dry-run（`-NoReplaceOrphan -SkipSkillsManagerLaunch`）。
+- 更新 README：补充当前路线状态、本机安全测试命令、`.skill-meta.json` 来源判定、三态默认策略和后续先进化方向。
+- 更新 `.ai_memory`：记录当前安装器真实状态、下一步 Phase 5 边界和安装器增强建议。

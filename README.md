@@ -19,6 +19,17 @@
 - `Codex Provider Sync`
 - `Skills Manager`
 
+## 当前路线状态
+
+安装器已经从“批量拷贝工具和技能”升级为“按需装机器”底座：
+
+- 应用安装走 `manifest/apps.json`，先做版本门禁，再按主来源 / 回退来源安装。
+- 私库资产只在刷新 `bootstrap-assets` 时使用 PAT；最终用户安装只访问公开镜像资产。
+- `skills.zip` 来自 `indieark/00000-model` registry bundle，经当前仓库 `bootstrap-assets` 镜像后分发。
+- Skill 支持 Profile 选择，默认可按 `registry/profiles.yaml` 的预设组合导入。
+- Skill 导入已支持 `.skill-meta.json`，能把上游 git 字段写入 Skills Manager SQLite，后续 UI 可继续追更。
+- 同名 Skill 已有三态安全判定：IndieArk 已跟踪目录同步，旧孤儿目录备份替换，第三方同名目录默认跳过。
+
 ## 主脚本逻辑
 
 下面是 `bootstrap.ps1` 的实际执行顺序，按代码路径整理。
@@ -172,19 +183,22 @@ precheck 决策规则：
 
 1. 解压 `downloads/skills.zip`
 2. 递归查找所有包含 `SKILL.md` 的目录
-3. 先比较技能目录内容是否已经同步
-4. 如果 `~/.skills-manager/skills/<skill-name>` 缺失或内容不同，则复制过去
-5. 如果本机存在以下目录，也会一起做同样的“缺失或内容不同才同步”检查：
+3. 读取 bundle 内置的 `registry/profiles.yaml`，按 `-SkillProfile` / `-AllSkills` 选择要导入的 skill
+4. 对 `~/.skills-manager/skills/<skill-name>` 做三态判定：
+   - `Tracked`：已有 `.skill-meta.json` 且来源匹配，内容不同才同步
+   - `Orphan`：有 `SKILL.md` 但缺 `.skill-meta.json`，默认备份为 `<name>.legacy.<时间>` 后替换
+   - `Foreign`：已有 `.skill-meta.json` 但来源不匹配，默认跳过，避免覆盖第三方同名 skill
+5. 如果本机存在以下目录，也会把已导入的 central skill 同步过去：
+   - `~/.codex/skills`
    - `~/.claude/skills`
    - `~/.cursor/skills`
    - `~/.gemini/antigravity/global_skills`
    - `~/.gemini/skills`
    - `~/.copilot/skills`
-6. `~/.codex/skills/<skill-name>` 也按同样规则同步
-7. 如果不是 `-DryRun`，并且这次确实有技能被导入，才写入 `~/.skills-manager/skills-manager.db`
-8. 如果这次确实导入了技能，且找到 `skills-manager.exe`，最后会自动拉起它
+6. 如果不是 `-DryRun`，会把实际导入 / 已跟踪的 skill 写入 `~/.skills-manager/skills-manager.db`
+7. 如果这次确实导入了技能，且没有传 `-SkipSkillsManagerLaunch`，最后会自动拉起 `skills-manager.exe`
 
-也就是说，`skills.zip` 不再是“只要运行就整包重拷”；现在是按技能目录内容做增量同步，已经一致的技能会直接跳过。
+也就是说，`skills.zip` 不再是“只要运行就整包重拷”；现在是“Profile 选择 + 来源判定 + 增量同步 + SQLite 注册”的组合流程。
 
 这里也有一个和直觉不完全一致的点：
 
@@ -300,9 +314,23 @@ precheck 决策规则：
 
 如果这个资产不存在或下载失败，技能导入阶段会直接失败。
 
-### `skills.zip` 现在按内容同步，不是无脑重导
+### `skills.zip` 现在按来源和内容同步，不是无脑重导
 
-`Install-SkillBundle` 现在会先把 `skills.zip` 解到临时目录，再逐个技能比较源目录和目标目录内容。
+`Install-SkillBundle` 现在会先把 `skills.zip` 解到临时目录，再逐个技能读取 `.skill-meta.json`，把目标目录分成以下状态：
+
+| 状态 | 判定 | 默认动作 |
+| --- | --- | --- |
+| `Missing` | 目标目录不存在 | 复制导入 |
+| `Tracked` | 目标有 `.skill-meta.json`，且来源字段与 bundle 匹配 | 内容一致则跳过，内容不同则同步 |
+| `Orphan` | 目标有 `SKILL.md`，但没有 `.skill-meta.json` | 备份为 `<name>.legacy.<时间>` 后替换 |
+| `Foreign` | 目标有 `.skill-meta.json`，但来源字段不匹配 | 跳过，避免覆盖第三方同名 skill |
+
+可用参数调整默认动作：
+
+- `-NoReplaceOrphan`：孤儿目录不备份替换，只跳过。
+- `-ReplaceForeign`：第三方同名目录也备份替换。
+- `-RenameForeign`：第三方同名目录保留，IndieArk 版本改名为 `<name>-indieark` 导入。
+- `-SkipSkillsManagerLaunch`：同步后不自动拉起 Skills Manager，适合测试和自动化。
 
 判定范围包括：
 
@@ -315,11 +343,7 @@ precheck 决策规则：
   - `~/.gemini/skills`
   - `~/.copilot/skills`
 
-只有某个技能在任一启用目标中缺失，或者文件内容不一致时，脚本才会重新同步该技能。
-
-如果某个目标目录本质上只是另一个目标的软链接 / junction（例如 `~/.codex/skills` 指向 `~/.skills-manager/skills`），脚本会在 central import 之后重新做一次同步检查；如果内容已经一致，就跳过第二次复制，避免把刚导入的 central skill 又删掉。
-
-如果所有目标都已经和 `skills.zip` 一致，日志会显示：
+如果所有目标都已经同步，日志会显示：
 
 - `Skill already synchronized, skip: <skill-name>`
 
@@ -491,13 +515,19 @@ Set-Location "D:\AI Coding\Vibe Coding Setup"
 .\bootstrap.cmd -AllSkills
 ```
 
-Skill 导入会对同名目录做三态判定：IndieArk 已跟踪目录直接同步，缺 `.skill-meta.json` 的旧目录默认备份为 `<name>.legacy.<时间>` 后替换，第三方同名目录默认跳过。可用以下参数调整：
+Skill 导入会对同名目录做三态判定：IndieArk 已跟踪目录增量同步，缺 `.skill-meta.json` 的旧目录默认备份为 `<name>.legacy.<时间>` 后替换，第三方同名目录默认跳过。可用以下参数调整：
 
 ```powershell
 .\bootstrap.cmd -NoReplaceOrphan
 .\bootstrap.cmd -ReplaceForeign
 .\bootstrap.cmd -RenameForeign
 .\bootstrap.cmd -SkipSkillsManagerLaunch
+```
+
+推荐先用安全演练命令观察本机判定，不替换旧目录、不拉起 UI：
+
+```powershell
+.\bootstrap.cmd -DryRun -SkipCcSwitch -Only git -SkillProfile "飞书办公套件" -NoReplaceOrphan -SkipSkillsManagerLaunch
 ```
 
 只做演练，不真正安装：
@@ -535,12 +565,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 - `tw93/Pake` latest release asset
 - `farion1231/cc-switch` latest release asset
 - `indieark/codex-provider-sync` private release asset（镜像到 `bootstrap-assets` 后对外安装）
+- `indieark/00000-model` private registry bundle（镜像为公开 `bootstrap-assets/skills.zip` 后对外安装）
 - `xingkongliang/skills-manager` latest MSI release asset
 
-## 建议后续
+## 还能怎么更先进
 
-- 增加日志落盘
-- 增加安装结果 JSON 报告
-- 为直链或 Release 资产增加 checksum / 版本校验
-- 为 `Codex Desktop` / `ChatGPT (Pake)` 增加稳定版本来源，便于未来从 presence-only 回到可比较版本门禁
-- 继续观察 `Skills Manager` 后续是否提供稳定 CLI、可靠版本号或显式 rescan 命令
+当前安装过程已经具备主来源 / 回退来源、Profile 选择、Skill 来源追踪和三态去重。下一步提升应优先围绕“可观测、可校验、可回滚”：
+
+- 增加日志落盘和安装结果 JSON 报告，方便远程排障和批量装机留痕。
+- 为直链或 Release 资产增加 checksum / 版本校验，降低资产漂移或供应链污染风险。
+- 为 `skills.zip` 增加签名或 bundle manifest 校验，确认下载到的内容确实来自当前 registry 构建。
+- 把 Skill 导入 summary 拆成 `Imported / Skipped / BackedUp / Foreign` 计数，减少用户读长日志的成本。
+- 增加 `-Plan` / `-ReportPath` 模式，输出将要安装和将要替换的完整计划，不触碰系统状态。
+- 为 `Codex Desktop` / `ChatGPT (Pake)` 增加稳定版本来源，便于未来从 presence-only 回到可比较版本门禁。
+- 继续观察 `Skills Manager` 后续是否提供稳定 CLI、可靠版本号或显式 rescan 命令。

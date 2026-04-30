@@ -28,6 +28,10 @@
   2. `appx`
   3. registry uninstall entries
 - `skills.zip` 独立于应用安装；只要未传 `-SkipSkills`，脚本就会预取并在应用阶段后尝试导入，不依赖 `-Only` 是否包含 `skills-manager`。
+- `skills.zip` 由 `indieark/00000-model` registry bundle 构建，经本仓库 `bootstrap-assets` 镜像为公开资产后分发，终端用户机器不需要 PAT。
+- Skill 导入当前是“Profile 选择 + `.skill-meta.json` 来源判定 + 增量同步 + Skills Manager SQLite 注册”的组合流程。
+- 同名 Skill 三态判定已经落地：`Tracked` 增量同步，`Orphan` 默认备份替换，`Foreign` 默认跳过；可用 `-NoReplaceOrphan`、`-ReplaceForeign`、`-RenameForeign` 调整。
+- `-SkipSkillsManagerLaunch` 用于测试和自动化场景，避免同步后自动拉起 Skills Manager UI。
 - `CC Switch` Provider 导入只走 `ccswitch://v1/import` deep link，不写 SQLite。
 - fallback 安装包统一下载到仓库内 `downloads/`，运行安装器时根据 `installerType` 分流到 `msi` / `exe` / `msix` / `uri`。
 - 主安装路径抛错后，脚本会先做一次 post-check 重新检测应用状态；只有仍无法确认安装成功时，才继续走 fallback。
@@ -59,3 +63,4 @@
 - 若 release 中允许新旧资产并存，文档中应明确说明“脚本只认 manifest 当前指向的文件名”。
 - 若某个应用已切换为官方 URI / Store 页作为 fallback，应同步更新模块逻辑、manifest 和 README，避免文档仍写成 release 资产。
 - README 中关于执行顺序、技能导入触发条件、策略使用情况，必须以 `bootstrap.ps1`、`modules/common.psm1`、`manifest/apps.json` 三处交叉核对后的结果为准。
+- 涉及 Skill registry / bundle / profile 的说明，还必须与 `indieark/00000-model` 的 `registry/*.yaml` 和 bundle 构建结果保持一致。

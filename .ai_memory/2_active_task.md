@@ -2,25 +2,21 @@
 
 ## 当前状态
 
-- 已完整通读当前仓库的可执行脚本、manifest、入口壳脚本和现有归档文件。
-- 已按代码事实重新核对 `README.md`，修正以下关键偏差：
-  - `skills.zip` 的预取与导入不依赖 `skills-manager` 是否被选中
-  - 当前实际使用到的主策略包含 `release-asset`，而不是 `github-release`
-  - 主来源失败后会先做一次 post-check，再继续进入 fallback
-- 当前仓库的核心执行真相仍然集中在：
-  - `bootstrap.ps1`
-  - `modules/common.psm1`
-  - `manifest/apps.json`
+- `vibe-coding-setup` 已完成按需装机器 Phase 1-4 主线合并。
+- 当前 `main` 包含：私库 bundle 镜像为公开 `skills.zip`、Profile 选择、`.skill-meta.json` 透传到 Skills Manager SQLite、同名 Skill 三态去重。
+- 最新文档已把安装器状态从“按内容同步”更新为“Profile 选择 + 来源判定 + 增量同步 + SQLite 注册”。
+- README 已补充本机安全测试命令和“还能怎么更先进”的后续方向。
 
 ## 当前未完成项
 
-- 当前用户请求已基本完成，没有剩余必须继续执行的代码变更项。
+- Phase 5 飞书只读镜像尚未实现；`00000-model` 已有执行计划分支 `plan/feishu-readonly-mirror`。
+- 安装器仍缺少日志落盘、JSON 报告、bundle 签名 / checksum、导入计数摘要等增强项。
 
 ## 立即下一步
 
-1. 如需继续增强仓库，可新增 checksum / hash 校验，降低 release 资产漂移风险。
-2. 可考虑把 `bootstrap-assets` 的更新流程脚本化，避免手工同步。
-3. 若后续再改安装策略或技能导入行为，应先改代码，再同步 README 和 `.ai_memory`。
+1. 用户若要本机验证，先跑 `-DryRun -NoReplaceOrphan -SkipSkillsManagerLaunch`，确认三态判定日志。
+2. 若继续推进路线图，优先实现 `00000-model` Phase 5：registry → 飞书 bitable 只读镜像。
+3. 若继续增强安装器，优先做 `-ReportPath` / JSON summary 和 bundle manifest 校验。
 
 ## 阻断
 
