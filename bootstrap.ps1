@@ -232,6 +232,10 @@ function Invoke-BootstrapExit {
         [int]$Code
     )
 
+    if ($script:BootstrapUserCancelled) {
+        exit $Code
+    }
+
     if ($KeepShellOpen) {
         Write-Host ''
         if ($script:BootstrapAdminHandoffStarted) {
