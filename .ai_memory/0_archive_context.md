@@ -124,3 +124,11 @@
 Skill 导入的安全边界已经收敛为三态：`Tracked` 表示 IndieArk 可追更目录，按内容增量同步；`Orphan` 表示旧版或手工拷贝目录，默认备份后替换；`Foreign` 表示第三方同名目录，默认跳过。用户测试时优先用 `-DryRun -NoReplaceOrphan -SkipSkillsManagerLaunch`，确认日志后再真实导入。
 
 后续先进化方向不应继续堆安装项，而应增强可观测和可校验：日志落盘、JSON report、bundle manifest / checksum、导入结果计数、`-Plan` 或 `-ReportPath` 模式。路线图下一阶段是 `00000-model` Phase 5：registry → 飞书 bitable 只读镜像，继续保持 yaml 为 SSOT。
+
+## 2026-04-30 — 文档结构治理归档
+
+用户要求保证层层索引和单一信息源。审计后发现 README 同时承载安装流程、Skill 导入、PAT 规范、资产刷新和路线图，容易与 `.agent/rules`、`.ai_memory` 和代码事实源重复。
+
+本次把 README 改为顶层入口，只保留项目定位、文档地图、快速开始、SSOT 约定和维护检查清单。详细说明按主题拆入 `docs/installer-flow.md`、`docs/skill-import.md`、`docs/asset-refresh.md`、`docs/operations.md`、`docs/roadmap.md`。
+
+同时新增 `.agent/rules/documentation-governance.md`，把“README 只做索引、规则写在 rules、归档不当用户手册、代码配置是最终事实源”固化为仓库规则。后续修改文档时先找唯一入口，不要把同一张表复制到多个文件。

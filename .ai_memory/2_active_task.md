@@ -3,9 +3,9 @@
 ## 当前状态
 
 - `vibe-coding-setup` 已完成按需装机器 Phase 1-4 主线合并。
-- 当前 `main` 包含：私库 bundle 镜像为公开 `skills.zip`、Profile 选择、`.skill-meta.json` 透传到 Skills Manager SQLite、同名 Skill 三态去重。
-- 最新文档已把安装器状态从“按内容同步”更新为“Profile 选择 + 来源判定 + 增量同步 + SQLite 注册”。
-- README 已补充本机安全测试命令和“还能怎么更先进”的后续方向。
+- 文档结构已收敛为 README 顶层入口 + `docs/` 专题说明 + `.agent/rules/` 规则源。
+- README 不再维护完整流程、PAT 表、应用来源表或后续路线细节，只做文档地图和快速开始。
+- 新增 `.agent/rules/documentation-governance.md`，用于约束层层索引和单一信息源。
 
 ## 当前未完成项
 

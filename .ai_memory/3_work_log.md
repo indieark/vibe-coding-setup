@@ -23,3 +23,9 @@
 - 验证通过：`git diff --check`、PowerShell 5.1 / 7 模块导入、飞书办公套件 dry-run（`-NoReplaceOrphan -SkipSkillsManagerLaunch`）。
 - 更新 README：补充当前路线状态、本机安全测试命令、`.skill-meta.json` 来源判定、三态默认策略和后续先进化方向。
 - 更新 `.ai_memory`：记录当前安装器真实状态、下一步 Phase 5 边界和安装器增强建议。
+
+## 2026-04-30
+
+- 重构文档结构：README 收敛为顶层入口和文档地图，详细说明拆入 `docs/installer-flow.md`、`docs/skill-import.md`、`docs/asset-refresh.md`、`docs/operations.md`、`docs/roadmap.md`。
+- 新增 `.agent/rules/documentation-governance.md`，明确层层索引、单一信息源和修改要求。
+- 精简 `.ai_memory/1_project_context.md`，改为记录 SSOT 地图和稳定事实，不再复制完整应用来源表。
