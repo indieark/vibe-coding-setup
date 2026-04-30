@@ -17,7 +17,7 @@
 - 真实安装触发 UAC 时会优先用 Windows Terminal 承载管理员 PowerShell；系统没有 `wt.exe` 时才回退经典 PowerShell 窗口。
 - 进入 TUI 前会 best-effort 切换到英文键盘布局，减少中文输入法干扰方向键和快捷键。
 - Skill 导入日志已从逐目标长路径明细收敛为按 skill 聚合的进度与结果，正常流程不再刷屏；警告和失败仍保留明确路径与原因。
-- Profile 交互菜单提示已收敛为“可输入序号/名称，多个用逗号分隔；直接回车安装全部 Skill”，不再在交互菜单里展示命令行参数说明。
+- Profile 交互菜单提示已收敛为“可输入序号/名称，多个可用英文逗号、中文逗号或顿号分隔；直接回车安装全部 Skill”，不再在交互菜单里展示命令行参数说明。
 - TUI 默认安装在未选择 Skill Profile 时不会再把空 `-SkillProfile` 带入 UAC / Windows Terminal 重启参数；空数组会被清洗并跳过。
 - 本轮修复已提交并推送到 `main`；最近提交包括默认安装逻辑、进度/终端体验、Skill 选择提示三组修复。
 
@@ -46,5 +46,7 @@
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only git`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -Tui -DryRun -SkipSkills -SkipCcSwitch`，首屏默认 Enter 后直接执行，没有出现确认页。
 - `ConvertTo-ArgumentTokens` 空 / 非空数组参数验证：空 `SkillProfile` 不输出参数，非空 `SkillProfile` 保留为逗号压缩参数。
+- `-Only "git，nodejs、cc-switch"` dry-run 验证通过，中文逗号和顿号会正常解析为多个应用。
+- `-SkillProfile "飞书办公套件，前端开发套件、GitHub 工作流套件"` dry-run 验证通过，Profile 多选支持英文逗号、中文逗号和顿号。
 - `git diff --check`
 - `git status --short --branch` 当前为 `main...origin/main` 干净。

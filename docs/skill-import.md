@@ -16,13 +16,13 @@
 - TUI 自定义模式会先读取 `skills.zip` 中的 Profile，并以复选项展示；默认选择“全部 Skill”。
 - TUI 中选择任意 Profile 后，会取消“全部 Skill”，并在确认页生成等价 `-SkillProfile` 命令。
 - 传 `-SkillProfile "名称"`：只导入指定 Profile 引用的 skill。
-- 多个 Profile 可用逗号分隔。
+- 多个 Profile 可用英文逗号、中文逗号或顿号分隔。
 - 传 `-AllSkills`：显式导入 bundle 内全部 skill。
 - 传 `-SkipSkills`：完全跳过 `skills.zip` 下载和 Skill 导入。
 - 不传 Profile 且处于交互式终端：显示中文选择菜单。
 - 非交互式且未传 Profile：自动回退为全部导入，保持旧逻辑可用。
 
-Profile 交互菜单只提示：可输入序号/名称，多个用逗号分隔；直接回车安装全部 Skill。
+Profile 交互菜单只提示：可输入序号/名称，多个可用英文逗号、中文逗号或顿号分隔；直接回车安装全部 Skill。
 
 ## 目标目录
 

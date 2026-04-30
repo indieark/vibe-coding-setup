@@ -66,7 +66,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 .\bootstrap.cmd -SkillProfile "飞书办公套件"
 ```
 
-多个 Profile：
+多个 Profile（英文逗号、中文逗号和顿号都可解析）：
 
 ```powershell
 .\bootstrap.cmd -SkillProfile "飞书办公套件","前端开发套件"

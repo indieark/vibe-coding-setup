@@ -149,7 +149,7 @@ function Get-SelectedApps {
 
     $lookup = @(
         $Only |
-        ForEach-Object { $_ -split ',' } |
+        ForEach-Object { Split-DelimitedSelectionText -Value $_ } |
         ForEach-Object { $_.Trim() } |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
         ForEach-Object { $_.ToLowerInvariant() }
@@ -2384,6 +2384,20 @@ function ConvertFrom-Utf8Base64String {
     return [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($Value))
 }
 
+function Split-DelimitedSelectionText {
+    param(
+        [AllowNull()]
+        [string]$Value
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return @()
+    }
+
+    $normalized = $Value.Replace([char]0xFF0C, ',').Replace([char]0x3001, ',')
+    return @($normalized -split ',')
+}
+
 function Split-SelectionTokens {
     param(
         [string[]]$Values
@@ -2392,7 +2406,7 @@ function Split-SelectionTokens {
     return @(
         $Values |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
-        ForEach-Object { $_.Replace([char]0xFF0C, ',') -split ',' } |
+        ForEach-Object { Split-DelimitedSelectionText -Value $_ } |
         ForEach-Object { $_.Trim() } |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
     )
@@ -2430,7 +2444,7 @@ function ConvertFrom-ProfileInlineList {
     }
 
     return @(
-        $trimmed.Replace([char]0xFF0C, ',') -split ',' |
+        Split-DelimitedSelectionText -Value $trimmed |
         ForEach-Object { ConvertFrom-ProfileScalar -Value $_ } |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
     )
@@ -2654,8 +2668,8 @@ function Select-SkillDirectoriesForProfiles {
 
     if ($tokens.Count -eq 0) {
         Write-Host ''
-        Write-Host (ConvertFrom-Utf8Base64String -Value '5Y+v6L6T5YWl5bqP5Y+3L+WQjeensO+8jOWkmuS4queUqOmAl+WPt+WIhumalO+8m+ebtOaOpeWbnui9puWuieijheWFqOmDqCBTa2lsbOOAgg==')
-        Write-Host (ConvertFrom-Utf8Base64String -Value '6K+36YCJ5oup6KaB5a6J6KOF55qEIEluZGllQXJrIFByb2ZpbGXvvIjlj6/ovpPlhaXluo/lj7cv5ZCN56ew77yM5aSa5Liq55So6YCX5Y+35YiG6ZqU77yb55u05o6l5Zue6L2m5a6J6KOF5YWo6YOoIHNraWxs77yJ77ya')
+        Write-Host (ConvertFrom-Utf8Base64String -Value '5Y+v6L6T5YWl5bqP5Y+3L+WQjeensO+8jOWkmuS4quWPr+eUqOiLseaWh+mAl+WPt+OAgeS4reaWh+mAl+WPt+aIlumhv+WPt+WIhumalO+8m+ebtOaOpeWbnui9puWuieijheWFqOmDqCBTa2lsbOOAgg==')
+        Write-Host (ConvertFrom-Utf8Base64String -Value '6K+36YCJ5oup6KaB5a6J6KOF55qEIEluZGllQXJrIFByb2ZpbGXvvIjlj6/ovpPlhaXluo/lj7cv5ZCN56ew77yM5aSa5Liq5Y+v55So6Iux5paH6YCX5Y+344CB5Lit5paH6YCX5Y+35oiW6aG/5Y+35YiG6ZqU77yb55u05o6l5Zue6L2m5a6J6KOF5YWo6YOoIHNraWxs77yJ77ya')
         Write-Host (ConvertFrom-Utf8Base64String -Value 'ICAwLiDlhajpg6ggc2tpbGzvvIjlhbzlrrnml6fpgLvovpHvvIk=')
         for ($index = 0; $index -lt $Profiles.Count; $index++) {
             $profile = $Profiles[$index]

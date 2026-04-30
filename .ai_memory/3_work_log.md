@@ -78,3 +78,8 @@
 - 根因是未选择 Skill Profile 时仍可能把空数组或空元素带入提权重启参数，导致生成裸 `-SkillProfile`。
 - `bootstrap.ps1` 在 TUI 初始参数和结果写回时统一清洗空 Skill Profile；`modules/common.psm1` 的 `ConvertTo-ArgumentTokens` 也会跳过空数组和空字符串元素。
 - 验证通过：空/非空数组 token 单元验证、脚本解析、`-Only git` dry-run、`-Tui -DryRun -SkipSkills -SkipCcSwitch` 首屏默认 Enter 后完整执行、`git diff --check`。
+
+## 2026-04-30
+
+- 提升多选输入兼容性：Profile / app 选择解析现在支持英文逗号 `,`、中文逗号 `，` 和顿号 `、`。
+- 同步更新 Profile 交互提示与 `docs/skill-import.md`，避免文档仍只写“逗号分隔”。
