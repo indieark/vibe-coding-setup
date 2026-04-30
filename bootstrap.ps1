@@ -180,6 +180,19 @@ function Copy-BootstrapDependency {
         throw ('Bootstrap dependency not found at source path: {0}' -f $sourcePath)
     }
 
+    $resolvedSourcePath = (Resolve-Path -LiteralPath $sourcePath).Path
+    $resolvedDestinationPath = if (Test-Path -LiteralPath $destinationPath) {
+        (Resolve-Path -LiteralPath $destinationPath).Path
+    }
+    else {
+        [IO.Path]::GetFullPath($destinationPath)
+    }
+
+    if ($resolvedSourcePath -eq $resolvedDestinationPath) {
+        Write-BootstrapMessage ('Dependency already in place: {0}' -f $RelativePath)
+        return
+    }
+
     Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Force
 }
 
