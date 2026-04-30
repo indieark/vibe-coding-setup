@@ -57,7 +57,7 @@
 - 修复 `bootstrap.cmd` 传入内部自举参数时误跳过 TUI 的问题；`BootstrapSourceRoot`、`BootstrapAssetsRepo`、`BootstrapAssetsTag` 不再视为用户操作参数。
 - 修复 UAC 提权交接后的误导文案：非管理员窗口现在提示已打开管理员窗口继续安装，不再显示“安装已完成”。
 - 命令模式输出改为“选中的安装应用清单”，逐行列出应用名称与 key。
-- 安装执行阶段新增总步骤进度：工作区、应用安装、Skill 导入和 CC Switch Provider 导入会显示 `[当前/总数]`，并同步使用 PowerShell `Write-Progress`。
+- 安装执行阶段新增总步骤进度：工作区、应用安装、Skill 导入和 CC Switch Provider 导入会显示 `[当前/总数]` 文本日志。
 - Skill 导入输出从逐目标长路径明细收敛为按 skill 聚合的进度和结果；dry-run 注册 skills-manager DB 也改为计数摘要。
 - 验证通过：脚本解析、模块导入、Profile 读取、旧命令模式 dry-run、`-SkillProfile "飞书办公套件"` dry-run、内部自举参数进入 TUI 并可退出、`git diff --check`。
 
@@ -68,3 +68,4 @@
 - 新增内部 `BootstrapTuiResolved` 标记，用于 UAC 提权后跳过二次 TUI；该标记不改变安装集合。
 - 修复 UAC 重启时数组参数被拆成多个位置参数的问题：`ConvertTo-ArgumentTokens` 会把数组压缩成逗号形式，例如 `-Only "git,nodejs,cc-switch"`。
 - 验证通过：脚本解析、数组参数 token 生成、默认安装内部标记 dry-run 全量路径、`-Only "git,nodejs,cc-switch"` dry-run、`-Tui` 首屏退出、`git diff --check`。
+- 调整提权窗口与进度显示体验：UAC 后优先用 Windows Terminal 承载管理员 PowerShell；关闭 `Write-Progress`；总进度保留文字，应用内部下载和 winget 百分比显示自绘进度条，静默 MSI/EXE 显示运行中和耗时；进入 TUI 前 best-effort 切换英文键盘布局。

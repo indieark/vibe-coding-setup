@@ -19,6 +19,47 @@ function Write-Log {
     Write-Host ('[{0}] [{1}] {2}' -f $timestamp, $levelText, $Message)
 }
 
+function Write-OperationProgress {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Label,
+        [Nullable[int]]$Percent,
+        [string]$Detail,
+        [switch]$Completed
+    )
+
+    $barWidth = 20
+    if ($Completed) {
+        $percentValue = 100
+    }
+    elseif ($null -ne $Percent) {
+        $percentValue = [Math]::Min(100, [Math]::Max(0, [int]$Percent))
+    }
+    else {
+        $percentValue = 0
+    }
+
+    $suffix = if ([string]::IsNullOrWhiteSpace($Detail)) { '' } else { '  {0}' -f $Detail }
+    if ($null -eq $Percent -and -not $Completed) {
+        Write-Host ('  {0} {1}{2}' -f $Label, (ConvertFrom-Utf8Base64String -Value '6L+Q6KGM5Lit'), $suffix) -ForegroundColor Cyan
+        return
+    }
+
+    $filled = if ($null -ne $Percent -or $Completed) {
+        [Math]::Min($barWidth, [Math]::Max(0, [int][Math]::Round(($percentValue / 100) * $barWidth)))
+    }
+    else {
+        0
+    }
+    $empty = $barWidth - $filled
+    $filledChar = [char]0x2588
+    $emptyChar = [char]0x2591
+    $bar = (([string]$filledChar) * $filled) + (([string]$emptyChar) * $empty)
+    $percentText = if ($null -ne $Percent -or $Completed) { '{0,3}%' -f $percentValue } else { ConvertFrom-Utf8Base64String -Value '6L+Q6KGM5Lit' }
+
+    Write-Host ('  {0} {1} {2}{3}' -f $Label, $bar, $percentText, $suffix) -ForegroundColor Cyan
+}
+
 function Test-IsAdministrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($identity)
@@ -299,13 +340,44 @@ function Invoke-DownloadFile {
 
     Initialize-Directory -Path (Split-Path -Parent $DestinationPath)
     Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5LiL6L29IHswfQ==') -f $Url)
-    $previousProgressPreference = $ProgressPreference
+    $response = $null
+    $inputStream = $null
+    $outputStream = $null
     try {
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri $Url -OutFile $DestinationPath
+        $request = [System.Net.HttpWebRequest]::Create($Url)
+        $request.AllowAutoRedirect = $true
+        $request.UserAgent = 'VibeCodingSetup/1.0'
+        $response = $request.GetResponse()
+        $totalBytes = [int64]$response.ContentLength
+        $inputStream = $response.GetResponseStream()
+        $outputStream = [System.IO.File]::Open($DestinationPath, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+        $buffer = New-Object byte[] 1048576
+        $readBytes = 0
+        $downloadedBytes = [int64]0
+        $lastProgressPercent = -1
+
+        do {
+            $readBytes = $inputStream.Read($buffer, 0, $buffer.Length)
+            if ($readBytes -gt 0) {
+                $outputStream.Write($buffer, 0, $readBytes)
+                $downloadedBytes += $readBytes
+
+                if ($totalBytes -gt 0) {
+                    $progressPercent = [int](($downloadedBytes * 100) / $totalBytes)
+                    if ($progressPercent -ge 100 -or $progressPercent -ge ($lastProgressPercent + 5)) {
+                        Write-OperationProgress -Label (ConvertFrom-Utf8Base64String -Value '5LiL6L29') -Percent $progressPercent -Detail (Split-Path -Leaf $DestinationPath)
+                        $lastProgressPercent = $progressPercent
+                    }
+                }
+            }
+        } while ($readBytes -gt 0)
+
+        Write-OperationProgress -Label (ConvertFrom-Utf8Base64String -Value '5LiL6L29') -Percent 100 -Detail (Split-Path -Leaf $DestinationPath) -Completed
     }
     finally {
-        $ProgressPreference = $previousProgressPreference
+        if ($outputStream) { $outputStream.Dispose() }
+        if ($inputStream) { $inputStream.Dispose() }
+        if ($response) { $response.Dispose() }
     }
     return $DestinationPath
 }
@@ -431,7 +503,7 @@ function Write-WingetOutputLines {
                 continue
             }
 
-            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'd2luZ2V0IOi/m+W6pu+8mnswfSU=') -f $progressPercent)
+            Write-OperationProgress -Label 'winget' -Percent $progressPercent
             $LastProgressPercent.Value = $progressPercent
             $LastLine.Value = 'progress:{0}' -f $progressPercent
             $Emitted.Value = $true
@@ -1271,6 +1343,30 @@ function Install-DownloadedPackage {
         throw ((ConvertFrom-Utf8Base64String -Value '5a6J6KOF5YyF5LiN5a2Y5Zyo77yaezB9') -f $PackagePath)
     }
 
+    function Wait-InstallerProcessWithProgress {
+        param(
+            [Parameter(Mandatory)]
+            [System.Diagnostics.Process]$Process,
+            [Parameter(Mandatory)]
+            [string]$Label,
+            [Parameter(Mandatory)]
+            [string]$PackageName
+        )
+
+        $startedAt = Get-Date
+        do {
+            if (-not $Process.HasExited) {
+                $elapsedSeconds = [int]((Get-Date) - $startedAt).TotalSeconds
+                Write-OperationProgress -Label $Label -Percent $null -Detail ('{0}{1}{2}s' -f $PackageName, (ConvertFrom-Utf8Base64String -Value '77yM5bey55SoIA=='), $elapsedSeconds)
+                Start-Sleep -Seconds 5
+                $Process.Refresh()
+            }
+        } while (-not $Process.HasExited)
+
+        $Process.WaitForExit()
+        Write-OperationProgress -Label $Label -Percent 100 -Detail $PackageName -Completed
+    }
+
     switch ($InstallerType) {
         'msi' {
             $args = @('/i', $PackagePath, '/qn', '/norestart') + $SilentArgs
@@ -1281,7 +1377,8 @@ function Install-DownloadedPackage {
             }
 
             Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5a6J6KOFIE1TSe+8mnswfQ==') -f (Split-Path -Leaf $PackagePath))
-            $proc = Start-Process -FilePath 'msiexec.exe' -ArgumentList $argumentLine -Wait -PassThru
+            $proc = Start-Process -FilePath 'msiexec.exe' -ArgumentList $argumentLine -PassThru
+            Wait-InstallerProcessWithProgress -Process $proc -Label 'MSI' -PackageName (Split-Path -Leaf $PackagePath)
             if ($proc.ExitCode -ne 0) {
                 throw ((ConvertFrom-Utf8Base64String -Value 'TVNJIOWuieijheWksei0pe+8jOmAgOWHuueggT17MH0=') -f $proc.ExitCode)
             }
@@ -1296,7 +1393,8 @@ function Install-DownloadedPackage {
             }
 
             Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5a6J6KOFIEVYRe+8mnswfQ==') -f (Split-Path -Leaf $PackagePath))
-            $proc = Start-Process -FilePath $PackagePath -ArgumentList $argumentLine -Wait -PassThru
+            $proc = Start-Process -FilePath $PackagePath -ArgumentList $argumentLine -PassThru
+            Wait-InstallerProcessWithProgress -Process $proc -Label 'EXE' -PackageName (Split-Path -Leaf $PackagePath)
             if ($proc.ExitCode -ne 0) {
                 throw ((ConvertFrom-Utf8Base64String -Value 'RVhFIOWuieijheWksei0pe+8jOmAgOWHuueggT17MH0=') -f $proc.ExitCode)
             }

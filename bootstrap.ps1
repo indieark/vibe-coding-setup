@@ -92,18 +92,9 @@ function Write-BootstrapProgress {
         return
     }
 
-    try {
-        if ($Completed) {
-            Write-Progress -Id 1 -Activity (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF6L+b5bqm') -Completed
-            return
-        }
+    $safeCompleted = if ($Completed) { $TotalSteps } else { [Math]::Min($TotalSteps, [Math]::Max(0, $CompletedSteps + 1)) }
 
-        $percent = [Math]::Min(100, [Math]::Max(0, [int](($CompletedSteps / $TotalSteps) * 100)))
-        Write-Progress -Id 1 -Activity (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF6L+b5bqm') -Status $Status -PercentComplete $percent
-    }
-    catch {
-        # Some hosts do not render Write-Progress; regular logs remain authoritative.
-    }
+    Write-Host ('[{0}/{1}] {2}' -f $safeCompleted, $TotalSteps, $Status) -ForegroundColor Cyan
 }
 
 function Write-BootstrapMessage {
@@ -126,6 +117,77 @@ function Get-CurrentPowerShellExecutable {
     }
 
     return 'powershell.exe'
+}
+
+function Get-WindowsTerminalExecutable {
+    $wtCommand = Get-Command 'wt.exe' -ErrorAction SilentlyContinue
+    if ($wtCommand -and -not [string]::IsNullOrWhiteSpace($wtCommand.Source)) {
+        return $wtCommand.Source
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+        $windowsAppsPath = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\wt.exe'
+        if (Test-Path -LiteralPath $windowsAppsPath) {
+            return $windowsAppsPath
+        }
+    }
+
+    return $null
+}
+
+function Set-BootstrapEnglishInputLayout {
+    try {
+        if (-not ('BootstrapKeyboardLayout' -as [type])) {
+            Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+public static class BootstrapKeyboardLayout
+{
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    public static extern IntPtr LoadKeyboardLayout(string pwszKLID, uint Flags);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr ActivateKeyboardLayout(IntPtr hkl, uint Flags);
+}
+'@
+        }
+
+        $englishLayout = [BootstrapKeyboardLayout]::LoadKeyboardLayout('00000409', 1)
+        if ($englishLayout -ne [IntPtr]::Zero) {
+            [void][BootstrapKeyboardLayout]::ActivateKeyboardLayout($englishLayout, 0)
+        }
+    }
+    catch {
+    }
+}
+
+function Start-BootstrapElevatedShell {
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$PowerShellArguments
+    )
+
+    $terminalExe = Get-WindowsTerminalExecutable
+    if ($terminalExe) {
+        $terminalArguments = New-Object System.Collections.Generic.List[string]
+        $terminalArguments.Add('-d')
+        $terminalArguments.Add(('"{0}"' -f (Get-Location).Path))
+        $terminalArguments.Add('powershell.exe')
+        foreach ($argument in $PowerShellArguments) {
+            $terminalArguments.Add($argument)
+        }
+
+        try {
+            Start-Process -FilePath $terminalExe -Verb RunAs -ArgumentList $terminalArguments.ToArray() | Out-Null
+            return
+        }
+        catch {
+            Write-BootstrapMessage ((ConvertFrom-BootstrapUtf8Base64String -Value 'V2luZG93cyBUZXJtaW5hbCDmj5DmnYMg5ZCv5Yqo5aSx6LSl77yM5Zue6YCA5Yiw57uP5YW4IFBvd2VyU2hlbGw77yaezB9') -f $_.Exception.Message)
+        }
+    }
+
+    Start-Process -FilePath (Get-CurrentPowerShellExecutable) -Verb RunAs -ArgumentList $PowerShellArguments | Out-Null
 }
 
 function Get-OriginalUserHomeDirectory {
@@ -1008,6 +1070,7 @@ if ($shouldUseTui -and -not $SkipSkills) {
 }
 
 if ($shouldUseTui) {
+    Set-BootstrapEnglishInputLayout
     $tuiInitialOptions = @(
         if ($DryRun) { [pscustomobject]@{ SwitchName = 'DryRun'; Enabled = $true } }
         if ($SkipCcSwitch) { [pscustomobject]@{ SwitchName = 'SkipCcSwitch'; Enabled = $true } }
@@ -1090,7 +1153,7 @@ if (-not $DryRun -and -not (Test-IsAdministrator)) {
     }
 
     Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '6ZyA6KaB566h55CG5ZGY5p2D6ZmQ77yM5q2j5Zyo6K+35rGCIFVBQyDmj5DmnYMuLi4=')
-    Start-Process -FilePath (Get-CurrentPowerShellExecutable) -Verb RunAs -ArgumentList $argumentList.ToArray() | Out-Null
+    Start-BootstrapElevatedShell -PowerShellArguments $argumentList.ToArray()
     $script:BootstrapAdminHandoffStarted = $true
     Invoke-BootstrapExit -Code 0
 }
@@ -1168,7 +1231,6 @@ $progressCompletedSteps = 0
 try {
     $workspaceProgressStatus = ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo5YeG5aSHIENvZGV4IOW3peS9nOWMug=='
     Write-BootstrapProgress -CompletedSteps $progressCompletedSteps -TotalSteps $progressTotalSteps -Status $workspaceProgressStatus
-    Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'W3swfS97MX1dIHsyfQ==') -f ($progressCompletedSteps + 1), $progressTotalSteps, $workspaceProgressStatus)
     $workspaceResult = Initialize-CodexWorkspaceDirectory -DryRun:$DryRun
     $results.Add($workspaceResult)
     $progressCompletedSteps++
@@ -1191,7 +1253,6 @@ foreach ($app in ($selectedApps | Sort-Object order)) {
     try {
         $appProgressStatus = (ConvertFrom-BootstrapUtf8Base64String -Value '5YeG5aSH5a6J6KOF5bqU55So77yaezB9ICh7MX0vezJ9KQ==') -f $app.name, $appInstallIndex, $selectedApps.Count
         Write-BootstrapProgress -CompletedSteps $progressCompletedSteps -TotalSteps $progressTotalSteps -Status $appProgressStatus
-        Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'W3swfS97MX1dIHsyfQ==') -f ($progressCompletedSteps + 1), $progressTotalSteps, $appProgressStatus)
         $result = Install-AppFromDefinition -Definition $app -WorkspaceRoot $root -DryRun:$DryRun
         $results.Add($result)
         $progressCompletedSteps++
@@ -1215,7 +1276,6 @@ if (-not $SkipSkills) {
     try {
         $skillProgressStatus = ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo5a+85YWlIFNraWxs'
         Write-BootstrapProgress -CompletedSteps $progressCompletedSteps -TotalSteps $progressTotalSteps -Status $skillProgressStatus
-        Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'W3swfS97MX1dIHsyfQ==') -f ($progressCompletedSteps + 1), $progressTotalSteps, $skillProgressStatus)
         $skillResult = Install-SkillBundle `
             -ZipPath $skillBundlePath `
             -SkillProfiles $SkillProfile `
@@ -1246,7 +1306,6 @@ if (-not $SkipCcSwitch -and $providerInfo -and ($selectedApps | Where-Object { $
     try {
         $ccSwitchProgressStatus = ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo5a+85YWlIENDIFN3aXRjaCBQcm92aWRlcg=='
         Write-BootstrapProgress -CompletedSteps $progressCompletedSteps -TotalSteps $progressTotalSteps -Status $ccSwitchProgressStatus
-        Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'W3swfS97MX1dIHsyfQ==') -f ($progressCompletedSteps + 1), $progressTotalSteps, $ccSwitchProgressStatus)
         $ccSwitchInstallResult = @($results | Where-Object { $_.Key -eq 'cc-switch' } | Select-Object -Last 1)
         $ccSwitchInstalledThisRun = $false
         if ($ccSwitchInstallResult.Count -gt 0) {

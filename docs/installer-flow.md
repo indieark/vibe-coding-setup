@@ -15,7 +15,7 @@
 3. 导入模块并读取 `manifest/apps.json`。
 4. 判断是否进入 TUI：无操作参数或显式 `-Tui` 时进入；`-Only`、`-DryRun`、`-SkipSkills` 等命令参数会沿用旧命令模式。
 5. 如进入 TUI，先由用户选择运行模式。默认安装会直接回到原默认流程；自定义选择和安全演练会继续选择应用、安装选项和 Skill Profile，并把选择结果写回等价参数。
-6. 非 `-DryRun` 且非管理员时，通过 UAC 保留当前参数重新拉起；UAC 交接窗口只提示后续在管理员窗口继续。
+6. 非 `-DryRun` 且非管理员时，通过 UAC 保留当前参数重新拉起；UAC 交接窗口只提示后续在管理员窗口继续。提权后优先用 Windows Terminal 承载管理员 PowerShell，系统没有 `wt.exe` 时才回退到经典 PowerShell。
 7. 按 `-Only` 过滤应用，并按 `order` 排序。
 8. 如果没有 `-SkipSkills`，预取公开 `bootstrap-assets/skills.zip`。
 9. 如选择 `cc-switch` 且没有 `-SkipCcSwitch`，读取或询问 Provider 配置。
@@ -24,6 +24,8 @@
 12. 应用阶段结束后，如果没有 `-SkipSkills`，执行 Skill bundle 导入。
 13. 最后导入 CC Switch Provider deep link。
 14. 输出 Summary；任一项失败则退出码为 `1`，否则为 `0`。
+
+安装阶段总进度输出简洁文字，例如 `[当前/总数] 当前步骤`；应用内部可量化进度才输出脚本自绘进度条，例如下载和 winget 百分比。不再调用 `Write-Progress` 绘制宿主进度条。
 
 `PauseOnExit`、`KeepShellOpen`、`UserHomeOverride`、`BootstrapSourceRoot`、`BootstrapAssetsRepo`、`BootstrapAssetsTag`、`RefreshBootstrapDependencies` 属于启动或自举参数，不会单独触发命令模式。
 
@@ -64,10 +66,7 @@ fallback 安装包统一下载到仓库内 `downloads/`，再根据 `installerTy
 
 ## 进度展示
 
-执行阶段会计算总步骤，并同步显示：
-
-- PowerShell 原生 `Write-Progress` 进度条。
-- 普通日志中的 `[当前/总数]` 文本进度，便于复制、截图和远程排障。
+执行阶段会计算总步骤，并显示 `[当前/总数] 当前步骤` 文本进度，便于复制、截图和远程排障。应用内部下载和 winget 百分比会显示脚本自绘进度条；静默 MSI/EXE 无法读取真实百分比时显示运行中和耗时。脚本不调用 PowerShell 原生 `Write-Progress`，避免不同宿主额外绘制独立进度区域。
 
 计入总步骤的项目包括：
 

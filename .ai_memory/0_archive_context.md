@@ -212,7 +212,7 @@ Skill 导入的安全边界已经收敛为三态：`Tracked` 表示 IndieArk 可
 
 TUI 自定义流程新增 Skill Profile 复选页，运行时从 `downloads/skills.zip` 的 registry 读取真实 Profile，默认选择“全部 Skill”，也可选择一个或多个 Profile 并生成 `-SkillProfile` 命令预览。命令模式也明确提示 `-SkillProfile`、`-AllSkills`、`-SkipSkills` 的选择方式和默认行为。
 
-安装执行阶段新增总步骤进度：工作区准备、每个应用、Skill 导入和 CC Switch Provider 导入都会显示 `[当前/总数]`，并同步写 PowerShell 进度条。Skill 导入日志从逐目标长路径明细收敛为按 skill 聚合的进度与结果，dry-run 的 skills-manager DB 注册也改为计数摘要。
+安装执行阶段新增总步骤进度：工作区准备、每个应用、Skill 导入和 CC Switch Provider 导入都会显示 `[当前/总数]`。Skill 导入日志从逐目标长路径明细收敛为按 skill 聚合的进度与结果，dry-run 的 skills-manager DB 注册也改为计数摘要。
 
 验证覆盖脚本解析、模块导入、Profile 读取、旧命令模式 dry-run、`-SkillProfile "飞书办公套件"` dry-run、内部自举参数进入 TUI 并退出、`git diff --check`。
 
@@ -225,3 +225,9 @@ TUI 自定义流程新增 Skill Profile 复选页，运行时从 `downloads/skil
 同时修复 `ConvertTo-ArgumentTokens` 的数组序列化：数组参数会压缩成逗号形式，例如 `-Only "git,nodejs,cc-switch"`，避免 PowerShell `-File` 重启时把后续元素当作位置参数。
 
 验证覆盖脚本解析、数组 token 生成、`-BootstrapTuiResolved` dry-run 默认全量路径、`-Only "git,nodejs,cc-switch"` dry-run、`-Tui -DryRun` 首屏默认选择和 `git diff --check`。
+
+## 2026-04-30 — 提权窗口与进度显示体验修正
+
+用户反馈 UAC 后打开经典蓝底 PowerShell 窗口观感较差，且 `Write-Progress` 会绘制独立蓝色进度区域。当前结论：非管理员终端不能原地升级为管理员终端，但提权后的新窗口可以优先由 Windows Terminal 承载。
+
+本次修复新增 Windows Terminal 优先提权路径：非管理员执行真实安装时，脚本先尝试用 `wt.exe` 以管理员身份启动 `powershell.exe` 并传入原参数；若系统没有 Windows Terminal 或启动失败，再回退经典 PowerShell。总进度保持 `[当前/总数] 当前步骤` 文字；应用内部下载和 winget 百分比改为脚本自绘进度条，静默 MSI/EXE 无真实百分比时显示运行中和耗时。进入 TUI 前会 best-effort 切到英文键盘布局，降低中文输入法对快捷键的干扰。

@@ -23,7 +23,11 @@ TUI 自定义模式包含三类选择：
 - 安装复选项：演练、跳过 CC Switch、跳过 Skill、保留旧 Skill 等。
 - Skill 复选项：默认“全部 Skill”，也可按 Profile 选择一个或多个 Skill 套件。
 
-`bootstrap.cmd` 使用 Windows PowerShell 5.1 启动。如果过程中触发 UAC 提权，当前窗口只提示已打开管理员窗口继续安装；新开的管理员窗口会继续后续 TUI 或安装流程，并在执行完成后保持打开，方便查看 summary 或错误。
+`bootstrap.cmd` 使用 Windows PowerShell 5.1 启动。如果过程中触发 UAC 提权，当前窗口只提示已打开管理员窗口继续安装；脚本会优先用 Windows Terminal 承载管理员 PowerShell，避免经典蓝底 PowerShell 窗口。若系统没有 `wt.exe`，才回退到经典 PowerShell 窗口。新开的管理员终端会继续后续 TUI 或安装流程，并在执行完成后保持打开，方便查看 summary 或错误。
+
+总进度使用简洁文字，例如 `[3/10] 准备安装应用：Node.js (2/9)`；应用内部进度才使用自绘进度条，例如下载和 winget 百分比会显示 `下载 ██████░░░░░░░░░░░░░░ 30%`。静默安装器无法读取真实百分比时，只显示运行中和耗时。脚本不调用 PowerShell `Write-Progress`，避免宿主额外绘制独立进度区域。
+
+进入 TUI 前，脚本会尽量把当前进程输入布局切到英文键盘，减少中文输入法干扰快捷键。这个动作受 Windows 当前会话和输入法设置影响，失败不会阻断安装。
 
 默认安装模式进入 UAC 后不会再次显示 TUI，也不会把应用清单拆成多个位置参数；自定义选择和安全演练才会生成显式命令预览。如果你显式用 `.\bootstrap.cmd -Tui -DryRun` 这类命令进入 TUI，选择默认安装后仍会保留这些命令参数。
 
