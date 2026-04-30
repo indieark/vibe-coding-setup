@@ -33,6 +33,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $script:BootstrapAdminHandoffStarted = $false
 $script:BootstrapUserCancelled = $false
+$script:BootstrapProgressLastLineLength = 0
 
 function ConvertFrom-BootstrapUtf8Base64String {
     param(
@@ -373,11 +374,16 @@ function Write-BootstrapDownloadProgress {
         return
     }
 
+    $clearLength = [Math]::Max(0, $script:BootstrapProgressLastLineLength - $line.Length)
+    $script:BootstrapProgressLastLineLength = $line.Length
+    $displayLine = if ($clearLength -gt 0) { $line + (' ' * $clearLength) } else { $line }
+
     if ($Completed) {
-        Write-Host ("`r{0}" -f $line)
+        Write-Host ("`r{0}" -f $displayLine)
+        $script:BootstrapProgressLastLineLength = 0
     }
     else {
-        Write-Host ("`r{0}" -f $line) -NoNewline
+        Write-Host ("`r{0}" -f $displayLine) -NoNewline
     }
 }
 

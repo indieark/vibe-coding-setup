@@ -1,6 +1,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $script:OperationProgressLineActive = $false
+$script:OperationProgressLastLineLength = 0
 
 function Write-Log {
     param(
@@ -13,6 +14,7 @@ function Write-Log {
     if ($script:OperationProgressLineActive) {
         Write-Host ''
         $script:OperationProgressLineActive = $false
+        $script:OperationProgressLastLineLength = 0
     }
 
     $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
@@ -59,13 +61,14 @@ function Write-OperationProgress {
     function Format-OperationProgressLine {
         param([string]$Text)
 
-        try {
-            $width = [Console]::BufferWidth
-            if ($width -gt 1 -and $Text.Length -lt ($width - 1)) {
-                return $Text.PadRight($width - 1)
-            }
+        if (-not $canRenderInPlace) {
+            return $Text
         }
-        catch {
+
+        $clearLength = [Math]::Max(0, $script:OperationProgressLastLineLength - $Text.Length)
+        $script:OperationProgressLastLineLength = $Text.Length
+        if ($clearLength -gt 0) {
+            return $Text + (' ' * $clearLength)
         }
 
         return $Text
@@ -105,6 +108,7 @@ function Write-OperationProgress {
     if ($Completed) {
         Write-Host ("`r{0}" -f $line) -ForegroundColor Cyan
         $script:OperationProgressLineActive = $false
+        $script:OperationProgressLastLineLength = 0
     }
     else {
         Write-Host ("`r{0}" -f $line) -ForegroundColor Cyan -NoNewline
@@ -3407,10 +3411,21 @@ function Get-RegistryPrereqInstallCommand {
         [hashtable]$Install
     )
 
-    $platformKeys = if ($IsWindows -or $env:OS -eq 'Windows_NT') {
+    $isWindowsPlatform = ($env:OS -eq 'Windows_NT')
+    $isMacPlatform = $false
+    if (-not $isWindowsPlatform) {
+        try {
+            $isWindowsPlatform = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
+            $isMacPlatform = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::OSX)
+        }
+        catch {
+        }
+    }
+
+    $platformKeys = if ($isWindowsPlatform) {
         @('windows', 'winget', 'scoop')
     }
-    elseif ($IsMacOS) {
+    elseif ($isMacPlatform) {
         @('macos', 'brew', 'unix')
     }
     else {
