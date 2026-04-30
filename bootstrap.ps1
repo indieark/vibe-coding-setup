@@ -10,6 +10,7 @@ param(
     [switch]$ReplaceForeign,
     [switch]$RenameForeign,
     [switch]$SkipSkillsManagerLaunch,
+    [switch]$Tui,
     [switch]$PauseOnExit,
     [switch]$KeepShellOpen,
     [string]$UserHomeOverride,
@@ -288,6 +289,437 @@ function Sync-BootstrapDependencies {
     }
 }
 
+function Write-TuiHeader {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Title
+    )
+
+    Clear-Host
+    Write-Host ('+ {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'VmliZSBDb2RpbmcgU2V0dXA=')) -ForegroundColor Cyan
+    Write-Host ('  {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '546w5Luj5YyW5o6n5Yi25Y+w5a6J6KOF5ZCR5a+8')) -ForegroundColor DarkGray
+    Write-Host ''
+    Write-Host $Title -ForegroundColor Yellow
+    Write-Host ('-' * 64) -ForegroundColor DarkGray
+}
+
+function New-TuiOption {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Key,
+        [Parameter(Mandatory)]
+        [string]$Label,
+        [Parameter(Mandatory)]
+        [string]$SwitchName,
+        [bool]$Enabled = $false
+    )
+
+    return [pscustomobject]@{
+        Key = $Key
+        Label = $Label
+        SwitchName = $SwitchName
+        Enabled = $Enabled
+    }
+}
+
+function New-TuiModeOption {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Mode,
+        [Parameter(Mandatory)]
+        [string]$Label,
+        [Parameter(Mandatory)]
+        [string]$Detail
+    )
+
+    return [pscustomobject]@{
+        Mode = $Mode
+        Label = $Label
+        Detail = $Detail
+    }
+}
+
+function Show-TuiModeSelection {
+    $modes = @(
+        New-TuiModeOption `
+            -Mode 'original' `
+            -Label (ConvertFrom-BootstrapUtf8Base64String -Value '6buY6K6k5a6J6KOF77yI5Y6f5p2l5qih5byP77yJ') `
+            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5YWo6YOo5bqU55So77yM5bm25oyJ5Y6f6ISa5pys5rWB56iL5a+85YWlIFNraWxsIOS4jiBDQyBTd2l0Y2jjgII=')
+        New-TuiModeOption `
+            -Mode 'custom' `
+            -Label (ConvertFrom-BootstrapUtf8Base64String -Value '6Ieq5a6a5LmJ6YCJ5oup') `
+            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5oup5bqU55So44CB5ryU57uDL+WuieijheOAgVNraWxsIOWSjCBDQyBTd2l0Y2gg6YCJ6aG544CC')
+        New-TuiModeOption `
+            -Mode 'dryrun' `
+            -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J5YWo5ryU57uD') `
+            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5YWo6YeP5ryU57uD77yM5LiN5a+85YWlIENDIFN3aXRjaO+8jOS4jeabv+aNouaXpyBTa2lsbO+8jOS4jeWQr+WKqCBTa2lsbHMgTWFuYWdlcu+8jOW5tum7mOiupOmAieaLqeWFqOmDqCBTa2lsbOOAgg==')
+    )
+
+    $index = 0
+    while ($true) {
+        Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5oup6L+Q6KGM5qih5byP')
+        for ($i = 0; $i -lt $modes.Count; $i++) {
+            $mode = $modes[$i]
+            $cursor = if ($i -eq $index) { '>' } else { ' ' }
+            $color = if ($i -eq $index) { 'Cyan' } else { 'Gray' }
+            Write-Host ('{0} {1}' -f $cursor, $mode.Label) -ForegroundColor $color
+            Write-Host ('  {0}' -f $mode.Detail) -ForegroundColor DarkGray
+        }
+
+        Write-Host ''
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIEVudGVyIOmAieaLqSAgUSDpgIDlh7o=') -ForegroundColor DarkGray
+
+        $key = [Console]::ReadKey($true)
+        switch ($key.Key) {
+            'UpArrow' { if ($index -gt 0) { $index-- } }
+            'DownArrow' { if ($index -lt ($modes.Count - 1)) { $index++ } }
+            'Enter' { return $modes[$index].Mode }
+            'Q' { return $null }
+        }
+    }
+}
+
+function Show-TuiAppSelection {
+    param(
+        [Parameter(Mandatory)]
+        [object[]]$Apps
+    )
+
+    $selected = @{}
+    foreach ($app in $Apps) {
+        $selected[$app.key] = $true
+    }
+
+    $index = 0
+    while ($true) {
+        Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5oup6KaB5a6J6KOF5oiW5qOA5p+l55qE5bqU55So')
+        for ($i = 0; $i -lt $Apps.Count; $i++) {
+            $app = $Apps[$i]
+            $cursor = if ($i -eq $index) { '>' } else { ' ' }
+            $mark = if ($selected[$app.key]) { 'x' } else { ' ' }
+            $color = if ($i -eq $index) { 'Cyan' } else { 'Gray' }
+            Write-Host ('{0} [{1}] {2,-24} {3}' -f $cursor, $mark, $app.name, $app.key) -ForegroundColor $color
+        }
+
+        Write-Host ''
+        $count = @($selected.Keys | Where-Object { $selected[$_] }).Count
+        Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YCJ5oupIHswfS97MX0g5Liq5bqU55So') -f $count, $Apps.Count) -ForegroundColor DarkGray
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIOepuuagvCDpgInmi6kgIEEg5YWo6YCJICBOIOa4heepuiAgRW50ZXIg5LiL5LiA5q2lICBRIOmAgOWHug==') -ForegroundColor DarkGray
+
+        $key = [Console]::ReadKey($true)
+        switch ($key.Key) {
+            'UpArrow' { if ($index -gt 0) { $index-- } }
+            'DownArrow' { if ($index -lt ($Apps.Count - 1)) { $index++ } }
+            'Spacebar' { $selected[$Apps[$index].key] = -not $selected[$Apps[$index].key] }
+            'A' { foreach ($app in $Apps) { $selected[$app.key] = $true } }
+            'N' { foreach ($app in $Apps) { $selected[$app.key] = $false } }
+            'Enter' {
+                $keys = @($Apps | Where-Object { $selected[$_.key] } | ForEach-Object { $_.key })
+                if ($keys.Count -gt 0) {
+                    return $keys
+                }
+            }
+            'Q' { return $null }
+        }
+    }
+}
+
+function Show-TuiOptionSelection {
+    $options = @(
+        New-TuiOption -Key 'dryrun' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5ryU57uD5qih5byP77yI5LiN55yf5q2j5a6J6KOF77yJ') -SwitchName 'DryRun' -Enabled $true
+        New-TuiOption -Key 'skipcc' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+HIENDIFN3aXRjaCBQcm92aWRlciDlr7zlhaU=') -SwitchName 'SkipCcSwitch' -Enabled $true
+        New-TuiOption -Key 'skipskills' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+HIFNraWxsIOWvvOWFpQ==') -SwitchName 'SkipSkills'
+        New-TuiOption -Key 'allskills' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5YWo6YOoIFNraWxs') -SwitchName 'AllSkills'
+        New-TuiOption -Key 'noorphan' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5penIFNraWxsIOebruW9leS4jeabv+aNou+8jOWPqui3s+i/hw==') -SwitchName 'NoReplaceOrphan' -Enabled $true
+        New-TuiOption -Key 'replaceforeign' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '56ys5LiJ5pa55ZCM5ZCNIFNraWxsIOWFgeiuuOWkh+S7veabv+aNog==') -SwitchName 'ReplaceForeign'
+        New-TuiOption -Key 'renameforeign' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '56ys5LiJ5pa55ZCM5ZCNIFNraWxsIOaUueWQjeS4uiAtaW5kaWVhcmsg5a+85YWl') -SwitchName 'RenameForeign'
+        New-TuiOption -Key 'skipmanager' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5a+85YWlIFNraWxsIOWQjuS4jeiHquWKqOWQr+WKqCBTa2lsbHMgTWFuYWdlcg==') -SwitchName 'SkipSkillsManagerLaunch' -Enabled $true
+    )
+
+    $index = 0
+    while ($true) {
+        Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF6YCJ6aG5')
+        for ($i = 0; $i -lt $options.Count; $i++) {
+            $option = $options[$i]
+            $cursor = if ($i -eq $index) { '>' } else { ' ' }
+            $mark = if ($option.Enabled) { 'x' } else { ' ' }
+            $color = if ($i -eq $index) { 'Cyan' } else { 'Gray' }
+            Write-Host ('{0} [{1}] {2}' -f $cursor, $mark, $option.Label) -ForegroundColor $color
+        }
+
+        Write-Host ''
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIOepuuagvCDliIfmjaIgIEVudGVyIOS4i+S4gOatpSAgQiDov5Tlm54gIFEg6YCA5Ye6') -ForegroundColor DarkGray
+
+        $key = [Console]::ReadKey($true)
+        switch ($key.Key) {
+            'UpArrow' { if ($index -gt 0) { $index-- } }
+            'DownArrow' { if ($index -lt ($options.Count - 1)) { $index++ } }
+            'Spacebar' {
+                $options[$index].Enabled = -not $options[$index].Enabled
+                if ($options[$index].Key -eq 'replaceforeign' -and $options[$index].Enabled) {
+                    ($options | Where-Object { $_.Key -eq 'renameforeign' }).Enabled = $false
+                }
+                if ($options[$index].Key -eq 'renameforeign' -and $options[$index].Enabled) {
+                    ($options | Where-Object { $_.Key -eq 'replaceforeign' }).Enabled = $false
+                }
+            }
+            'Enter' { return $options }
+            'B' { return $null }
+            'Q' { return 'quit' }
+        }
+    }
+}
+
+function ConvertTo-TuiArgumentText {
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$Tokens
+    )
+
+    return ($Tokens | ForEach-Object {
+            if ($_ -match '[\s"]') {
+                '"{0}"' -f ($_ -replace '"', '\"')
+            }
+            else {
+                $_
+            }
+        }) -join ' '
+}
+
+function Get-TuiBootstrapArgumentTokens {
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$SelectedAppKeys,
+        [Parameter(Mandatory)]
+        [AllowEmptyCollection()]
+        [object[]]$Options,
+        [switch]$IncludeOnly
+    )
+
+    $tokens = New-Object System.Collections.Generic.List[string]
+    if ($IncludeOnly) {
+        $tokens.Add('-Only')
+        $tokens.Add(($SelectedAppKeys -join ','))
+    }
+    foreach ($option in $Options | Where-Object { $_.Enabled }) {
+        $tokens.Add(('-{0}' -f $option.SwitchName))
+    }
+
+    return $tokens.ToArray()
+}
+
+function Show-TuiReview {
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$SelectedAppKeys,
+        [AllowEmptyCollection()]
+        [object[]]$Options = @(),
+        [string]$ModeName,
+        [switch]$IncludeOnly
+    )
+
+    $tokens = Get-TuiBootstrapArgumentTokens -SelectedAppKeys $SelectedAppKeys -Options $Options -IncludeOnly:$IncludeOnly
+    $commandText = '.\bootstrap.cmd'
+    if ($tokens.Count -gt 0) {
+        $commandText = '{0} {1}' -f $commandText, (ConvertTo-TuiArgumentText -Tokens $tokens)
+    }
+
+    while ($true) {
+        Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5omn6KGM56Gu6K6k')
+        $dryRunOption = $Options | Where-Object { $_.SwitchName -eq 'DryRun' } | Select-Object -First 1
+        $isDryRun = $false
+        if ($dryRunOption) {
+            $isDryRun = [bool]$dryRunOption.Enabled
+        }
+        $mode = if (-not [string]::IsNullOrWhiteSpace($ModeName)) { $ModeName } elseif ($isDryRun) { ConvertFrom-BootstrapUtf8Base64String -Value '5ryU57uD' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5byP5a6J6KOF' }
+        $enabledOptions = @($Options | Where-Object { $_.Enabled -and $_.SwitchName -ne 'DryRun' } | ForEach-Object { $_.Label })
+        $optionText = if ($enabledOptions.Count -gt 0) { $enabledOptions -join ', ' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5peg' }
+
+        Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5omn6KGM5qih5byP'), $mode) -ForegroundColor Gray
+        Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5Lit5bqU55So'), ($SelectedAppKeys -join ', ')) -ForegroundColor Gray
+        Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '6ZmE5Yqg5Y+C5pWw'), $optionText) -ForegroundColor Gray
+        Write-Host ''
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bCG5omn6KGM5ZG95Luk') -ForegroundColor DarkGray
+        Write-Host $commandText -ForegroundColor Cyan
+        Write-Host ''
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value 'RW50ZXIg5byA5aeL5omn6KGMICBDIOWkjeWItuWRveS7pCAgQiDov5Tlm54gIFEg6YCA5Ye6') -ForegroundColor DarkGray
+
+        $key = [Console]::ReadKey($true)
+        switch ($key.Key) {
+            'Enter' {
+                return [pscustomobject]@{
+                    Tokens = $tokens
+                    Options = $Options
+                }
+            }
+            'C' {
+                try {
+                    Set-Clipboard -Value $commandText
+                    Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5ZG95Luk5bey5aSN5Yi25Yiw5Ymq6LS05p2/') -ForegroundColor Green
+                }
+                catch {
+                    Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5Ymq6LS05p2/5LiN5Y+v55So77yM5ZG95Luk5aaC5LiL77ya') -ForegroundColor Yellow
+                    Write-Host $commandText
+                }
+                [void][Console]::ReadKey($true)
+            }
+            'B' { return $null }
+            'Q' { return 'quit' }
+        }
+    }
+}
+
+function New-TuiBootstrapResult {
+    param(
+        [AllowNull()]
+        [string[]]$Only,
+        [AllowEmptyCollection()]
+        [object[]]$Options = @()
+    )
+
+    $switches = @{}
+    foreach ($option in $Options) {
+        $switches[$option.SwitchName] = [bool]$option.Enabled
+    }
+
+    return [pscustomobject]@{
+        Only = $Only
+        DryRun = [bool]$switches['DryRun']
+        SkipCcSwitch = [bool]$switches['SkipCcSwitch']
+        SkipSkills = [bool]$switches['SkipSkills']
+        AllSkills = [bool]$switches['AllSkills']
+        NoReplaceOrphan = [bool]$switches['NoReplaceOrphan']
+        ReplaceForeign = [bool]$switches['ReplaceForeign']
+        RenameForeign = [bool]$switches['RenameForeign']
+        SkipSkillsManagerLaunch = [bool]$switches['SkipSkillsManagerLaunch']
+        RefreshBootstrapDependencies = [bool]$switches['RefreshBootstrapDependencies']
+    }
+}
+
+function Invoke-BootstrapTui {
+    param(
+        [Parameter(Mandatory)]
+        [object[]]$Apps
+    )
+
+    $allAppKeys = @($Apps | ForEach-Object { $_.key })
+
+    while ($true) {
+        $selectedMode = Show-TuiModeSelection
+        if ($null -eq $selectedMode) {
+            return $null
+        }
+
+        if ($selectedMode -eq 'original') {
+            $review = Show-TuiReview `
+                -SelectedAppKeys $allAppKeys `
+                -Options @() `
+                -ModeName (ConvertFrom-BootstrapUtf8Base64String -Value '6buY6K6k5a6J6KOF') `
+                -IncludeOnly
+            if ($review -eq 'quit') {
+                return $null
+            }
+            if ($null -eq $review) {
+                continue
+            }
+
+            return New-TuiBootstrapResult -Only $allAppKeys -Options @()
+        }
+
+        if ($selectedMode -eq 'dryrun') {
+            $options = @(
+                New-TuiOption -Key 'dryrun' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5ryU57uD5qih5byP77yI5LiN55yf5q2j5a6J6KOF77yJ') -SwitchName 'DryRun' -Enabled $true
+                New-TuiOption -Key 'skipcc' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+HIENDIFN3aXRjaCBQcm92aWRlciDlr7zlhaU=') -SwitchName 'SkipCcSwitch' -Enabled $true
+                New-TuiOption -Key 'allskills' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5YWo6YOoIFNraWxs') -SwitchName 'AllSkills' -Enabled $true
+                New-TuiOption -Key 'noorphan' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5penIFNraWxsIOebruW9leS4jeabv+aNou+8jOWPqui3s+i/hw==') -SwitchName 'NoReplaceOrphan' -Enabled $true
+                New-TuiOption -Key 'skipmanager' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5a+85YWlIFNraWxsIOWQjuS4jeiHquWKqOWQr+WKqCBTa2lsbHMgTWFuYWdlcg==') -SwitchName 'SkipSkillsManagerLaunch' -Enabled $true
+            )
+            $review = Show-TuiReview `
+                -SelectedAppKeys $allAppKeys `
+                -Options $options `
+                -ModeName (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J5YWo5ryU57uD') `
+                -IncludeOnly
+            if ($review -eq 'quit') {
+                return $null
+            }
+            if ($null -eq $review) {
+                continue
+            }
+
+            return New-TuiBootstrapResult -Only $allAppKeys -Options $options
+        }
+
+        $selectedAppKeys = Show-TuiAppSelection -Apps $Apps
+        if ($null -eq $selectedAppKeys) {
+            return $null
+        }
+
+        $options = Show-TuiOptionSelection
+        if ($options -eq 'quit') {
+            return $null
+        }
+        if ($null -eq $options) {
+            continue
+        }
+
+        $review = Show-TuiReview -SelectedAppKeys $selectedAppKeys -Options $options -IncludeOnly
+        if ($review -eq 'quit') {
+            return $null
+        }
+        if ($null -eq $review) {
+            continue
+        }
+
+        return New-TuiBootstrapResult -Only $selectedAppKeys -Options $review.Options
+    }
+}
+
+function Set-BootstrapBoundSwitchParameter {
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$BoundParameters,
+        [Parameter(Mandatory)]
+        [string]$Name,
+        [Parameter(Mandatory)]
+        [bool]$Present
+    )
+
+    if ($Present) {
+        $BoundParameters[$Name] = [System.Management.Automation.SwitchParameter]$true
+    }
+    else {
+        [void]$BoundParameters.Remove($Name)
+    }
+}
+
+function Test-BootstrapShouldUseTui {
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$BoundParameters,
+        [switch]$TuiSwitch
+    )
+
+    if ($TuiSwitch.IsPresent) {
+        return $true
+    }
+
+    $ignoredParameters = @(
+        'PauseOnExit',
+        'KeepShellOpen',
+        'UserHomeOverride'
+    )
+
+    foreach ($name in $BoundParameters.Keys) {
+        if ($name -eq 'Tui' -or ($ignoredParameters -contains $name)) {
+            continue
+        }
+
+        return $false
+    }
+
+    return $true
+}
+
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 if ([string]::IsNullOrWhiteSpace($BootstrapSourceRoot)) {
@@ -316,6 +748,46 @@ Import-Module (Join-Path $root 'modules\common.psm1') -Force
 $effectiveUserHome = Get-OriginalUserHomeDirectory
 if (-not [string]::IsNullOrWhiteSpace($effectiveUserHome)) {
     $env:VIBE_CODING_USER_HOME = $effectiveUserHome
+}
+
+$manifestPath = Join-Path $root 'manifest\apps.json'
+$manifest = Get-AppManifest -ManifestPath $manifestPath
+
+if (Test-BootstrapShouldUseTui -BoundParameters $PSBoundParameters -TuiSwitch:$Tui) {
+    $tuiResult = Invoke-BootstrapTui -Apps $manifest.apps
+    if ($null -eq $tuiResult) {
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5Y+W5raI44CC')
+        Invoke-BootstrapExit -Code 0
+    }
+
+    $Only = $tuiResult.Only
+    $DryRun = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.DryRun)
+    $SkipCcSwitch = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.SkipCcSwitch)
+    $SkipSkills = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.SkipSkills)
+    $AllSkills = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.AllSkills)
+    $NoReplaceOrphan = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.NoReplaceOrphan)
+    $ReplaceForeign = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.ReplaceForeign)
+    $RenameForeign = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.RenameForeign)
+    $SkipSkillsManagerLaunch = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.SkipSkillsManagerLaunch)
+    $RefreshBootstrapDependencies = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.RefreshBootstrapDependencies)
+    $Tui = [System.Management.Automation.SwitchParameter]$false
+
+    [void]$PSBoundParameters.Remove('Tui')
+    if ($null -eq $Only -or $Only.Count -eq 0) {
+        [void]$PSBoundParameters.Remove('Only')
+    }
+    else {
+        $PSBoundParameters['Only'] = $Only
+    }
+    Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'DryRun' -Present ([bool]$DryRun)
+    Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'SkipCcSwitch' -Present ([bool]$SkipCcSwitch)
+    Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'SkipSkills' -Present ([bool]$SkipSkills)
+    Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'AllSkills' -Present ([bool]$AllSkills)
+    Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'NoReplaceOrphan' -Present ([bool]$NoReplaceOrphan)
+    Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'ReplaceForeign' -Present ([bool]$ReplaceForeign)
+    Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'RenameForeign' -Present ([bool]$RenameForeign)
+    Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'SkipSkillsManagerLaunch' -Present ([bool]$SkipSkillsManagerLaunch)
+    Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'RefreshBootstrapDependencies' -Present ([bool]$RefreshBootstrapDependencies)
 }
 
 if (-not $DryRun -and -not (Test-IsAdministrator)) {
@@ -349,8 +821,6 @@ if (-not $DryRun -and -not (Test-IsAdministrator)) {
     Invoke-BootstrapExit -Code 0
 }
 
-$manifestPath = Join-Path $root 'manifest\apps.json'
-$manifest = Get-AppManifest -ManifestPath $manifestPath
 $selectedApps = Get-SelectedApps -Apps $manifest.apps -Only $Only
 
 if (-not $SkipSkills) {

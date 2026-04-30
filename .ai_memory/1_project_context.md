@@ -27,6 +27,7 @@
 - 同名 Skill 三态判定已经落地：`Tracked` 增量同步，`Orphan` 默认备份替换，`Foreign` 默认跳过。
 - `CC Switch` Provider 导入只走 `ccswitch://v1/import` deep link，不写 SQLite。
 - 面向用户的脚本提示、日志、错误和执行摘要默认使用简体中文；为兼容 Windows PowerShell 5.1，脚本文案通过 UTF-8 base64 解码输出，源码文件保持 UTF-8 无 BOM。
+- `bootstrap.ps1` 内置拟似 TUI 与原命令模式：无安装参数或显式 `-Tui` 时进入 TUI；带 `-Only`、`-DryRun`、`-SkipSkills` 等操作参数时继续走原自动化模式；TUI 内的“默认安装（原来模式）”等价于选择 manifest 中全部应用并继续复用原安装内核。
 
 ## 文档维护约定
 - README 只做入口索引，不维护应用来源表、PAT 表或完整安装流程。

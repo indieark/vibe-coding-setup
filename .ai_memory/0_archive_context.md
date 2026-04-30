@@ -164,3 +164,42 @@ Skill 导入的安全边界已经收敛为三态：`Tracked` 表示 IndieArk 可
 用户指出自有 README 过于简陋，希望参考 GitHub 上好的 README 结构。调整方向从“README 只是索引”改为“README 是项目首页，docs/README 是二级导航”。
 
 新的 README 先回答项目价值、为什么需要它、它做什么、如何快速开始、核心能力和安全边界，再把详细流程链接到 docs。这样既符合 GitHub 项目首页阅读习惯，也不破坏单一信息源：版本、fallback、PAT 表、Skill 清单仍不在 README 复制维护。
+
+## 2026-04-30 — 拟似 TUI 合并进主脚本归档
+
+### 核心议题背景
+
+用户先希望安装脚本更结构化、中文化、现代化，并提出“各种选择和安装可以拟似 TUI”。过程中曾短暂考虑单独入口文件，但用户明确收敛为：不要再起别的文件，而是在既有脚本里保留两个模式，一个是原来的，一个是拟似 TUI；进入脚本后再选择模式；无参数时默认进入 TUI；原来的安装模式也要包含在 TUI 内。
+
+### Cognitive Evolution Path
+
+1. 先保留前一轮中文化成果，不继续拆安装内核，避免把界面改造和安装行为重构绑在同一次变更里。
+2. 删除单独 TUI 入口思路，把所有 TUI 函数收进 `bootstrap.ps1`，以 `-Tui` 参数和“无操作参数”检测作为入口条件。
+3. 入口位置放在读取 manifest 后、UAC 提权前：这样 TUI 能展示真实应用清单，且用户选择正式安装时仍能走原来的提权流程。
+4. 为避免 `bootstrap.cmd` 自带 `-PauseOnExit` 影响判断，将 `PauseOnExit`、`KeepShellOpen`、`UserHomeOverride` 视为非操作参数；只有 `-Only`、`-DryRun`、`-SkipSkills` 等安装参数才绕过 TUI。
+5. TUI 首屏固定三种模式：
+   - `默认安装（原来模式）`：选择 manifest 中全部应用，继续使用原安装内核。
+   - `自定义选择`：应用多选 + 安装选项切换 + 执行确认。
+   - `安全演练`：全量应用 dry-run，跳过 CC Switch Provider 导入，不替换旧 Skill，不启动 Skills Manager，并显式选择全部 Skill。
+6. 为防止提权后管理员窗口再次进入 TUI，TUI 结果会写回 `$PSBoundParameters`，并移除 `Tui` 参数；默认安装模式内部转成显式 `-Only` 全量应用，行为等价但能稳定绕过二次菜单。
+
+### 关键决策
+
+- 不新增 `setup-tui.ps1` 或 `setup-tui.cmd`，入口仍是 `bootstrap.ps1` / `bootstrap.cmd`。
+- 显式参数命令继续作为自动化入口，不受 TUI 默认行为影响。
+- TUI 只是选择层和命令预览层，不改变 `manifest/apps.json`、precheck、fallback、Skill 三态导入或 CC Switch deep-link 导入内核。
+- 安全演练模式默认带 `-AllSkills`，避免在 dry-run 验证时再停在 Profile 交互输入。
+
+### 当前结论
+
+- 无参数运行会进入拟似 TUI。
+- `-Tui` 可强制进入拟似 TUI。
+- `-DryRun -SkipSkills -SkipCcSwitch -Only git` 等旧式参数仍直接执行，不进入 TUI。
+- TUI 内“默认安装（原来模式）”已经包含原流程，确认页会展示等价的显式命令。
+- `docs/operations.md` 已同步入口说明。
+
+### 后续行动指引
+
+1. 如果继续增强 TUI，优先补“窗口宽度自适应”和“更安静的 dry-run 进度显示”，不要先拆新入口。
+2. 如果未来做真正 GUI，应调用同一套参数和安装内核，避免出现 GUI 专属安装路径。
+3. 如新增安装选项，必须同时更新 TUI 选项页、`docs/operations.md` 和 `.ai_memory/2_active_task.md`。

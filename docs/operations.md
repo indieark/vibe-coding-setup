@@ -2,10 +2,20 @@
 
 ## 本地仓库运行
 
+本地手动装机直接进入拟似 TUI，可用方向键选择运行模式、应用和安装选项：
+
 ```powershell
 Set-Location "C:\Vibe_Coding\IndieArk\gadget\vibe-coding-setup"
 .\bootstrap.cmd
 ```
+
+无安装参数时会先进入 TUI；“默认安装（原来模式）”已经包含在 TUI 里，选择后仍按原脚本流程安装全部应用、导入 Skill 和 CC Switch。
+
+```powershell
+.\bootstrap.cmd -Tui
+```
+
+`-Tui` 可在已有参数场景下强制打开 TUI。自动化或旧式命令继续直接传参数，例如 `.\bootstrap.cmd -Only git,nodejs`。
 
 `bootstrap.cmd` 使用 Windows PowerShell 5.1 启动。如果过程中触发 UAC 提权，新开的管理员窗口会在执行完成后保持打开，方便查看 summary 或错误。
 
