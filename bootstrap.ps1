@@ -566,6 +566,17 @@ function Write-TuiHeader {
     Write-Host ('-' * 64) -ForegroundColor DarkGray
 }
 
+function Write-TuiSection {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Title
+    )
+
+    Write-Host ''
+    Write-Host ('[{0}]' -f $Title) -ForegroundColor Cyan
+    Write-Host ('-' * 64) -ForegroundColor DarkGray
+}
+
 function New-TuiOption {
     param(
         [Parameter(Mandatory)]
@@ -705,9 +716,20 @@ function Get-TuiAppStatusRows {
     )
 
     $rows = New-Object System.Collections.Generic.List[object]
+    $decisionsByKey = @{}
+    foreach ($precheck in @(Get-AppInstallDecisionBatch -Definitions $Apps)) {
+        $decisionsByKey[[string]$precheck.Key] = $precheck
+    }
+
     foreach ($app in ($Apps | Sort-Object order)) {
         try {
-            $decision = Get-AppInstallDecision -Definition $app
+            $precheck = $decisionsByKey[[string]$app.key]
+            if ($null -eq $precheck -or $precheck.Status -ne 'ok') {
+                $errorDetail = if ($precheck -and -not [string]::IsNullOrWhiteSpace([string]$precheck.Error)) { [string]$precheck.Error } else { ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l5aSx6LSl' }
+                throw $errorDetail
+            }
+
+            $decision = $precheck.Decision
             $rows.Add([pscustomobject]@{
                     Key = $app.key
                     Name = $app.name
@@ -1259,13 +1281,15 @@ function Show-TuiReview {
             default { ConvertFrom-BootstrapUtf8Base64String -Value '5ZG95Luk5qih5byP6buY6K6k' }
         }
 
+        Write-TuiSection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5oup5pGY6KaB')
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5omn6KGM5qih5byP'), $mode) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5Lit5bqU55So'), $appText) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwg6YCJ5oup'), $skillText) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGxzIE1hbmFnZXIg5Zy65pmv'), $scenarioText) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '6ZmE5Yqg5Y+C5pWw'), $optionText) -ForegroundColor Gray
-        Write-Host ''
-        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bCG5omn6KGM5ZG95Luk') -ForegroundColor DarkGray
+
+        Write-TuiSection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5omn6KGM5ZG95Luk')
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '56Gu6K6k5ZCO5bCG5omn6KGM5LiL6Z2i55qE5ZG95Luk44CC') -ForegroundColor DarkGray
         Write-Host $commandText -ForegroundColor Cyan
         Write-Host ''
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value 'RW50ZXIg5byA5aeL5omn6KGMICBDIOWkjeWItuWRveS7pCAgQiDov5Tlm54gIFEg6YCA5Ye6') -ForegroundColor DarkGray
@@ -1554,10 +1578,13 @@ function Show-TuiWorkbenchMenu {
     while ($true) {
         $summary = Get-TuiWorkbenchSummaryText -State $State
         Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value 'VFVJIOW3peS9nOWPsA==')
+
+        Write-TuiSection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5b2T5YmN6YCJ5oup')
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '6L2v5Lu2'), $summary.Software) -ForegroundColor DarkGray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGw='), $summary.Skill) -ForegroundColor DarkGray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5Zy65pmv5rOo5YaM'), $summary.Scenario) -ForegroundColor DarkGray
-        Write-Host ''
+
+        Write-TuiSection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5Y+v5omn6KGM5Yqo5L2c')
         for ($i = 0; $i -lt $actions.Count; $i++) {
             $action = $actions[$i]
             $cursor = if ($i -eq $index) { '>' } else { ' ' }
@@ -1566,7 +1593,7 @@ function Show-TuiWorkbenchMenu {
             Write-Host ('  {0}' -f $action.Detail) -ForegroundColor DarkGray
         }
 
-        Write-Host ''
+        Write-TuiSection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5pON5L2c5o+Q56S6')
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIEVudGVyIOmAieaLqSAgQiDov5Tlm54gIFEg6YCA5Ye6') -ForegroundColor DarkGray
         $key = [Console]::ReadKey($true)
         switch ($key.Key) {
@@ -2007,6 +2034,13 @@ if (-not $SkipApps) {
     $selectedApps = @(Get-SelectedApps -Apps $manifest.apps -Only $Only)
 }
 
+$appPrecheckByKey = @{}
+if (-not $SkipApps -and $selectedApps.Count -gt 0) {
+    foreach ($precheck in @(Get-AppInstallDecisionBatch -Definitions $selectedApps)) {
+        $appPrecheckByKey[[string]$precheck.Key] = $precheck
+    }
+}
+
 if (-not $SkipSkills) {
     $shouldRefreshSkillBundle = $RefreshBootstrapDependencies.IsPresent -or (Test-HttpSourceRoot -SourceRoot $BootstrapSourceRoot)
     Sync-BootstrapSkillBundleAsset `
@@ -2105,7 +2139,13 @@ foreach ($app in ($selectedApps | Sort-Object order)) {
     try {
         $appProgressStatus = (ConvertFrom-BootstrapUtf8Base64String -Value '5YeG5aSH5a6J6KOF5bqU55So77yaezB9ICh7MX0vezJ9KQ==') -f $app.name, $appInstallIndex, $selectedApps.Count
         Write-BootstrapProgress -CompletedSteps $progressCompletedSteps -TotalSteps $progressTotalSteps -Status $appProgressStatus
-        $result = Install-AppFromDefinition -Definition $app -WorkspaceRoot $root -DryRun:$DryRun
+        $appPrecheck = $appPrecheckByKey[[string]$app.key]
+        if ($null -ne $appPrecheck -and $appPrecheck.Status -eq 'failed') {
+            throw ((ConvertFrom-BootstrapUtf8Base64String -Value '6aKE5qOA5p+l5byC5bi477yaezB9') -f $appPrecheck.Error)
+        }
+
+        $installDecision = if ($null -ne $appPrecheck) { $appPrecheck.Decision } else { $null }
+        $result = Install-AppFromDefinition -Definition $app -WorkspaceRoot $root -InstallDecision $installDecision -DryRun:$DryRun
         $results.Add($result)
         $progressCompletedSteps++
         Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6M5oiQ5bqU55So77yaezB977yb54q25oCBPXsxfQ==') -f $app.name, (ConvertTo-BootstrapDisplayStatus -Status $result.Status))

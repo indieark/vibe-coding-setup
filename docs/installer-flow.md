@@ -20,13 +20,14 @@
 8. 只有进入 Skill 状态页、Skill 复选页或实际执行 Skill 导入时，才按需获取 `skills.zip` 并读取 Profile；TUI 首屏不再预取 Skill bundle。
 9. 非 `-DryRun` 且非管理员时，通过 UAC 保留当前参数重新拉起；UAC 交接窗口只提示后续在管理员窗口继续。提权后优先用 Windows Terminal 承载管理员 PowerShell，系统没有 `wt.exe` 时才回退到经典 PowerShell。
 10. 如果没有 `-SkipApps`，按 `-Only` 过滤应用，并按 `order` 排序。
-11. 如果没有 `-SkipSkills`，按需获取公开 `bootstrap-assets/skills.zip`。
-12. 如选择 `cc-switch` 且没有 `-SkipCcSwitch`，读取或询问 Provider 配置。
-13. 创建 Codex 默认工作目录。
-14. 对每个选中的应用做版本门禁和安装；`-SkipApps` 会跳过应用安装阶段。
-15. 应用阶段结束后，如果没有 `-SkipSkills`，执行 Skill bundle 导入。
-16. 最后导入 CC Switch Provider deep link。
-17. 输出 Summary；任一项失败则退出码为 `1`，否则为 `0`。
+11. 对选中的应用先做并行预检查：先判断是否存在；缺失项不查最新版本，后续直接安装；已存在项才查询目标版本并决定更新或跳过。
+12. 如果没有 `-SkipSkills`，按需获取公开 `bootstrap-assets/skills.zip`。
+13. 如选择 `cc-switch` 且没有 `-SkipCcSwitch`，读取或询问 Provider 配置。
+14. 创建 Codex 默认工作目录。
+15. 按 `order` 串行消费预检查结果并安装 / 更新 / 跳过应用；`-SkipApps` 会跳过应用安装阶段。
+16. 应用阶段结束后，如果没有 `-SkipSkills`，执行 Skill bundle 导入。
+17. 最后导入 CC Switch Provider deep link。
+18. 输出 Summary；任一项失败则退出码为 `1`，否则为 `0`。
 
 安装阶段总进度输出简洁文字，例如 `[当前/总数] 当前步骤`；应用内部可量化进度才输出脚本自绘进度条，例如下载、winget 下载 / 安装和 Skill bundle 解压。不再调用 `Write-Progress` 绘制宿主进度条，也不使用会触发宿主进度区域的 `Expand-Archive`。自举依赖和 Release 资产下载同样使用脚本自绘进度条；如果服务器没有返回文件大小，则只显示完成状态。
 
@@ -35,9 +36,9 @@
 TUI 默认安装模式只写入内部的 `BootstrapTuiResolved` 标记，用于防止 UAC 提权后重复进入 TUI；它不会写入 `-Only`，因此仍遵循原脚本“未指定 `-Only` 时使用默认全量应用”的行为。如果启动 TUI 时已经显式带了 `-DryRun`、`-SkipSkills`、`-SkipCcSwitch` 或 Skill 相关参数，默认安装会保留这些原命令参数。TUI 模式和安全演练涉及应用集合时，会把数组参数压缩成逗号形式传递，避免 UAC 重启后出现位置参数解析错误；读取多选文本时兼容英文逗号、中文逗号和顿号。
 
 ## 应用安装门禁
-每个应用都会先做 precheck：
+应用 precheck 会按所选应用并行执行，但实际安装仍按 `order` 串行执行，避免多个安装器同时运行产生锁冲突。单个应用的门禁规则是：
 
-- 未安装：进入安装。
+- 未安装：进入安装，不查询目标版本。
 - `installIfMissingOnly` 为真且已安装：跳过。
 - 已安装且版本低于目标：更新。
 - 已安装且版本不低于目标：跳过。

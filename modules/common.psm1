@@ -1366,7 +1366,6 @@ function Get-AppInstallDecision {
     )
 
     $installed = Get-InstalledAppVersion -Definition $Definition
-    $desired = Get-DesiredAppVersion -Definition $Definition
     $installIfMissingOnly = [bool](Get-ObjectPropertyValue -Object $Definition -Name 'installIfMissingOnly' -Default $false)
 
     if (-not $installed.Found) {
@@ -1374,7 +1373,7 @@ function Get-AppInstallDecision {
             Action = 'install'
             Reason = 'missing'
             InstalledVersion = $null
-            DesiredVersion = $desired.Version
+            DesiredVersion = $null
             Detail = (ConvertFrom-Utf8Base64String -Value '5pyq5a6J6KOF')
         }
     }
@@ -1384,10 +1383,12 @@ function Get-AppInstallDecision {
             Action = 'skip'
             Reason = 'present'
             InstalledVersion = $installed.Version
-            DesiredVersion = $desired.Version
+            DesiredVersion = $null
             Detail = (ConvertFrom-Utf8Base64String -Value '5bey5qOA5rWL5Yiw5bqU55So77yM5LiU5ZCv55SoIGluc3RhbGxJZk1pc3NpbmdPbmx5')
         }
     }
+
+    $desired = Get-DesiredAppVersion -Definition $Definition
 
     if ([string]::IsNullOrWhiteSpace([string]$installed.Version)) {
         return [pscustomobject]@{
@@ -1437,6 +1438,97 @@ function Get-AppInstallDecision {
         DesiredVersion = $desired.Version
         Detail = (ConvertFrom-Utf8Base64String -Value '5bey5a6J6KOF54mI5pys5L2O5LqO55uu5qCH54mI5pys')
     }
+}
+
+function Get-AppInstallDecisionBatch {
+    param(
+        [Parameter(Mandatory)]
+        [object[]]$Definitions
+    )
+
+    $apps = @($Definitions | Where-Object { $null -ne $_ })
+    if ($apps.Count -eq 0) {
+        return @()
+    }
+
+    $modulePath = $PSCommandPath
+    if ([string]::IsNullOrWhiteSpace($modulePath) -and $MyInvocation.MyCommand.Module) {
+        $modulePath = $MyInvocation.MyCommand.Module.Path
+    }
+    if ([string]::IsNullOrWhiteSpace($modulePath) -or -not (Test-Path -LiteralPath $modulePath)) {
+        return @(
+            $apps |
+            ForEach-Object {
+                $decision = Get-AppInstallDecision -Definition $_
+                [pscustomobject]@{
+                    Key = $_.key
+                    Name = $_.name
+                    Order = [int]$_.order
+                    Status = 'ok'
+                    Decision = $decision
+                    Error = $null
+                }
+            }
+        )
+    }
+
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5bm26KGM5qOA5p+l5bqU55So5a6J6KOF54q25oCB77yaezB9IOS4qg==') -f $apps.Count)
+    $jobs = New-Object System.Collections.Generic.List[object]
+    foreach ($app in $apps) {
+        $definitionJson = $app | ConvertTo-Json -Depth 16 -Compress
+        $job = Start-Job -Name ('vcs-precheck-{0}' -f $app.key) -ScriptBlock {
+            param(
+                [Parameter(Mandatory)]
+                [string]$ModulePath,
+                [Parameter(Mandatory)]
+                [string]$DefinitionJson
+            )
+
+            $ProgressPreference = 'SilentlyContinue'
+            Import-Module $ModulePath -Force
+            $definition = $DefinitionJson | ConvertFrom-Json
+            try {
+                $decision = Get-AppInstallDecision -Definition $definition
+                [pscustomobject]@{
+                    Key = $definition.key
+                    Name = $definition.name
+                    Order = [int]$definition.order
+                    Status = 'ok'
+                    Decision = $decision
+                    Error = $null
+                }
+            }
+            catch {
+                [pscustomobject]@{
+                    Key = $definition.key
+                    Name = $definition.name
+                    Order = [int]$definition.order
+                    Status = 'failed'
+                    Decision = $null
+                    Error = $_.Exception.Message
+                }
+            }
+        } -ArgumentList $modulePath, $definitionJson
+        $jobs.Add($job)
+    }
+
+    try {
+        Wait-Job -Job $jobs.ToArray() | Out-Null
+        $results = @(
+            foreach ($job in $jobs) {
+                Receive-Job -Job $job
+            }
+        )
+    }
+    finally {
+        foreach ($job in $jobs) {
+            Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    $failedCount = @($results | Where-Object { $_.Status -eq 'failed' }).Count
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+l5a6M5oiQ77yaezB9IOS4quaIkOWKn++8jHsxfSDkuKrlpLHotKU=') -f ($results.Count - $failedCount), $failedCount)
+    return @($results | Sort-Object Order)
 }
 
 function Test-InstallRecoveredAfterPrimaryFailure {
@@ -1618,12 +1710,13 @@ function Install-AppFromDefinition {
         [pscustomobject]$Definition,
         [Parameter(Mandatory)]
         [string]$WorkspaceRoot,
+        [pscustomobject]$InstallDecision,
         [switch]$DryRun
     )
 
     $downloadsRoot = Join-Path $WorkspaceRoot 'downloads'
     Initialize-Directory -Path $downloadsRoot
-    $decision = Get-AppInstallDecision -Definition $Definition
+    $decision = if ($null -ne $InstallDecision) { $InstallDecision } else { Get-AppInstallDecision -Definition $Definition }
 
     switch ($decision.Reason) {
         'missing' {
@@ -1924,6 +2017,28 @@ function Read-HostWithDefaultValue {
     return $value.Trim()
 }
 
+function Write-CodexProviderInputSection {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Title
+    )
+
+    Write-Host ''
+    Write-Host ('== {0} ==' -f $Title) -ForegroundColor Cyan
+    Write-Host ('-' * 64) -ForegroundColor DarkGray
+}
+
+function Write-CodexProviderInputLine {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Label,
+        [Parameter(Mandatory)]
+        [string]$Value
+    )
+
+    Write-Host ('  {0}: {1}' -f $Label, $Value) -ForegroundColor DarkGray
+}
+
 function Get-CcSwitchDatabasePath {
     $homeDir = Get-UserHomeDirectory
     if ([string]::IsNullOrWhiteSpace($homeDir)) {
@@ -2063,44 +2178,89 @@ function Read-CodexProviderInput {
     )
 
     $name = $PresetName
+    $nameSource = if ([string]::IsNullOrWhiteSpace($name)) { $null } else { ConvertFrom-Utf8Base64String -Value '5ZG95Luk5Y+C5pWw' }
     if ([string]::IsNullOrWhiteSpace($name)) {
         $name = $env:VIBE_CODING_PROVIDER_NAME
+        if (-not [string]::IsNullOrWhiteSpace($name)) {
+            $nameSource = ConvertFrom-Utf8Base64String -Value '546v5aKD5Y+Y6YeP'
+        }
     }
     if ([string]::IsNullOrWhiteSpace($name)) {
         $name = 'IndieArk API 2'
+        $nameSource = ConvertFrom-Utf8Base64String -Value '5YaF572u6buY6K6k'
     }
 
     $baseUrl = $PresetBaseUrl
+    $baseUrlSource = if ([string]::IsNullOrWhiteSpace($baseUrl)) { $null } else { ConvertFrom-Utf8Base64String -Value '5ZG95Luk5Y+C5pWw' }
     if ([string]::IsNullOrWhiteSpace($baseUrl)) {
         $baseUrl = $env:VIBE_CODING_BASE_URL
+        if (-not [string]::IsNullOrWhiteSpace($baseUrl)) {
+            $baseUrlSource = ConvertFrom-Utf8Base64String -Value '546v5aKD5Y+Y6YeP'
+        }
     }
     if ([string]::IsNullOrWhiteSpace($baseUrl)) {
         $baseUrl = 'https://api2.indieark.tech/v1'
+        $baseUrlSource = ConvertFrom-Utf8Base64String -Value '5YaF572u6buY6K6k'
     }
 
     $model = $PresetModel
+    $modelSource = if ([string]::IsNullOrWhiteSpace($model)) { $null } else { ConvertFrom-Utf8Base64String -Value '5ZG95Luk5Y+C5pWw' }
     if ([string]::IsNullOrWhiteSpace($model)) {
         $model = $env:VIBE_CODING_MODEL
+        if (-not [string]::IsNullOrWhiteSpace($model)) {
+            $modelSource = ConvertFrom-Utf8Base64String -Value '546v5aKD5Y+Y6YeP'
+        }
     }
     if ([string]::IsNullOrWhiteSpace($model)) {
         $model = 'gpt-5.5'
+        $modelSource = ConvertFrom-Utf8Base64String -Value '5YaF572u6buY6K6k'
     }
 
-    $name = Read-HostWithDefaultValue -Prompt (ConvertFrom-Utf8Base64String -Value 'Q0MgU3dpdGNoIHByb3ZpZGVyIOWQjeensA==') -DefaultValue $name
-    $baseUrl = Read-HostWithDefaultValue -Prompt 'API base URL' -DefaultValue $baseUrl
+    Write-CodexProviderInputSection -Title (ConvertFrom-Utf8Base64String -Value '6K+05piO')
+    Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value '55So6YCU') -Value (ConvertFrom-Utf8Base64String -Value '5bCG5a+85YWl5YiwIENDIFN3aXRjaCDnmoQgQ29kZXggcHJvdmlkZXLjgII=')
+    Write-CodexProviderInputLine -Label 'API Key' -Value (ConvertFrom-Utf8Base64String -Value 'QVBJIEtleSDovpPlhaXml7bkvJrpmpDol4/vvJvmkZjopoHlj6rmmL7npLrmmK/lkKblt7LloavlhpnvvIzkuI3mmL7npLrlr4bpkqXjgII=')
+    Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value '5o+Q56S6') -Value (ConvertFrom-Utf8Base64String -Value '5oyJIEVudGVyIOS9v+eUqOaLrOWPt+S4reeahOm7mOiupOWAvO+8m+eVmeepuiBBUEkgS2V5IOS8muWGmeWFpeWNoOS9jeWAvCBzay3jgII=')
+
+    Write-CodexProviderInputSection -Title (ConvertFrom-Utf8Base64String -Value '5b2T5YmN6buY6K6k5YC8')
+    Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value 'UHJvdmlkZXIg5ZCN56ew') -Value ('{0} ({1}: {2})' -f $name, (ConvertFrom-Utf8Base64String -Value '5p2l5rqQ'), $nameSource)
+    Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value 'QVBJIOWcsOWdgCAvIEJhc2UgVVJM') -Value ('{0} ({1}: {2})' -f $baseUrl, (ConvertFrom-Utf8Base64String -Value '5p2l5rqQ'), $baseUrlSource)
+    Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value '5qih5Z6L5ZCN56ew') -Value ('{0} ({1}: {2})' -f $model, (ConvertFrom-Utf8Base64String -Value '5p2l5rqQ'), $modelSource)
+
+    Write-CodexProviderInputSection -Title (ConvertFrom-Utf8Base64String -Value '6L6T5YWl5Yy6')
+    $name = Read-HostWithDefaultValue -Prompt (ConvertFrom-Utf8Base64String -Value 'UHJvdmlkZXIg5ZCN56ew') -DefaultValue $name
+    $baseUrl = Read-HostWithDefaultValue -Prompt (ConvertFrom-Utf8Base64String -Value 'QVBJIOWcsOWdgCAvIEJhc2UgVVJM') -DefaultValue $baseUrl
     $model = Read-HostWithDefaultValue -Prompt (ConvertFrom-Utf8Base64String -Value '5qih5Z6L5ZCN56ew') -DefaultValue $model
 
     $apiKey = $PresetApiKey
     if ([string]::IsNullOrWhiteSpace($apiKey)) {
-        $secureApiKey = Read-Host (ConvertFrom-Utf8Base64String -Value 'U0vvvIjnlZnnqbrkvb/nlKjpu5jorqQgc2st77yM6L6T5YWl5Lya6ZqQ6JeP77yJ') -AsSecureString
+        Write-CodexProviderInputSection -Title (ConvertFrom-Utf8Base64String -Value 'QVBJIEtleQ==')
+        $secureApiKey = Read-Host ('API Key ({0})' -f (ConvertFrom-Utf8Base64String -Value '6L6T5YWl5pe26ZqQ6JeP')) -AsSecureString
         $apiKey = ConvertFrom-SecureStringPlainText -SecureString $secureApiKey
     }
+    else {
+        Write-CodexProviderInputSection -Title (ConvertFrom-Utf8Base64String -Value 'QVBJIEtleQ==')
+        Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value '5p2l5rqQ') -Value (ConvertFrom-Utf8Base64String -Value '5bey5LuO5ZG95Luk5Y+C5pWw6K+75Y+W77yM5LiN5pi+56S65YaF5a65')
+    }
+
+    $finalApiKey = if ([string]::IsNullOrWhiteSpace($apiKey)) { 'sk-' } else { $apiKey.Trim() }
+    $apiKeyStatus = if ($finalApiKey -eq 'sk-') {
+        ConvertFrom-Utf8Base64String -Value '5pyq5aGr5YaZ77yM5bCG5L2/55So5Y2g5L2N6buY6K6k5YC8'
+    }
+    else {
+        ConvertFrom-Utf8Base64String -Value '5bey5aGr5YaZ'
+    }
+
+    Write-CodexProviderInputSection -Title (ConvertFrom-Utf8Base64String -Value '6YWN572u5pGY6KaB')
+    Write-CodexProviderInputLine -Label 'Provider' -Value $name.Trim()
+    Write-CodexProviderInputLine -Label 'Base URL' -Value $baseUrl.Trim()
+    Write-CodexProviderInputLine -Label 'Model' -Value $model.Trim()
+    Write-CodexProviderInputLine -Label 'API Key' -Value $apiKeyStatus
 
     return [pscustomobject]@{
         Name = $name.Trim()
         BaseUrl = $baseUrl.Trim()
         Model = $model.Trim()
-        ApiKey = if ([string]::IsNullOrWhiteSpace($apiKey)) { 'sk-' } else { $apiKey.Trim() }
+        ApiKey = $finalApiKey
     }
 }
 
@@ -3592,6 +3752,7 @@ Export-ModuleMember -Function @(
     'Get-AppManifest',
     'Get-SelectedApps',
     'Get-AppInstallDecision',
+    'Get-AppInstallDecisionBatch',
     'Initialize-CodexWorkspaceDirectory',
     'Install-AppFromDefinition',
     'Get-CcSwitchProviderByName',

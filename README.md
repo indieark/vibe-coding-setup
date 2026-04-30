@@ -22,6 +22,7 @@
 - 默认进入拟似 TUI，可在进入脚本后选择原来模式、TUI 工作台或安全演练。
 - TUI 会尽量切换英文输入布局，Profile / 应用多选支持英文逗号、中文逗号和顿号。
 - `skills.zip` 不在 TUI 首屏预取；只有进入 Skill 选择或实际导入 Skill 时才按需获取。
+- 应用安装前会并行检查本机是否已安装；只有已安装项才查目标版本并判断是否需要更新。
 - 安装阶段显示总步骤进度，并在命令日志中列出本次实际安装清单。
 - 使用 `.skill-meta.json` 识别 Skill 来源，并由用户选择是否写入 Skills Manager 默认场景或自定义场景。
 - 对同名 Skill 做安全三态判定：已跟踪、旧孤儿、第三方同名。
@@ -54,7 +55,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 
 | 能力 | 当前实现 |
 | --- | --- |
-| 应用安装 | `manifest/apps.json` 驱动，先 precheck，再安装或跳过 |
+| 应用安装 | `manifest/apps.json` 驱动，先并行 precheck；缺失则安装，已存在才查目标版本并决定更新或跳过 |
 | 失败回退 | 主来源失败后 post-check，仍失败才使用 fallback |
 | 资产镜像 | 私库资产只在 GitHub Actions 中读取，终端用户只访问公开 `bootstrap-assets` |
 | TUI 入口 | 无安装参数默认进入拟似 TUI；显式参数继续支持旧命令模式 |
