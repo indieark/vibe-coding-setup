@@ -27,6 +27,8 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$script:BootstrapAdminHandoffStarted = $false
+$script:BootstrapUserCancelled = $false
 
 function ConvertFrom-BootstrapUtf8Base64String {
     param(
@@ -235,6 +237,9 @@ function Invoke-BootstrapExit {
         if ($script:BootstrapAdminHandoffStarted) {
             Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5omT5byA566h55CG5ZGY56qX5Y+j57un57ut5a6J6KOF44CC6L+Z5Liq56qX5Y+j5Y+v5Lul5YWz6Zet77yb6K+35Zyo566h55CG5ZGY56qX5Y+j5Lit5p+l55yL5ZCO57ut6L+b5bqm44CC')
         }
+        elseif ($script:BootstrapUserCancelled) {
+            Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5Y+W5raI44CC56qX5Y+j5bCG5L+d5oyB5omT5byA77yM5Y+v5omL5Yqo5YWz6Zet44CC')
+        }
         elseif ($Code -eq 0) {
             Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5bey5a6M5oiQ44CC566h55CG5ZGY56qX5Y+j5Lya5L+d5oyB5omT5byA77yM56Gu6K6k6L6T5Ye65ZCO5Y+v5omL5Yqo5YWz6Zet44CC')
         }
@@ -250,6 +255,9 @@ function Invoke-BootstrapExit {
         Write-Host ''
         if ($script:BootstrapAdminHandoffStarted) {
             Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5omT5byA566h55CG5ZGY56qX5Y+j57un57ut5a6J6KOF44CC5oyJ5Lu75oSP6ZSu5YWz6Zet5b2T5YmN56qX5Y+jLi4u')
+        }
+        elseif ($script:BootstrapUserCancelled) {
+            Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5Y+W5raI44CC5oyJ5Lu75oSP6ZSu5YWz6Zet56qX5Y+jLi4u')
         }
         else {
             Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5bey5a6M5oiQ44CC5oyJ5Lu75oSP6ZSu5YWz6Zet56qX5Y+jLi4u')
@@ -1220,6 +1228,7 @@ if ($shouldUseTui) {
         -RefreshSkillBundle $shouldRefreshSkillBundle
     if ($null -eq $tuiResult) {
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5Y+W5raI44CC')
+        $script:BootstrapUserCancelled = $true
         Invoke-BootstrapExit -Code 0
     }
 
