@@ -4,6 +4,8 @@ param(
     [string[]]$Only,
     [switch]$SkipCcSwitch,
     [switch]$SkipSkills,
+    [string[]]$SkillProfile,
+    [switch]$AllSkills,
     [switch]$PauseOnExit,
     [switch]$KeepShellOpen,
     [string]$UserHomeOverride,
@@ -391,6 +393,8 @@ if (-not $SkipSkills) {
     try {
         $skillResult = Install-SkillBundle `
             -ZipPath (Join-Path $root 'downloads\skills.zip') `
+            -SkillProfiles $SkillProfile `
+            -AllSkills:$AllSkills `
             -DryRun:$DryRun
         $results.Add($skillResult)
     }
