@@ -2348,16 +2348,49 @@ function Select-SkillDirectoriesForProfiles {
     }
 
     $skillByName = @{}
+    $skillDirsByRegistryEntry = @{}
     foreach ($skillDir in $SkillDirectories) {
-        $skillByName[(Split-Path -Leaf $skillDir).ToLowerInvariant()] = $skillDir
+        $skillName = Split-Path -Leaf $skillDir
+        $skillByName[$skillName.ToLowerInvariant()] = $skillDir
+
+        $metaPath = Join-Path $skillDir '.skill-meta.json'
+        if (Test-Path -LiteralPath $metaPath) {
+            try {
+                $meta = Get-Content -Raw -Encoding UTF8 -LiteralPath $metaPath | ConvertFrom-Json
+                $entryName = [string](Get-ObjectPropertyValue -Object $meta -Name 'registry_entry_name')
+                if (-not [string]::IsNullOrWhiteSpace($entryName)) {
+                    $entryKey = $entryName.ToLowerInvariant()
+                    if (-not $skillDirsByRegistryEntry.ContainsKey($entryKey)) {
+                        $skillDirsByRegistryEntry[$entryKey] = New-Object System.Collections.Generic.List[string]
+                    }
+                    $skillDirsByRegistryEntry[$entryKey].Add($skillDir)
+                }
+            }
+            catch {
+                Write-Log -Level 'WARN' -Message ('Invalid .skill-meta.json while resolving profile entry for {0}: {1}' -f $skillName, $_.Exception.Message)
+            }
+        }
     }
 
     $selectedSkillDirs = New-Object System.Collections.Generic.List[string]
+    $selectedSkillDirKeys = @{}
     $missingSkills = New-Object System.Collections.Generic.List[string]
     foreach ($skillName in $wantedSkills) {
         $key = $skillName.ToLowerInvariant()
         if ($skillByName.ContainsKey($key)) {
-            $selectedSkillDirs.Add($skillByName[$key])
+            $skillDir = $skillByName[$key]
+            if (-not $selectedSkillDirKeys.ContainsKey($skillDir)) {
+                $selectedSkillDirs.Add($skillDir)
+                $selectedSkillDirKeys[$skillDir] = $true
+            }
+        }
+        elseif ($skillDirsByRegistryEntry.ContainsKey($key)) {
+            foreach ($skillDir in $skillDirsByRegistryEntry[$key]) {
+                if (-not $selectedSkillDirKeys.ContainsKey($skillDir)) {
+                    $selectedSkillDirs.Add($skillDir)
+                    $selectedSkillDirKeys[$skillDir] = $true
+                }
+            }
         }
         else {
             $missingSkills.Add($skillName)
@@ -2514,6 +2547,10 @@ function Read-SkillMetadata {
     $sourceSubpath = if ($null -ne $meta) { Get-ObjectPropertyValue -Object $meta -Name 'source_subpath' } else { $null }
     $sourceBranch = if ($null -ne $meta) { Get-ObjectPropertyValue -Object $meta -Name 'source_branch' } else { $null }
     $sourceRevision = if ($null -ne $meta) { Get-ObjectPropertyValue -Object $meta -Name 'source_revision' } else { $null }
+    $registryEntryName = if ($null -ne $meta) { Get-ObjectPropertyValue -Object $meta -Name 'registry_entry_name' } else { $null }
+    if ([string]::IsNullOrWhiteSpace($registryEntryName)) {
+        $registryEntryName = $SkillName
+    }
 
     return [pscustomobject]@{
         Name = $SkillName
@@ -2523,6 +2560,7 @@ function Read-SkillMetadata {
         SourceSubpath = $sourceSubpath
         SourceBranch = $sourceBranch
         SourceRevision = $sourceRevision
+        RegistryEntryName = $registryEntryName
         CentralPath = $CentralPath
     }
 }
