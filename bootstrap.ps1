@@ -592,6 +592,22 @@ function Write-TuiSection {
     }
 }
 
+function Write-TuiLoading {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Title,
+        [Parameter(Mandatory)]
+        [string]$Message,
+        [string]$Detail
+    )
+
+    Write-TuiHeader -Title $Title
+    Write-Host $Message -ForegroundColor Cyan
+    if (-not [string]::IsNullOrWhiteSpace($Detail)) {
+        Write-Host $Detail -ForegroundColor DarkGray
+    }
+}
+
 function New-TuiOption {
     param(
         [Parameter(Mandatory)]
@@ -650,8 +666,8 @@ function Show-TuiModeSelection {
     $modes = @(
         New-TuiModeOption `
             -Mode 'original' `
-            -Label (ConvertFrom-BootstrapUtf8Base64String -Value '6buY6K6k5a6J6KOF77yI5Y6f5p2l5qih5byP77yJ') `
-            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5YWo6YOo5bqU55So77yM5bm25oyJ5Y6f6ISa5pys5rWB56iL5a+85YWlIFNraWxsIOS4jiBDQyBTd2l0Y2jjgII=')
+            -Label (ConvertFrom-BootstrapUtf8Base64String -Value '6buY6K6k5a6J6KOF') `
+            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5oyJ6buY6K6k6YWN572u5a6J6KOF5bqU55So77yM5bm25a+85YWlIFNraWxsIOS4jiBDQyBTd2l0Y2jjgII=')
         New-TuiModeOption `
             -Mode 'workbench' `
             -Label (ConvertFrom-BootstrapUtf8Base64String -Value 'VFVJIOaooeW8jw==') `
@@ -923,67 +939,75 @@ function Show-TuiSoftwareActionSelection {
         [object[]]$Apps
     )
 
+    Write-TuiLoading `
+        -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6L2v5Lu254q25oCB5LiO5a6J6KOFIC8g5pu05paw') `
+        -Message (ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo5qOA5p+l6L2v5Lu254q25oCB77yM6K+356iN5YCZLi4u')
     $rows = @(Get-TuiAppStatusRows -Apps $Apps)
-    $suggestedKeys = @($rows | Where-Object { $_.Action -ne 'skip' } | ForEach-Object { $_.Key })
-    $allAppKeys = @($Apps | ForEach-Object { $_.key })
-    $actions = @(
-        New-TuiWorkbenchAction -Action 'suggested' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5bu66K6u6aG5') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF57y65aSx5oiW5Y+v5pu05paw55qE6L2v5Lu244CC')
-        New-TuiWorkbenchAction -Action 'all' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5YWo6YOo5bqU55So') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5oyJIG1hbmlmZXN0IOWFqOmHj+W6lOeUqOaJp+ihjOWuieijhSAvIOabtOaWsOOAgg==')
-        New-TuiWorkbenchAction -Action 'manual' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5omL5Yqo6YCJ5oup5bqU55So') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5LuO5bqU55So5riF5Y2V5Lit6YCJ5oup5pys5qyh5a6J6KOFIC8g5pu05paw6IyD5Zu044CC')
-    )
+    $suggestedRows = @($rows | Where-Object { $_.Action -eq 'install' })
+    $suggestedKeys = @($suggestedRows | ForEach-Object { $_.Key })
+    $selected = @{}
+    foreach ($row in $rows) {
+        $selected[$row.Key] = ($suggestedKeys -contains $row.Key)
+    }
 
     $index = 0
     while ($true) {
-        Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOFIC8g5pu05paw6L2v5Lu2')
-        for ($i = 0; $i -lt $actions.Count; $i++) {
-            $action = $actions[$i]
+        Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6L2v5Lu254q25oCB5LiO5a6J6KOFIC8g5pu05paw')
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '6buY6K6k5bey6YCJ5Lit6ZyA6KaB5a6J6KOF5oiW5pu05paw55qE6aG555uu77yM5Y+v55So56m65qC85Y676Zmk5LiN5oOz5aSE55CG55qE6aG555uu44CC') -ForegroundColor DarkGray
+        Write-Host ''
+        Write-Host ('{0,-4} {1,-24} {2,-20} {3,-14} {4}' -f `
+                '', `
+                (ConvertFrom-BootstrapUtf8Base64String -Value '5bqU55So'), `
+                (ConvertFrom-BootstrapUtf8Base64String -Value '5b2T5YmN54mI5pys'), `
+                (ConvertFrom-BootstrapUtf8Base64String -Value '55uu5qCH54mI5pys'), `
+                (ConvertFrom-BootstrapUtf8Base64String -Value '5bu66K6u5Yqo5L2c')) -ForegroundColor DarkGray
+        for ($i = 0; $i -lt $rows.Count; $i++) {
+            $row = $rows[$i]
             $cursor = if ($i -eq $index) { '>' } else { ' ' }
-            $color = if ($i -eq $index) { 'Cyan' } else { 'Gray' }
-            Write-Host ('{0} {1}' -f $cursor, $action.Label) -ForegroundColor $color
-            Write-Host ('  {0}' -f $action.Detail) -ForegroundColor DarkGray
+            $canSelect = ($row.Action -eq 'install')
+            $mark = if ($canSelect -and $selected[$row.Key]) { 'x' } elseif ($canSelect) { ' ' } else { '-' }
+            $color = if ($i -eq $index) { 'Cyan' } elseif (-not $canSelect) { 'DarkGray' } else { 'Gray' }
+            Write-Host ('{0} [{1}] {2,-24} {3,-20} {4,-14} {5}' -f $cursor, $mark, $row.Name, $row.InstalledVersion, $row.DesiredVersion, $row.ActionText) -ForegroundColor $color
         }
 
         Write-Host ''
-        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIEVudGVyIOmAieaLqSAgQiDov5Tlm54gIFEg6YCA5Ye6') -ForegroundColor DarkGray
+        $count = @($suggestedKeys | Where-Object { $selected[$_] }).Count
+        Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YCJ5oupIHswfS97MX0g5Liq5bu66K6u6aG5') -f $count, $suggestedKeys.Count) -ForegroundColor DarkGray
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIOepuuagvCDljrvpmaQgIEEg5YWo6YCJICBOIOa4heepuiAgRW50ZXIg5LiL5LiA5q2lICBCIOi/lOWbniAgUSDpgIDlh7o=') -ForegroundColor DarkGray
         $key = [Console]::ReadKey($true)
         switch ($key.Key) {
             'UpArrow' { if ($index -gt 0) { $index-- } }
-            'DownArrow' { if ($index -lt ($actions.Count - 1)) { $index++ } }
+            'DownArrow' { if ($index -lt ($rows.Count - 1)) { $index++ } }
+            'Spacebar' {
+                if ($rows[$index].Action -eq 'install') {
+                    $selected[$rows[$index].Key] = -not $selected[$rows[$index].Key]
+                }
+            }
+            'A' {
+                foreach ($keyName in $suggestedKeys) {
+                    $selected[$keyName] = $true
+                }
+            }
+            'N' {
+                foreach ($keyName in $suggestedKeys) {
+                    $selected[$keyName] = $false
+                }
+            }
             'B' { return $null }
             'Q' { return 'quit' }
             'Enter' {
-                switch ($actions[$index].Action) {
-                    'suggested' {
-                        if ($suggestedKeys.Count -eq 0) {
-                            Write-Host ''
-                            Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5b2T5YmN5rKh5pyJ6ZyA6KaB5a6J6KOF5oiW5pu05paw55qE6L2v5Lu244CC') -ForegroundColor Yellow
-                            Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5oyJ5Lu75oSP6ZSu6L+U5ZueLi4u') -ForegroundColor DarkGray
-                            [void][Console]::ReadKey($true)
-                            continue
-                        }
+                $selectedKeys = @($suggestedKeys | Where-Object { $selected[$_] })
+                if ($selectedKeys.Count -eq 0) {
+                    Write-Host ''
+                    Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5qyh5pON5L2c5LiN5Lya5a6J6KOF5oiW5pu05paw6L2v5Lu244CC') -ForegroundColor Yellow
+                    Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5oyJ5Lu75oSP6ZSu6L+U5ZueLi4u') -ForegroundColor DarkGray
+                    [void][Console]::ReadKey($true)
+                    return $null
+                }
 
-                        return [pscustomobject]@{
-                            AppKeys = $suggestedKeys
-                            Label = (ConvertFrom-BootstrapUtf8Base64String -Value '5bu66K6u6aG5IHswfSDkuKrlupTnlKg=') -f $suggestedKeys.Count
-                        }
-                    }
-                    'all' {
-                        return [pscustomobject]@{
-                            AppKeys = $allAppKeys
-                            Label = (ConvertFrom-BootstrapUtf8Base64String -Value '5YWo6YOoIHswfSDkuKrlupTnlKg=') -f $allAppKeys.Count
-                        }
-                    }
-                    'manual' {
-                        $selected = Show-TuiAppSelection -Apps $Apps
-                        if ($null -eq $selected) {
-                            return 'quit'
-                        }
-
-                        return [pscustomobject]@{
-                            AppKeys = $selected
-                            Label = (ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YCJIHswfSDkuKrlupTnlKg=') -f $selected.Count
-                        }
-                    }
+                return [pscustomobject]@{
+                    AppKeys = $selectedKeys
+                    Label = (ConvertFrom-BootstrapUtf8Base64String -Value '5bu66K6u5aSE55CGIHswfSDkuKrlupTnlKg=') -f $selectedKeys.Count
                 }
             }
         }
@@ -1086,6 +1110,52 @@ function Show-TuiSkillProfileSelection {
         [int]$BundleSkillCount = 0
     )
 
+    function Format-TuiListPreview {
+        param(
+            [string[]]$Values = @(),
+            [int]$MaxItems = 6
+        )
+
+        $items = @($Values | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+        if ($items.Count -eq 0) {
+            return (ConvertFrom-BootstrapUtf8Base64String -Value '5peg')
+        }
+
+        $visible = @($items | Select-Object -First $MaxItems)
+        $text = $visible -join ', '
+        if ($items.Count -gt $MaxItems) {
+            $text = '{0} ... {1}' -f $text, ((ConvertFrom-BootstrapUtf8Base64String -Value '562JIHswfSDkuKo=') -f $items.Count)
+        }
+        return $text
+    }
+
+    function Write-TuiSkillProfileDetail {
+        param(
+            [Parameter(Mandatory)]
+            [object]$Option
+        )
+
+        Write-Host ''
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5b2T5YmN6aG56K+m5oOF') -ForegroundColor DarkCyan
+        if ($Option.IsSkipSkills) {
+            Write-Host ('  {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5bCG6Lez6L+HIFNraWxsIOWvvOWFpe+8jOS4jeWuieijhSBNQ1AgLyBDTEnjgII=')) -ForegroundColor Gray
+            return
+        }
+
+        $summary = if ([int]$Option.SuiteCount -gt 0) {
+            (ConvertFrom-BootstrapUtf8Base64String -Value '5aWX5Lu2IHswfSDkuKrvvJtTa2lsbCB7MX3vvJtNQ1AgezJ977ybQ0xJIHszfQ==') -f $Option.SuiteCount, $Option.SkillCount, $Option.McpCount, $Option.CliCount
+        }
+        else {
+            (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwgezB977ybTUNQIHsxfe+8m0NMSSB7Mn0=') -f $Option.SkillCount, $Option.McpCount, $Option.CliCount
+        }
+        Write-Host ('  {0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5pWw6YeP'), $summary) -ForegroundColor Gray
+        Write-Host ('  {0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'TUNQ'), (Format-TuiListPreview -Values @($Option.Mcp))) -ForegroundColor Gray
+        Write-Host ('  {0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'Q0xJIOS+nei1lg=='), (Format-TuiListPreview -Values @($Option.Prereqs))) -ForegroundColor Gray
+        if (-not [string]::IsNullOrWhiteSpace([string]$Option.Description)) {
+            Write-Host ('  {0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '6K+05piO'), $Option.Description) -ForegroundColor DarkGray
+        }
+    }
+
     $allSuiteSkills = @($Profiles | ForEach-Object { $_.Skills } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
     $allSuiteMcp = @($Profiles | ForEach-Object { $_.Mcp } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
     $allSuitePrereqs = @($Profiles | ForEach-Object { $_.Prereqs } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
@@ -1105,6 +1175,13 @@ function Show-TuiSkillProfileSelection {
             IsAllSkills = $true
             IsAllSuites = $false
             IsSkipSkills = $false
+            SuiteCount = 0
+            SkillCount = $BundleSkillCount
+            McpCount = 0
+            CliCount = 0
+            Mcp = @()
+            Prereqs = @()
+            Description = ConvertFrom-BootstrapUtf8Base64String -Value '5Y+q5a+85YWlIGJ1bmRsZSDlhoXnprvnur8gU2tpbGzvvIzkuI3lronoo4UgTUNQIC8gQ0xJ44CC'
         })
     $options.Add([pscustomobject]@{
             Key = 'suites'
@@ -1114,6 +1191,13 @@ function Show-TuiSkillProfileSelection {
             IsAllSkills = $false
             IsAllSuites = $true
             IsSkipSkills = $false
+            SuiteCount = $Profiles.Count
+            SkillCount = $allSuiteSkills.Count
+            McpCount = $allSuiteMcp.Count
+            CliCount = $allSuitePrereqs.Count
+            Mcp = @($allSuiteMcp)
+            Prereqs = @($allSuitePrereqs)
+            Description = ConvertFrom-BootstrapUtf8Base64String -Value 'UHJvZmlsZSDlubbpm4bvvJrlronoo4XmiYDmnInlpZfku7blvJXnlKjnmoQgU2tpbGzjgIFNQ1Ag5ZKMIENMSSDliY3nva7kvp3otZY='
         })
     $options.Add([pscustomobject]@{
             Key = 'skip'
@@ -1123,6 +1207,13 @@ function Show-TuiSkillProfileSelection {
             IsAllSkills = $false
             IsAllSuites = $false
             IsSkipSkills = $true
+            SuiteCount = 0
+            SkillCount = 0
+            McpCount = 0
+            CliCount = 0
+            Mcp = @()
+            Prereqs = @()
+            Description = ''
         })
 
     foreach ($profile in @($Profiles)) {
@@ -1144,6 +1235,13 @@ function Show-TuiSkillProfileSelection {
                 IsAllSkills = $false
                 IsAllSuites = $false
                 IsSkipSkills = $false
+                SuiteCount = 0
+                SkillCount = $profileSkills.Count
+                McpCount = $profileMcp.Count
+                CliCount = $profilePrereqs.Count
+                Mcp = @($profileMcp)
+                Prereqs = @($profilePrereqs)
+                Description = $profile.Description
             })
     }
 
@@ -1162,6 +1260,8 @@ function Show-TuiSkillProfileSelection {
             $color = if ($i -eq $index) { 'Cyan' } else { 'Gray' }
             Write-Host ('{0} [{1}] {2}' -f $cursor, $mark, $option.Label) -ForegroundColor $color
         }
+
+        Write-TuiSkillProfileDetail -Option $options[$index]
 
         Write-Host ''
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIOepuuagvCDlpI3pgIkv5Y+W5raIICBBIOWFqOmAiSAgTiDmuIXnqbogIEVudGVyIOS4i+S4gOatpSAgQiDov5Tlm54gIFEg6YCA5Ye6') -ForegroundColor DarkGray
@@ -1753,6 +1853,81 @@ function Get-BootstrapTuiSkillBundleSummary {
     }
 }
 
+function Get-BootstrapTuiSkillOnlySummary {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Repo,
+        [Parameter(Mandatory)]
+        [string]$Tag,
+        [Parameter(Mandatory)]
+        [string]$DestinationRoot,
+        [Parameter(Mandatory)]
+        [bool]$Refresh
+    )
+
+    $skillBundlePath = Join-Path $DestinationRoot 'downloads\skills.zip'
+    Sync-BootstrapSkillBundleAsset `
+        -Repo $Repo `
+        -Tag $Tag `
+        -DestinationRoot $DestinationRoot `
+        -Refresh:$Refresh
+
+    $inventory = Get-SkillBundleInventory -ZipPath $skillBundlePath
+    $homeDir = Get-OriginalUserHomeDirectory
+    $localSkillRoot = Join-Path $homeDir '.skills-manager\skills'
+    $installedSkills = @()
+    if (Test-Path -LiteralPath $localSkillRoot) {
+        $installedSkills = @(
+            Get-ChildItem -LiteralPath $localSkillRoot -Directory -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md') } |
+            ForEach-Object { $_.Name } |
+            Sort-Object -Unique
+        )
+    }
+
+    $installedSet = @{}
+    foreach ($skillName in $installedSkills) {
+        $installedSet[$skillName] = $true
+    }
+
+    $registrySkills = @($inventory.RegistrySkills)
+    if ($registrySkills.Count -eq 0) {
+        $registrySkills = @(
+            @($inventory.BundleSkills) |
+            ForEach-Object {
+                [pscustomobject]@{
+                    Name = $_
+                    Section = 'bundle'
+                }
+            }
+        )
+    }
+
+    $skillStatus = @(
+        foreach ($entry in $registrySkills) {
+            [pscustomobject]@{
+                Name = $entry.Name
+                Kind = $entry.Section
+                Installed = $installedSet.ContainsKey($entry.Name)
+            }
+        }
+    )
+    $newSkills = @($inventory.BundleSkills | Where-Object { -not $installedSet.ContainsKey($_) })
+
+    return [pscustomobject]@{
+        Profiles = @($inventory.Profiles)
+        BundleSkills = @($inventory.BundleSkills)
+        InstalledSkills = $installedSkills
+        NewSkills = $newSkills
+        RegistrySkills = $registrySkills
+        SkillStatus = $skillStatus
+        McpStatus = @()
+        PrereqStatus = @()
+        ZipPath = $skillBundlePath
+        LocalSkillRoot = $localSkillRoot
+    }
+}
+
 function Show-TuiSkillStatus {
     param(
         [Parameter(Mandatory)]
@@ -1765,18 +1940,66 @@ function Show-TuiSkillStatus {
         [bool]$Refresh
     )
 
-    $summary = Get-BootstrapTuiSkillBundleSummary -Repo $Repo -Tag $Tag -DestinationRoot $DestinationRoot -Refresh $Refresh
+    Write-TuiLoading `
+        -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+lIFNraWxsIOeKtuaAgQ==') `
+        -Message (ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo6K+75Y+WIFNraWxsIGJ1bmRsZSDlkozmnKzmnLogU2tpbGwg54q25oCB77yM6K+356iN5YCZLi4u') `
+        -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5Y+q6Kej5p6QIFNraWxsIOa4heWNleS4juacrOacuuWuieijheeKtuaAge+8jOS4jeajgOa1i+Wll+S7tuOAgU1DUCDmiJYgQ0xJ44CC')
+    $summary = Get-BootstrapTuiSkillOnlySummary -Repo $Repo -Tag $Tag -DestinationRoot $DestinationRoot -Refresh $Refresh
     while ($true) {
         Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwg54q25oCB')
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'QnVuZGxlIFNraWxs'), $summary.BundleSkills.Count) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5py65bey5a6J6KOF'), $summary.InstalledSkills.Count) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5Y+v6IO95paw5aKe'), $summary.NewSkills.Count) -ForegroundColor Gray
-        Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'UHJvZmlsZSDmlbDph48='), $summary.Profiles.Count) -ForegroundColor Gray
-        Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value 'TUNQ77yaezB977yb5bey6YWN572u77yaezF9') -f $summary.McpStatus.Count, @($summary.McpStatus | Where-Object { $_.Configured }).Count) -ForegroundColor Gray
-        Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q0xJ77yaezB977yb5bey5a6J6KOF77yaezF9') -f $summary.PrereqStatus.Count, @($summary.PrereqStatus | Where-Object { $_.Installed }).Count) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5Y+v5pu05paw5YaF5a65'), (ConvertFrom-BootstrapUtf8Base64String -Value '5a+85YWl5pe255Sx5LiJ5oCB5ZCM5q2l57un57ut5Yik5pat44CC')) -ForegroundColor DarkGray
         Write-Host ''
-        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value 'UHJvZmlsZSDmuIXljZU=') -ForegroundColor Yellow
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwg5riF5Y2V') -ForegroundColor Yellow
+        Write-Host ('{0,-36} {1,-12} {2}' -f `
+                (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGw='), `
+                (ConvertFrom-BootstrapUtf8Base64String -Value '57G75Z6L'), `
+                (ConvertFrom-BootstrapUtf8Base64String -Value '54q25oCB')) -ForegroundColor DarkGray
+        foreach ($skill in $summary.SkillStatus | Sort-Object Name | Select-Object -First 24) {
+            $statusText = if ($skill.Installed) { ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5a6J6KOF' }
+            $color = if ($skill.Installed) { 'Gray' } else { 'Cyan' }
+            Write-Host ('  {0,-34} {1,-12} {2}' -f $skill.Name, $skill.Kind, $statusText) -ForegroundColor $color
+        }
+
+        Write-Host ''
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value 'RW50ZXIg5oiWIEIg6L+U5ZueICBRIOmAgOWHug==') -ForegroundColor DarkGray
+        $key = [Console]::ReadKey($true)
+        switch ($key.Key) {
+            'Enter' { return $summary }
+            'B' { return $summary }
+            'Q' { return 'quit' }
+        }
+    }
+}
+
+function Show-TuiSuiteStatus {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Repo,
+        [Parameter(Mandatory)]
+        [string]$Tag,
+        [Parameter(Mandatory)]
+        [string]$DestinationRoot,
+        [Parameter(Mandatory)]
+        [bool]$Refresh
+    )
+
+    Write-TuiLoading `
+        -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5omA5pyJ5aWX5Lu254q25oCB') `
+        -Message (ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo6K+75Y+W5aWX5Lu244CBTUNQIOWSjCBDTEkg54q25oCB77yM6K+356iN5YCZLi4u') `
+        -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6K+75Y+W54q25oCB5Y+v6IO96ZyA6KaB5LiL6L295bm26Kej5p6QIHNraWxscy56aXDvvIzor7fnqI3lgJnjgII=')
+    $summary = Get-BootstrapTuiSkillBundleSummary -Repo $Repo -Tag $Tag -DestinationRoot $DestinationRoot -Refresh $Refresh
+    while ($true) {
+        Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5omA5pyJ5aWX5Lu254q25oCB')
+        Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'UHJvZmlsZSDmlbDph48='), $summary.Profiles.Count) -ForegroundColor Gray
+        Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'QnVuZGxlIFNraWxs'), $summary.BundleSkills.Count) -ForegroundColor Gray
+        Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value 'TUNQ77yaezB977yb5bey6YWN572u77yaezF9') -f $summary.McpStatus.Count, @($summary.McpStatus | Where-Object { $_.Configured }).Count) -ForegroundColor Gray
+        Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q0xJ77yaezB977yb5bey5a6J6KOF77yaezF9') -f $summary.PrereqStatus.Count, @($summary.PrereqStatus | Where-Object { $_.Installed }).Count) -ForegroundColor Gray
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '6L+Z6YeM5bGV56S655qE5piv5aWX5Lu2IFByb2ZpbGXjgIFNQ1Ag6YWN572u5ZKMIENMSSDmo4DmtYvnirbmgIHjgII=') -ForegroundColor DarkGray
+        Write-Host ''
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5aWX5Lu25riF5Y2V') -ForegroundColor Yellow
         if ($summary.Profiles.Count -eq 0) {
             Write-Host ('  {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5Y+R546wIFByb2ZpbGXvvIzku43lj6/lronoo4Xlhajpg6ggU2tpbGzjgII=')) -ForegroundColor DarkGray
         }
@@ -1893,9 +2116,9 @@ function Show-TuiWorkbenchMenu {
     )
 
     $actions = @(
-        New-TuiWorkbenchAction -Action 'software-status' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l6L2v5Lu254q25oCB') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5p+l55yL5bey5a6J6KOF54mI5pys44CB55uu5qCH54mI5pys5ZKM5bu66K6u5Yqo5L2c44CC')
-        New-TuiWorkbenchAction -Action 'software-install' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOFIC8g5pu05paw6L2v5Lu2') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5oup5bu66K6u6aG544CB5YWo6YOo5bqU55So5oiW5omL5Yqo5oyR6YCJ5bqU55So44CC')
-        New-TuiWorkbenchAction -Action 'skill-status' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+lIFNraWxsIOeKtuaAgQ==') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5oyJ6ZyA6K+75Y+WIGJ1bmRsZe+8jOafpeeciyBQcm9maWxl44CB5bey5a6J6KOF5ZKM5Y+v6IO95paw5aKe5YaF5a6544CC')
+        New-TuiWorkbenchAction -Action 'software' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l5bm25a6J6KOFIC8g5pu05paw6L2v5Lu2') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5YWI5qOA5p+l5pys5py654q25oCB77yM5YaN6YCJ5oup5pys5qyh6KaB5a6J6KOF5oiW5pu05paw55qE6aG555uu77yb6buY6K6k5YWo6YCJ5bu66K6u6aG577yM5Y+v55So56m65qC85Y676Zmk44CC')
+        New-TuiWorkbenchAction -Action 'skill-status' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+lIFNraWxsIOeKtuaAgQ==') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5Y+q5qOA5p+lIGJ1bmRsZWQgLyBleHRlcm5hbCBTa2lsbCDlnKjmnKzmnLrmmK/lkKblrZjlnKjvvIzkuI3lsZXlvIDlpZfku7bjgIFNQ1Ag5oiWIENMSSDnirbmgIHjgII=')
+        New-TuiWorkbenchAction -Action 'suite-status' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l5omA5pyJ5aWX5Lu2') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6K+75Y+WIFByb2ZpbGXjgIFNQ1Ag5ZKMIENMSSDnirbmgIHvvIzlsZXnpLrmiYDmnInlpZfku7bkvJropobnm5bnmoTnu4Tku7bjgII=')
         New-TuiWorkbenchAction -Action 'skill-install' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5aWX5Lu2') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5oup5YWo6YOoIFNraWxs44CB5omA5pyJ5aWX5Lu277yM5oiW5LiA5LiqIC8g5aSa5LiqIFByb2ZpbGXjgII=')
         New-TuiWorkbenchAction -Action 'skill-component-install' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5Lu76YCJ5a6J6KOFIFNraWxs') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5LuOIHJlZ2lzdHJ5IOS4reS7u+mAieS4gOS4quaIluWkmuS4qiBidW5kbGVkIC8gZXh0ZXJuYWwgU2tpbGzjgII=')
         New-TuiWorkbenchAction -Action 'mcp-component-install' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5Lu76YCJ5a6J6KOFIE1DUA==') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5LuOIHJlZ2lzdHJ5IOS4reS7u+mAieS4gOS4quaIluWkmuS4qiBNQ1DvvIzlubboh6rliqjlpITnkIblhbYgQ0xJIOWJjee9ruS+nei1luOAgg==')
@@ -1986,11 +2209,7 @@ function Invoke-BootstrapTuiWorkbench {
     while ($true) {
         $action = Show-TuiWorkbenchMenu -State $state
         switch ($action) {
-            'software-status' {
-                $statusResult = Show-TuiAppStatus -Apps $Apps
-                if ($statusResult -eq 'quit') { return $null }
-            }
-            'software-install' {
+            'software' {
                 $selection = Show-TuiSoftwareActionSelection -Apps $Apps
                 if ($selection -eq 'quit') { return $null }
                 if ($null -ne $selection) {
@@ -2011,12 +2230,25 @@ function Invoke-BootstrapTuiWorkbench {
                     $state.RegistryPrereqEntries = @($skillStatus.PrereqStatus)
                 }
             }
+            'suite-status' {
+                $suiteStatus = Show-TuiSuiteStatus -Repo $BootstrapAssetsRepo -Tag $BootstrapAssetsTag -DestinationRoot $DestinationRoot -Refresh $RefreshSkillBundle
+                if ($suiteStatus -eq 'quit') { return $null }
+                if ($suiteStatus -and $suiteStatus.Profiles) {
+                    $availableSkillProfiles = @($suiteStatus.Profiles)
+                    $skillProfilesLoaded = $true
+                    $state.BundleSkillCount = @($suiteStatus.BundleSkills).Count
+                    $state.RegistrySkillEntries = @($suiteStatus.RegistrySkills)
+                    $state.RegistryMcpEntries = @($suiteStatus.McpStatus)
+                    $state.RegistryPrereqEntries = @($suiteStatus.PrereqStatus)
+                }
+            }
             'skill-install' {
                 if (-not $skillProfilesLoaded) {
                     Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwgQnVuZGxlIOWHhuWkhw==')
                     Write-TuiSection `
                         -Title (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwgQnVuZGxlIOWHhuWkhw==') `
                         -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5YWI5LiL6L295oiW6K+75Y+WIHNraWxscy56aXDvvIznhLblkI7lho3ov5vlhaUgU2tpbGwgUHJvZmlsZSDpgInmi6njgII=')
+                    Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo6K+75Y+W5aWX5Lu244CBTUNQIOWSjCBDTEkg54q25oCB77yM6K+356iN5YCZLi4u') -ForegroundColor Cyan
                     $skillSummary = Get-BootstrapTuiSkillBundleSummary `
                             -Repo $BootstrapAssetsRepo `
                             -Tag $BootstrapAssetsTag `
@@ -2061,6 +2293,10 @@ function Invoke-BootstrapTuiWorkbench {
             }
             'skill-component-install' {
                 if (@($state.RegistrySkillEntries).Count -eq 0) {
+                    Write-TuiLoading `
+                        -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5Lu76YCJ5a6J6KOFIFNraWxs') `
+                        -Message (ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo6K+75Y+WIFNraWxsIGJ1bmRsZSDlkozmnKzmnLogU2tpbGwg54q25oCB77yM6K+356iN5YCZLi4u') `
+                        -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6K+75Y+W54q25oCB5Y+v6IO96ZyA6KaB5LiL6L295bm26Kej5p6QIHNraWxscy56aXDvvIzor7fnqI3lgJnjgII=')
                     $skillSummary = Get-BootstrapTuiSkillBundleSummary -Repo $BootstrapAssetsRepo -Tag $BootstrapAssetsTag -DestinationRoot $DestinationRoot -Refresh $RefreshSkillBundle
                     $availableSkillProfiles = @($skillSummary.Profiles)
                     $state.BundleSkillCount = @($skillSummary.BundleSkills).Count
@@ -2087,6 +2323,10 @@ function Invoke-BootstrapTuiWorkbench {
             }
             'mcp-component-install' {
                 if (@($state.RegistryMcpEntries).Count -eq 0) {
+                    Write-TuiLoading `
+                        -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5Lu76YCJ5a6J6KOFIE1DUA==') `
+                        -Message (ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo6K+75Y+W5aWX5Lu244CBTUNQIOWSjCBDTEkg54q25oCB77yM6K+356iN5YCZLi4u') `
+                        -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6K+75Y+W54q25oCB5Y+v6IO96ZyA6KaB5LiL6L295bm26Kej5p6QIHNraWxscy56aXDvvIzor7fnqI3lgJnjgII=')
                     $skillSummary = Get-BootstrapTuiSkillBundleSummary -Repo $BootstrapAssetsRepo -Tag $BootstrapAssetsTag -DestinationRoot $DestinationRoot -Refresh $RefreshSkillBundle
                     $availableSkillProfiles = @($skillSummary.Profiles)
                     $state.BundleSkillCount = @($skillSummary.BundleSkills).Count
@@ -2111,6 +2351,10 @@ function Invoke-BootstrapTuiWorkbench {
             }
             'cli-component-install' {
                 if (@($state.RegistryPrereqEntries).Count -eq 0) {
+                    Write-TuiLoading `
+                        -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5Lu76YCJ5a6J6KOFIENMSQ==') `
+                        -Message (ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo6K+75Y+W5aWX5Lu244CBTUNQIOWSjCBDTEkg54q25oCB77yM6K+356iN5YCZLi4u') `
+                        -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6K+75Y+W54q25oCB5Y+v6IO96ZyA6KaB5LiL6L295bm26Kej5p6QIHNraWxscy56aXDvvIzor7fnqI3lgJnjgII=')
                     $skillSummary = Get-BootstrapTuiSkillBundleSummary -Repo $BootstrapAssetsRepo -Tag $BootstrapAssetsTag -DestinationRoot $DestinationRoot -Refresh $RefreshSkillBundle
                     $availableSkillProfiles = @($skillSummary.Profiles)
                     $state.BundleSkillCount = @($skillSummary.BundleSkills).Count

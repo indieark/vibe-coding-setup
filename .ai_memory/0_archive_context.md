@@ -415,3 +415,36 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 - `bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only git`。
 - `bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch`。
 - Provider 输入 TTY 冒烟：回车保留默认值、输入覆盖、API Key 只显示星号 / 状态，不明文输出。
+
+## 2026-05-02 — Profile 交互菜单数量与排版修复
+
+### 核心议题背景
+
+用户基于终端截图指出：命令交互 Profile 菜单里 `0. 全部 skill` 和 `00. 所有套件` 没有像普通套件一样显示自身内容数量；普通套件把名称、描述、Skill/MCP/CLI 数量塞在一行，中文终端里容易换行混乱。
+
+### Cognitive Evolution Path
+
+1. 先确认截图来自非 TUI 的 `Select-SkillDirectoriesForProfiles` 交互菜单，而不是工作台式 TUI 复选页。
+2. 保留既有语义：`0` 仍只导入 bundle 内离线 Skill；`00` 仍是所有 Profile 并集，包含 bundled/external Skill、MCP 和前置 CLI。
+3. 新增统一的 Profile 数量摘要函数，普通套件和所有套件都通过 registry 解析 CLI 前置依赖，不再只数 profile 内直接字段。
+4. 将菜单渲染收敛为三行：序号 + 名称、数量摘要、说明；特殊项和普通套件使用同一排版模型，减少终端宽度导致的混乱。
+5. 用户进一步要求停在具体套件时临时显示会装的 MCP 和相关依赖；因此 TUI 复选页新增“当前项详情”，默认交互菜单则在用户输入后、执行前输出同样摘要。
+6. 清理当前用户可见入口中的历史默认安装措辞：TUI 首屏显示为“默认安装”，说明改为按默认配置安装应用并导入 Skill 与 CC Switch。
+7. 同步 `docs/skill-import.md`，让行为说明仍停留在 Skill 导入契约这一处，不把数量规则散落到多个文档。
+
+### 当前结论
+
+- `0` 会显示全部离线 Skill 数、MCP 0、CLI 0。
+- `00` 会显示套件数、Profile 并集 Skill 数、MCP 数和 CLI 数。
+- 普通套件会显示该套件解析后的 Skill / MCP / CLI 数，并把说明放到下一行。
+- TUI 光标停在套件时会展示将写入的 MCP 和将处理的 CLI 依赖；默认交互菜单输入选择后也会在执行前输出相同摘要。
+- TUI 首屏默认入口文案为“默认安装”，不再展示历史备注。
+- TUI 工作台将软件检查和安装 / 更新合并为一个入口；Skill 状态页改为真正只解析 Skill 清单和本机 Skill 安装状态，Profile / MCP / CLI 总览由“检查所有套件”承担。
+
+### 验证闭环
+
+- PowerShell 脚本解析通过。
+- 交互菜单预览通过，显示 `全部 Skill`、`所有套件` 和每个套件的分行数量摘要。
+- `-AllSkills` dry-run 通过，日志显示 `全部 Skill：72 个；MCP：0 个；CLI：0 个`。
+- `-AllSuites` dry-run 通过，日志显示 `选中的套件：8 个；Skill：41 个；MCP：7 个；CLI：8 个`，并继续进入 external Skill、MCP 和 CLI 前置依赖计划。
+- TUI 冒烟通过：首屏显示“默认安装”；工作台显示“检查并安装 / 更新软件”“检查 Skill 状态”“检查所有套件”；Skill 状态读取提示明确不检测套件 / MCP / CLI；所有套件状态页展示 Profile / MCP / CLI 总览。

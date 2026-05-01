@@ -17,7 +17,8 @@
 
 - TUI 模式的“安装套件”动作会先读取 `skills.zip` 中的 Profile，并以复选项展示；默认选择“全部 Skill”，也可以选择“所有套件”或“跳过 Skill 导入”。
 - TUI 模式的“任选安装 Skill / MCP / CLI”动作读取同一份 registry，并分别写回等价的 `-SkillName`、`-McpName`、`-CliName` 参数。
-- TUI 的 Skill 状态页会汇总 Profile、bundle Skill、本机已安装 Skill、可新增 Skill、MCP 配置数和 CLI 检测数，并列出前若干项状态；CLI 检测命令失败只标记为未检测到，不中断状态页。
+- TUI 的 Skill 状态页只检查 bundled / external Skill 在本机是否存在，不再混入套件、MCP 或 CLI 总览。
+- TUI 的所有套件状态页会汇总 Profile、bundle Skill、MCP 配置数和 CLI 检测数，并列出前若干项状态；CLI 检测命令失败只标记为未检测到，不中断状态页。
 - “全部 Skill”只导入 bundle 内全部离线 Skill，并在终端显示 Skill 数量；它不会自动写入所有 MCP 或安装所有 CLI。
 - “所有套件”按全部 Profile 的并集合并 Skill / MCP / CLI 前置依赖，并在终端显示套件数、Skill 数、MCP 数和 CLI 数。
 - TUI 中选择任意 Profile 后，会取消“全部 Skill”，并在确认页生成等价 `-SkillProfile` 命令。
@@ -31,9 +32,9 @@
 - 传 `-SkipSkills`：完全跳过 `skills.zip` 下载和 Skill 导入。
 - 传 `-SkipApps`：跳过软件安装阶段，可用于只导入 Skill 的命令模式或 TUI 工作台路径。
 - 不传 Profile 且处于交互式终端：显示中文选择菜单；输入 `0` 导入全部 Skill，输入 `00` 导入所有套件，直接回车跳过 Skill 导入。
-- 非交互式且未传 Profile：自动回退为全部导入，保持旧逻辑可用。
+- 非交互式且未传 Profile：自动回退为全部导入，保持自动化兼容。
 
-Profile 交互菜单会显示每个套件包含的 Skill / MCP / CLI 数量；可输入序号/名称，多个可用英文逗号、中文逗号或顿号分隔；输入 `0` 安装全部 Skill，输入 `00` 安装所有套件。
+Profile 交互菜单会把 `0`、`00` 和每个套件分行展示为名称、数量摘要和说明；`0` 会显示全部离线 Skill 数、MCP 0、CLI 0，`00` 会显示套件数、Profile 并集 Skill 数、MCP 数和 CLI 数。TUI 复选页光标停在某个套件时，会临时展示该套件将写入的 MCP 和将处理的 CLI 前置依赖；默认交互菜单在用户输入后、执行前也会输出同样摘要。可输入序号/名称，多个可用英文逗号、中文逗号或顿号分隔；输入 `0` 安装全部 Skill，输入 `00` 安装所有套件。
 
 单项安装与套件安装共用同一条执行路径：先解析 registry，汇总 Skill / MCP / CLI 数量，再安装前置依赖、导入 Skill、写入 MCP 配置。单项 MCP 或单项 CLI 即使不导入任何 Skill，执行摘要也会显示已处理的 MCP / CLI 数量。
 

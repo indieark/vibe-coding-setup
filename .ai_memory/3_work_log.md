@@ -163,3 +163,22 @@
 - 兼容 external skill 下载 URL 没有归档扩展名的来源：当下载路径不以 `.zip`、`.tar.gz` 或 `.tgz` 结尾时，安装器按 `.zip` 保存后再进入既有解压流程。
 - 该兼容用于 OpenClaw/ClawHub `chinese-office-automation` 下载端点；已验证下载产物是 zip 且包含 `SKILL.md`。
 - 使用刷新后的 registry bundle 执行 `-AllSuites -DryRun`，三条办公 external skill 均进入自动安装计划：`chinese-office-automation`、`running-effective-meetings`、`daily-feishu-cli-export`。
+
+## 2026-05-02
+
+- 优化命令交互 Profile 菜单排版：`0`、`00` 和普通套件统一分为名称、数量摘要、说明三行，避免长描述挤在同一行。
+- `0` 现在明确显示全部离线 Skill 数、MCP 0、CLI 0；`00` 明确显示所有套件数量以及 Profile 并集的 Skill / MCP / CLI 数。
+- TUI 光标停在套件时新增当前项详情，展示将安装的 MCP 和将处理的 CLI 依赖；默认交互菜单在输入后、执行前输出同样摘要。
+- 同步 `docs/skill-import.md` 和 `.ai_memory`；验证通过脚本解析、交互菜单预览、`-AllSkills` dry-run 和 `-AllSuites` dry-run。
+
+## 2026-05-02
+
+- 收敛 TUI 工作台软件入口：移除单独“检查软件状态”动作，改为“检查并安装 / 更新软件”，进入后先跑 precheck，再默认勾选所有需要安装或更新的建议项，用户可用空格去除。
+- 拆清 Skill 状态与套件状态：Skill 状态页只解析 Skill 清单和本机 Skill 安装状态，不再检测 MCP / CLI；新增“检查所有套件”承载 Profile、MCP 配置和 CLI 检测总览。
+- 所有会读取 `skills.zip` 或组件状态的 TUI 路径先显示读取提示，避免下载 / 解析期间无反馈。
+
+## 2026-05-02
+
+- 清理当前用户可见入口中的历史默认安装措辞：TUI 首屏改为“默认安装”，说明改为按默认配置安装应用并导入 Skill 与 CC Switch。
+- `全部 Skill` 的说明改为中性描述：只导入 bundle 内离线 Skill，不安装 MCP / CLI。
+- 重新验证 TUI：软件入口会先检查状态并展示建议项复选；Skill 状态页快速返回 Skill-only 清单；所有套件状态页展示 Profile / MCP / CLI 总览。

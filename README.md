@@ -19,7 +19,7 @@
 - 安装常用 Windows 开发工具：Git、Node.js、Python、VS Code、Codex Desktop、ChatGPT、CC Switch、Codex Provider Sync、Skills Manager。
 - 先走公开主来源，失败后按 `bootstrap-assets` fallback。
 - 从公开 `skills.zip` 按 Profile 导入 Skill。
-- 默认进入拟似 TUI，可在进入脚本后选择原来模式、TUI 工作台或安全演练。
+- 默认进入拟似 TUI，可在进入脚本后选择默认安装、TUI 工作台或安全演练。
 - TUI 会尽量切换英文输入布局，Profile / 应用多选支持英文逗号、中文逗号和顿号。
 - `skills.zip` 不在 TUI 首屏预取；只有进入 Skill 选择或实际导入 Skill 时才按需获取。
 - 应用安装前会并行检查本机是否已安装；只有已安装项才查目标版本并判断是否需要更新。

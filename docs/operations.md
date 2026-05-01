@@ -9,7 +9,7 @@ Set-Location "C:\Vibe_Coding\IndieArk\gadget\vibe-coding-setup"
 .\bootstrap.cmd
 ```
 
-无安装参数时会先进入 TUI；“默认安装（原来模式）”已经包含在 TUI 里，选择后不再改写为 `-Only`，而是直接继续原脚本默认流程：安装默认全量应用、导入 Skill 和 CC Switch。
+无安装参数时会先进入 TUI；“默认安装”已经包含在 TUI 里，选择后不再改写为 `-Only`，而是按默认配置继续执行：安装默认全量应用、导入 Skill 和 CC Switch。
 
 ```powershell
 .\bootstrap.cmd -Tui
@@ -19,11 +19,11 @@ Set-Location "C:\Vibe_Coding\IndieArk\gadget\vibe-coding-setup"
 
 TUI 首屏包含三类入口：
 
-- 默认安装（原来模式）：直接沿用原脚本默认流程，不改写为 `-Only` 全量列表。
-- TUI 模式：进入控制台工作台，可检查软件状态、选择安装 / 更新软件、检查套件 / Skill / MCP / CLI 状态、选择安装套件，也可任选安装单项 Skill、MCP 或 CLI，并在执行摘要页确认。
+- 默认安装：按默认配置继续执行，不改写为 `-Only` 全量列表。
+- TUI 模式：进入控制台工作台；软件入口会先检查状态，再默认勾选需要安装 / 更新的建议项，用户可用空格去除；Skill 状态只检查 Skill 是否存在，所有套件状态页展示 Profile / MCP / CLI 总览；也可选择安装套件或任选安装单项 Skill、MCP、CLI，并在执行摘要页确认。
 - 安全演练：顶层独立 dry-run 路径，不再作为 TUI 内部复选项重复出现。
 
-TUI 模式中，软件和行为以任务菜单表达；复选用于套件 Profile、单项 Skill、单项 MCP 和单项 CLI 选择。安装 Skill 时会继续选择 Skills Manager 场景注册方式：默认场景、自定义场景，或跳过场景注册只复制 Skill 文件。任选安装 MCP 会写入 Codex、Claude Desktop、Claude Code、Cursor、Gemini CLI 和 Antigravity 的 MCP 配置；任选安装 CLI 会只处理 `prereqs.yaml` 中的前置依赖。TUI 首屏不会预先下载 `skills.zip`。只有进入 Skill 状态页、套件 / 单项复选页，或后续安装 / 演练确实要导入 Skill / MCP / CLI 时，脚本才会按需获取 bundle。
+TUI 模式中，软件和行为以任务菜单表达；复选用于软件建议项去除、套件 Profile、单项 Skill、单项 MCP 和单项 CLI 选择。安装 Skill 时会继续选择 Skills Manager 场景注册方式：默认场景、自定义场景，或跳过场景注册只复制 Skill 文件。任选安装 MCP 会写入 Codex、Claude Desktop、Claude Code、Cursor、Gemini CLI 和 Antigravity 的 MCP 配置；任选安装 CLI 会只处理 `prereqs.yaml` 中的前置依赖。TUI 首屏不会预先下载 `skills.zip`。只有进入 Skill 状态页、所有套件状态页、套件 / 单项复选页，或后续安装 / 演练确实要导入 Skill / MCP / CLI 时，脚本才会按需获取 bundle；读取前会显示提示，避免长时间无反馈。
 
 `bootstrap.cmd` 使用 Windows PowerShell 5.1 启动。如果过程中触发 UAC 提权，当前窗口只提示已打开管理员窗口继续安装；脚本会优先用 Windows Terminal 承载管理员 PowerShell，避免经典蓝底 PowerShell 窗口。若系统没有 `wt.exe`，才回退到经典 PowerShell 窗口。新开的管理员终端会继续后续 TUI 或安装流程，并在执行完成后保持打开，方便查看 summary 或错误。
 

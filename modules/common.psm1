@@ -4195,6 +4195,84 @@ function Get-SkillBundleComponentStatus {
     }
 }
 
+function Get-SkillProfileComponentSummary {
+    param(
+        [object[]]$Profiles = @(),
+        [string]$RegistryRoot
+    )
+
+    $skills = @($Profiles | ForEach-Object { $_.Skills } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    $mcp = @($Profiles | ForEach-Object { $_.Mcp } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    $prereqs = @()
+    if (-not [string]::IsNullOrWhiteSpace($RegistryRoot)) {
+        $prereqs = @(Get-ProfilePrereqNames -RegistryRoot $RegistryRoot -SkillNames $skills -McpNames $mcp)
+    }
+    else {
+        $prereqs = @($Profiles | ForEach-Object { $_.Prereqs } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    }
+
+    return [pscustomobject]@{
+        SuiteCount = @($Profiles).Count
+        SkillCount = $skills.Count
+        McpCount = $mcp.Count
+        CliCount = $prereqs.Count
+    }
+}
+
+function Write-SkillProfilePromptOption {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Index,
+        [Parameter(Mandatory)]
+        [string]$Name,
+        [string]$Description,
+        [int]$SuiteCount = 0,
+        [int]$SkillCount = 0,
+        [int]$McpCount = 0,
+        [int]$CliCount = 0
+    )
+
+    Write-Host (' {0,2}. {1}' -f $Index, $Name)
+    if ($SuiteCount -gt 0) {
+        Write-Host ((ConvertFrom-Utf8Base64String -Value 'ICAgICDlpZfku7YgezB9IOS4qu+8m1NraWxsIHsxfe+8m01DUCB7Mn3vvJtDTEkgezN9') -f $SuiteCount, $SkillCount, $McpCount, $CliCount) -ForegroundColor Gray
+    }
+    else {
+        Write-Host ((ConvertFrom-Utf8Base64String -Value 'ICAgICBTa2lsbCB7MH3vvJtNQ1AgezF977ybQ0xJIHsyfQ==') -f $SkillCount, $McpCount, $CliCount) -ForegroundColor Gray
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Description)) {
+        Write-Host ('     {0}' -f $Description) -ForegroundColor DarkGray
+    }
+}
+
+function Format-RegistryComponentPreview {
+    param(
+        [string[]]$Values = @(),
+        [int]$MaxItems = 8
+    )
+
+    $items = @($Values | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    if ($items.Count -eq 0) {
+        return ConvertFrom-Utf8Base64String -Value '5peg'
+    }
+
+    $visible = @($items | Select-Object -First $MaxItems)
+    $text = $visible -join ', '
+    if ($items.Count -gt $MaxItems) {
+        $text = '{0} ... {1}' -f $text, ((ConvertFrom-Utf8Base64String -Value '562JIHswfSDkuKo=') -f $items.Count)
+    }
+    return $text
+}
+
+function Write-SelectedProfileComponentPreview {
+    param(
+        [string[]]$Mcp = @(),
+        [string[]]$Prereqs = @()
+    )
+
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5bCG5a6J6KOFIE1DUO+8mnswfQ==') -f (Format-RegistryComponentPreview -Values $Mcp))
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5bCG5aSE55CGIENMSSDkvp3otZbvvJp7MH0=') -f (Format-RegistryComponentPreview -Values $Prereqs))
+}
+
 function Select-SkillDirectoriesForProfiles {
     param(
         [Parameter(Mandatory)]
@@ -4243,12 +4321,32 @@ function Select-SkillDirectoriesForProfiles {
     if ($tokens.Count -eq 0) {
         Write-Host ''
         Write-Host (ConvertFrom-Utf8Base64String -Value '6K+36YCJ5oup6KaB5a6J6KOF55qEIEluZGllQXJrIFByb2ZpbGXvvIjlj6/ovpPlhaXluo/lj7cv5ZCN56ew77yM5aSa5Liq5Y+v55So6Iux5paH6YCX5Y+344CB5Lit5paH6YCX5Y+35oiW6aG/5Y+35YiG6ZqU77yb6L6T5YWlIDAg5a6J6KOF5YWo6YOoIFNraWxs77yb6L6T5YWlIDAwIOWuieijheaJgOacieWll+S7tu+8ie+8mg==')
-        Write-Host (ConvertFrom-Utf8Base64String -Value 'ICAwLiDlhajpg6ggc2tpbGzvvIjlhbzlrrnml6fpgLvovpHvvIk=')
-        Write-Host (ConvertFrom-Utf8Base64String -Value 'ICAwMC4g5omA5pyJ5aWX5Lu277yIUHJvZmlsZSDlubbpm4bvvIk=')
+        Write-SkillProfilePromptOption `
+            -Index '0' `
+            -Name (ConvertFrom-Utf8Base64String -Value '5YWo6YOoIFNraWxs') `
+            -Description (ConvertFrom-Utf8Base64String -Value '5Y+q5a+85YWlIGJ1bmRsZSDlhoXnprvnur8gU2tpbGzvvIzkuI3lronoo4UgTUNQIC8gQ0xJ44CC') `
+            -SkillCount $SkillDirectories.Count `
+            -McpCount 0 `
+            -CliCount 0
+        $allSuitesSummary = Get-SkillProfileComponentSummary -Profiles $Profiles -RegistryRoot $RegistryRoot
+        Write-SkillProfilePromptOption `
+            -Index '00' `
+            -Name (ConvertFrom-Utf8Base64String -Value '5omA5pyJ5aWX5Lu2') `
+            -Description (ConvertFrom-Utf8Base64String -Value 'UHJvZmlsZSDlubbpm4bvvJrlronoo4XmiYDmnInlpZfku7blvJXnlKjnmoQgU2tpbGzjgIFNQ1Ag5ZKMIENMSSDliY3nva7kvp3otZY=') `
+            -SuiteCount $allSuitesSummary.SuiteCount `
+            -SkillCount $allSuitesSummary.SkillCount `
+            -McpCount $allSuitesSummary.McpCount `
+            -CliCount $allSuitesSummary.CliCount
         for ($index = 0; $index -lt $Profiles.Count; $index++) {
             $profile = $Profiles[$index]
-            $profilePrereqs = @(Get-ProfilePrereqNames -RegistryRoot $RegistryRoot -SkillNames @($profile.Skills) -McpNames @($profile.Mcp))
-            Write-Host ((ConvertFrom-Utf8Base64String -Value 'ICB7MH0uIHsxfSAtIHsyfe+8m1NraWxsIHszfe+8m01DUCB7NH3vvJtDTEkgezV9') -f ($index + 1), $profile.Name, $profile.Description, @($profile.Skills).Count, @($profile.Mcp).Count, $profilePrereqs.Count)
+            $profileSummary = Get-SkillProfileComponentSummary -Profiles @($profile) -RegistryRoot $RegistryRoot
+            Write-SkillProfilePromptOption `
+                -Index ([string]($index + 1)) `
+                -Name $profile.Name `
+                -Description $profile.Description `
+                -SkillCount $profileSummary.SkillCount `
+                -McpCount $profileSummary.McpCount `
+                -CliCount $profileSummary.CliCount
         }
 
         $answer = Read-Host (ConvertFrom-Utf8Base64String -Value 'UHJvZmlsZQ==')
@@ -4268,6 +4366,7 @@ function Select-SkillDirectoriesForProfiles {
         }
         if ($tokens -contains '0') {
             Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5YWo6YOoIFNraWxs77yaezB9IOS4qu+8m01DUO+8mjAg5Liq77ybQ0xJ77yaMCDkuKo=') -f $SkillDirectories.Count)
+            Write-SelectedProfileComponentPreview -Mcp @() -Prereqs @()
             $script:LastSkillSelection = [pscustomobject]@{
                 RegistryRoot = $RegistryRoot
                 Profiles = @()
@@ -4380,6 +4479,7 @@ function Select-SkillDirectoriesForProfiles {
     $prereqDetail = if ($wantedPrereqs.Count -gt 0) { $wantedPrereqs -join ', ' } else { '(none)' }
     Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6YCJ5Lit55qEIHByb2ZpbGXvvJp7MH0=') -f $selectedProfileNames)
     Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6YCJ5Lit55qE5aWX5Lu277yaezB9IOS4qu+8m1NraWxs77yaezF9IOS4qu+8m01DUO+8mnsyfSDkuKrvvJtDTEnvvJp7M30g5Liq') -f $selectedProfiles.Count, $wantedSkills.Count, $wantedMcp.Count, $wantedPrereqs.Count)
+    Write-SelectedProfileComponentPreview -Mcp $wantedMcp -Prereqs $wantedPrereqs
     Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6YCJ5Lit55qEIHNraWxs77yaezB9L3sxfQ==') -f $selectedSkillDirs.Count, $SkillDirectories.Count)
     Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6YCJ5Lit55qEIE1DUO+8mnswfQ==') -f $mcpDetail)
     Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6Kej5p6Q5Yiw55qE5YmN572u5L6d6LWW77yaezB9') -f $prereqDetail)
