@@ -144,3 +144,9 @@
 - 合并 CC Switch Provider 的当前默认值和 API Key 区域到“输入区”；真实控制台中默认值以右侧灰色占位显示，回车保持，输入覆盖。
 - 修复自绘输入行清理逻辑，改为清到当前行尾，避免中文占位或长默认值残留。
 - 同步 `docs/operations.md`、`docs/installer-flow.md` 和 `.ai_memory`，准备文档一致性检查后提交推送。
+
+## 2026-04-30
+
+- 保留“全部 Skill”旧语义，只导入 bundle 内离线 Skill。
+- 新增“所有套件” / `-AllSuites`，按所有 Profile 并集合并 Skill、external Skill、MCP 和前置 CLI。
+- TUI 选择页、命令交互菜单和执行日志都会显示 Skill / MCP / CLI 数量，避免把“全部 Skill”和“所有套件”混淆。

@@ -28,6 +28,7 @@
 - TUI 首屏不预取 `skills.zip`；只有进入 Skill 复选页需要读取 Profile，或后续安装 / 演练实际要导入 Skill 时才按需获取。
 - 下载、winget 下载 / 安装和 Skill bundle 解压统一使用脚本自绘同一行进度；winget 输出会过滤许可证、免责声明和重复进度行，并中文化常见状态；Skill bundle 解压不再调用 `Expand-Archive`，避免 PowerShell 宿主蓝色进度区域。非交互捕获输出不打印中间百分比，只保留完成行，避免 `\r` 被展开成多行刷屏。
 - Skill 导入是“Profile 选择 + `.skill-meta.json` 来源判定 + 增量同步 + Skills Manager SQLite 注册”的组合流程。
+- Skill 选择语义已经拆开：`全部 Skill` 只导入 bundle 内离线 Skill；`所有套件` / `-AllSuites` 按所有 Profile 并集导入 Skill、external Skill、MCP 和前置 CLI。
 - registry 驱动导入已经支持 bundled skill、external skill、MCP 和前置依赖。external skill 可从 `repo`、`archive_url` / `download_url`、`local_path` 自动导入；只有 `homepage` 的条目只提示人工处理。
 - 前置依赖由 `registry/prereqs.yaml` 驱动，安装器按 `check` 先判定，再根据平台和 `command` / `npm` / `pipx` / `pip` / `brew` / `winget` / `scoop` 等安装方式处理；单项失败汇总告警，不阻断后续可安装项。
 - MCP 写入由 `registry/mcp.yaml` 与 Profile 引用驱动，目前覆盖 Codex、Claude Desktop、Claude Code、Cursor、Gemini CLI 和 Antigravity；Antigravity 的目标文件是 `~/.gemini/antigravity/mcp_config.json`。

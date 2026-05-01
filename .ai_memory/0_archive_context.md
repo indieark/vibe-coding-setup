@@ -345,6 +345,7 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 ### 当前结论
 
 - `vibe-coding-setup` 现在是 registry 消费者；Skill / MCP / prereq / Profile 来源仍由 `00000-model` 维护。
+- “全部 Skill”和“所有套件”是两个不同动作：前者保留旧逻辑，只导入离线 Skill；后者通过 `-AllSuites` 按全部 Profile 并集处理 Skill、external Skill、MCP 和前置 CLI。
 - 用户手册入口已同步到 `README.md`、`docs/README.md` 和 `docs/skill-import.md`，不复制 registry 清单。
 - 下一步若新增 github、飞书或其它 CLI，只应先加 `00000-model` 的 `prereqs.yaml` 和引用方 `requires`。
 

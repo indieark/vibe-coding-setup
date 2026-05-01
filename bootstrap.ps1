@@ -7,6 +7,7 @@ param(
     [switch]$SkipSkills,
     [string[]]$SkillProfile,
     [switch]$AllSkills,
+    [switch]$AllSuites,
     [switch]$NoReplaceOrphan,
     [switch]$ReplaceForeign,
     [switch]$RenameForeign,
@@ -1078,16 +1079,37 @@ function Show-TuiOptionSelection {
 
 function Show-TuiSkillProfileSelection {
     param(
-        [object[]]$Profiles = @()
+        [object[]]$Profiles = @(),
+        [int]$BundleSkillCount = 0
     )
 
+    $allSuiteSkills = @($Profiles | ForEach-Object { $_.Skills } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    $allSuiteMcp = @($Profiles | ForEach-Object { $_.Mcp } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    $allSuitePrereqs = @($Profiles | ForEach-Object { $_.Prereqs } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    $allSkillsLabel = if ($BundleSkillCount -gt 0) {
+        (ConvertFrom-BootstrapUtf8Base64String -Value '5YWo6YOoIFNraWxs77yIezB9IOS4qu+8m01DUCAw77ybQ0xJIDDvvIk=') -f $BundleSkillCount
+    }
+    else {
+        ConvertFrom-BootstrapUtf8Base64String -Value '5YWo6YOoIFNraWxs77yI6buY6K6k77yJ'
+    }
+    $allSuitesLabel = (ConvertFrom-BootstrapUtf8Base64String -Value '5omA5pyJ5aWX5Lu277yIezB9IOS4quWll+S7tu+8m1NraWxsIHsxfe+8m01DUCB7Mn3vvJtDTEkgezN977yJ') -f $Profiles.Count, $allSuiteSkills.Count, $allSuiteMcp.Count, $allSuitePrereqs.Count
     $options = New-Object System.Collections.Generic.List[object]
     $options.Add([pscustomobject]@{
             Key = 'all'
-            Label = (ConvertFrom-BootstrapUtf8Base64String -Value '5YWo6YOoIFNraWxs77yI6buY6K6k77yJ')
+            Label = $allSkillsLabel
             ProfileName = $null
             Enabled = $true
             IsAllSkills = $true
+            IsAllSuites = $false
+            IsSkipSkills = $false
+        })
+    $options.Add([pscustomobject]@{
+            Key = 'suites'
+            Label = $allSuitesLabel
+            ProfileName = $null
+            Enabled = $false
+            IsAllSkills = $false
+            IsAllSuites = $true
             IsSkipSkills = $false
         })
     $options.Add([pscustomobject]@{
@@ -1096,15 +1118,20 @@ function Show-TuiSkillProfileSelection {
             ProfileName = $null
             Enabled = $false
             IsAllSkills = $false
+            IsAllSuites = $false
             IsSkipSkills = $true
         })
 
     foreach ($profile in @($Profiles)) {
+        $profileSkills = @($profile.Skills | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        $profileMcp = @($profile.Mcp | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        $profilePrereqs = @($profile.Prereqs | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        $detail = (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwgezB977ybTUNQIHsxfe+8m0NMSSB7Mn0=') -f $profileSkills.Count, $profileMcp.Count, $profilePrereqs.Count
         $label = if ([string]::IsNullOrWhiteSpace($profile.Description)) {
-            $profile.Name
+            (ConvertFrom-BootstrapUtf8Base64String -Value 'ezB9IC0gU2tpbGwgezF977ybTUNQIHsyfe+8m0NMSSB7M30=') -f $profile.Name, $profileSkills.Count, $profileMcp.Count, $profilePrereqs.Count
         }
         else {
-            '{0} - {1}' -f $profile.Name, $profile.Description
+            '{0} - {1}；{2}' -f $profile.Name, $profile.Description, $detail
         }
         $options.Add([pscustomobject]@{
                 Key = $profile.Name
@@ -1112,6 +1139,7 @@ function Show-TuiSkillProfileSelection {
                 ProfileName = $profile.Name
                 Enabled = $false
                 IsAllSkills = $false
+                IsAllSuites = $false
                 IsSkipSkills = $false
             })
     }
@@ -1146,21 +1174,28 @@ function Show-TuiSkillProfileSelection {
                         $option.Enabled = $false
                     }
                 }
+                elseif ($options[$index].IsAllSuites -and $options[$index].Enabled) {
+                    foreach ($option in $options | Where-Object { -not $_.IsAllSuites }) {
+                        $option.Enabled = $false
+                    }
+                }
                 elseif ($options[$index].IsSkipSkills -and $options[$index].Enabled) {
                     foreach ($option in $options | Where-Object { -not $_.IsSkipSkills }) {
                         $option.Enabled = $false
                     }
                 }
-                elseif ((-not $options[$index].IsAllSkills) -and $options[$index].Enabled) {
+                elseif ((-not $options[$index].IsAllSkills) -and (-not $options[$index].IsAllSuites) -and $options[$index].Enabled) {
                     ($options | Where-Object { $_.IsAllSkills } | Select-Object -First 1).Enabled = $false
+                    ($options | Where-Object { $_.IsAllSuites } | Select-Object -First 1).Enabled = $false
                     ($options | Where-Object { $_.IsSkipSkills } | Select-Object -First 1).Enabled = $false
                 }
             }
             'A' {
                 ($options | Where-Object { $_.IsAllSkills } | Select-Object -First 1).Enabled = $false
+                ($options | Where-Object { $_.IsAllSuites } | Select-Object -First 1).Enabled = $false
                 ($options | Where-Object { $_.IsSkipSkills } | Select-Object -First 1).Enabled = $false
                 foreach ($option in $options | Where-Object { -not $_.IsAllSkills }) {
-                    if (-not $option.IsSkipSkills) {
+                    if ((-not $option.IsAllSuites) -and (-not $option.IsSkipSkills)) {
                         $option.Enabled = $true
                     }
                 }
@@ -1172,12 +1207,22 @@ function Show-TuiSkillProfileSelection {
             }
             'Enter' {
                 $allOption = $options | Where-Object { $_.IsAllSkills } | Select-Object -First 1
+                $allSuitesOption = $options | Where-Object { $_.IsAllSuites } | Select-Object -First 1
                 $skipOption = $options | Where-Object { $_.IsSkipSkills } | Select-Object -First 1
-                $selectedProfiles = @($options | Where-Object { $_.Enabled -and -not $_.IsAllSkills } | ForEach-Object { $_.ProfileName })
+                $selectedProfiles = @($options | Where-Object { $_.Enabled -and -not $_.IsAllSkills -and -not $_.IsAllSuites -and -not $_.IsSkipSkills } | ForEach-Object { $_.ProfileName })
                 if ($skipOption.Enabled) {
                     return [pscustomobject]@{
                         SkipSkills = $true
                         AllSkills = $false
+                        AllSuites = $false
+                        SkillProfiles = @()
+                    }
+                }
+                if ($allSuitesOption.Enabled) {
+                    return [pscustomobject]@{
+                        SkipSkills = $false
+                        AllSkills = $false
+                        AllSuites = $true
                         SkillProfiles = @()
                     }
                 }
@@ -1192,6 +1237,7 @@ function Show-TuiSkillProfileSelection {
                     return [pscustomobject]@{
                         SkipSkills = $false
                         AllSkills = $true
+                        AllSuites = $false
                         SkillProfiles = @()
                     }
                 }
@@ -1199,6 +1245,7 @@ function Show-TuiSkillProfileSelection {
                 return [pscustomobject]@{
                     SkipSkills = $false
                     AllSkills = $false
+                    AllSuites = $false
                     SkillProfiles = $selectedProfiles
                 }
             }
@@ -1378,6 +1425,7 @@ function Show-TuiReview {
         $skipSkillsOption = $Options | Where-Object { $_.SwitchName -eq 'SkipSkills' -and $_.Enabled } | Select-Object -First 1
         $skipAppsOption = $Options | Where-Object { $_.SwitchName -eq 'SkipApps' -and $_.Enabled } | Select-Object -First 1
         $allSkillsOption = $Options | Where-Object { $_.SwitchName -eq 'AllSkills' -and $_.Enabled } | Select-Object -First 1
+        $allSuitesOption = $Options | Where-Object { $_.SwitchName -eq 'AllSuites' -and $_.Enabled } | Select-Object -First 1
         $appText = if ($skipAppsOption) {
             ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+H6L2v5Lu25a6J6KOF'
         }
@@ -1392,6 +1440,9 @@ function Show-TuiReview {
         }
         elseif ($allSkillsOption) {
             ConvertFrom-BootstrapUtf8Base64String -Value '5YWo6YOoIFNraWxs'
+        }
+        elseif ($allSuitesOption) {
+            ConvertFrom-BootstrapUtf8Base64String -Value '5omA5pyJ5aWX5Lu2'
         }
         elseif ($SkillProfiles -and $SkillProfiles.Count -gt 0) {
             $SkillProfiles -join ', '
@@ -1475,6 +1526,7 @@ function New-TuiBootstrapResult {
         SkipApps = [bool]$switches['SkipApps']
         SkipSkills = [bool]$switches['SkipSkills']
         AllSkills = [bool]$switches['AllSkills']
+        AllSuites = [bool]$switches['AllSuites']
         NoReplaceOrphan = [bool]$switches['NoReplaceOrphan']
         ReplaceForeign = [bool]$switches['ReplaceForeign']
         RenameForeign = [bool]$switches['RenameForeign']
@@ -1640,6 +1692,9 @@ function Get-TuiWorkbenchOptions {
     elseif ($State.AllSkills) {
         $options.Add((New-TuiOption -Key 'allskills' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5YWo6YOoIFNraWxs') -SwitchName 'AllSkills' -Enabled $true))
     }
+    elseif ($State.AllSuites) {
+        $options.Add((New-TuiOption -Key 'allsuites' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5omA5pyJ5aWX5Lu2') -SwitchName 'AllSuites' -Enabled $true))
+    }
 
     return $options.ToArray()
 }
@@ -1661,6 +1716,9 @@ function Get-TuiWorkbenchSummaryText {
     }
     elseif ($State.AllSkills) {
         ConvertFrom-BootstrapUtf8Base64String -Value '5YWo6YOoIFNraWxs'
+    }
+    elseif ($State.AllSuites) {
+        ConvertFrom-BootstrapUtf8Base64String -Value '5omA5pyJ5aWX5Lu2'
     }
     elseif ($State.SkillProfiles.Count -gt 0) {
         (ConvertFrom-BootstrapUtf8Base64String -Value 'UHJvZmlsZTogezB9') -f ($State.SkillProfiles -join ', ')
@@ -1760,14 +1818,16 @@ function Invoke-BootstrapTuiWorkbench {
 
     $availableSkillProfiles = @($SkillProfiles)
     $skillProfilesLoaded = $availableSkillProfiles.Count -gt 0
-    $baseOptions = @($InitialOptions | Where-Object { $_.SwitchName -notin @('SkipApps', 'SkipSkills', 'AllSkills') })
+    $baseOptions = @($InitialOptions | Where-Object { $_.SwitchName -notin @('SkipApps', 'SkipSkills', 'AllSkills', 'AllSuites') })
     $state = [pscustomobject]@{
         AppKeys = @()
         AppLabel = ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6YCJ5oup'
         SkipApps = $true
         SkipSkills = $true
         AllSkills = $false
+        AllSuites = $false
         SkillProfiles = @()
+        BundleSkillCount = 0
         SkillsManagerScenarioMode = if ([string]::IsNullOrWhiteSpace($InitialSkillsManagerScenarioMode) -or $InitialSkillsManagerScenarioMode -eq 'prompt') { 'skip' } else { $InitialSkillsManagerScenarioMode }
         SkillsManagerScenarioName = $InitialSkillsManagerScenarioName
         BaseOptions = $baseOptions
@@ -1795,6 +1855,7 @@ function Invoke-BootstrapTuiWorkbench {
                 if ($skillStatus -and $skillStatus.Profiles) {
                     $availableSkillProfiles = @($skillStatus.Profiles)
                     $skillProfilesLoaded = $true
+                    $state.BundleSkillCount = @($skillStatus.BundleSkills).Count
                 }
             }
             'skill-install' {
@@ -1803,20 +1864,23 @@ function Invoke-BootstrapTuiWorkbench {
                     Write-TuiSection `
                         -Title (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwgQnVuZGxlIOWHhuWkhw==') `
                         -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5YWI5LiL6L295oiW6K+75Y+WIHNraWxscy56aXDvvIznhLblkI7lho3ov5vlhaUgU2tpbGwgUHJvZmlsZSDpgInmi6njgII=')
-                    $availableSkillProfiles = @(Get-BootstrapTuiSkillProfiles `
+                    $skillSummary = Get-BootstrapTuiSkillBundleSummary `
                             -Repo $BootstrapAssetsRepo `
                             -Tag $BootstrapAssetsTag `
                             -DestinationRoot $DestinationRoot `
-                            -Refresh $RefreshSkillBundle)
+                            -Refresh $RefreshSkillBundle
+                    $availableSkillProfiles = @($skillSummary.Profiles)
+                    $state.BundleSkillCount = @($skillSummary.BundleSkills).Count
                     $skillProfilesLoaded = $true
                 }
 
-                $skillSelection = Show-TuiSkillProfileSelection -Profiles $availableSkillProfiles
+                $skillSelection = Show-TuiSkillProfileSelection -Profiles $availableSkillProfiles -BundleSkillCount $state.BundleSkillCount
                 if ($skillSelection -eq 'quit') { return $null }
                 if ($null -ne $skillSelection) {
                     if ($skillSelection.SkipSkills) {
                         $state.SkipSkills = $true
                         $state.AllSkills = $false
+                        $state.AllSuites = $false
                         $state.SkillProfiles = @()
                         continue
                     }
@@ -1827,6 +1891,7 @@ function Invoke-BootstrapTuiWorkbench {
 
                     $state.SkipSkills = $false
                     $state.AllSkills = [bool]$skillSelection.AllSkills
+                    $state.AllSuites = [bool]$skillSelection.AllSuites
                     $state.SkillProfiles = @($skillSelection.SkillProfiles)
                     $state.SkillsManagerScenarioMode = $scenarioSelection.Mode
                     $state.SkillsManagerScenarioName = $scenarioSelection.Name
@@ -2057,6 +2122,7 @@ if ($shouldUseTui) {
         if ($SkipApps) { New-TuiOption -Key 'skipapps' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+H6L2v5Lu25a6J6KOF') -SwitchName 'SkipApps' -Enabled $true }
         if ($SkipSkills) { New-TuiOption -Key 'skipskills' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+HIFNraWxsIOWvvOWFpQ==') -SwitchName 'SkipSkills' -Enabled $true }
         if ($AllSkills) { New-TuiOption -Key 'allskills' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5YWo6YOoIFNraWxs') -SwitchName 'AllSkills' -Enabled $true }
+        if ($AllSuites) { New-TuiOption -Key 'allsuites' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5omA5pyJ5aWX5Lu2') -SwitchName 'AllSuites' -Enabled $true }
         if ($NoReplaceOrphan) { New-TuiOptionForSwitch -SwitchName 'NoReplaceOrphan' }
         if ($ReplaceForeign) { New-TuiOptionForSwitch -SwitchName 'ReplaceForeign' }
         if ($RenameForeign) { New-TuiOptionForSwitch -SwitchName 'RenameForeign' }
@@ -2090,6 +2156,7 @@ if ($shouldUseTui) {
     $SkipApps = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.SkipApps)
     $SkipSkills = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.SkipSkills)
     $AllSkills = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.AllSkills)
+    $AllSuites = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.AllSuites)
     $NoReplaceOrphan = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.NoReplaceOrphan)
     $ReplaceForeign = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.ReplaceForeign)
     $RenameForeign = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.RenameForeign)
@@ -2128,6 +2195,7 @@ if ($shouldUseTui) {
     Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'SkipApps' -Present ([bool]$SkipApps)
     Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'SkipSkills' -Present ([bool]$SkipSkills)
     Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'AllSkills' -Present ([bool]$AllSkills)
+    Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'AllSuites' -Present ([bool]$AllSuites)
     Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'NoReplaceOrphan' -Present ([bool]$NoReplaceOrphan)
     Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'ReplaceForeign' -Present ([bool]$ReplaceForeign)
     Set-BootstrapBoundSwitchParameter -BoundParameters $PSBoundParameters -Name 'RenameForeign' -Present ([bool]$RenameForeign)
@@ -2328,6 +2396,7 @@ if (-not $SkipSkills) {
             -ZipPath $skillBundlePath `
             -SkillProfiles $SkillProfile `
             -AllSkills:$AllSkills `
+            -AllSuites:$AllSuites `
             -NoReplaceOrphan:$NoReplaceOrphan `
             -ReplaceForeign:$ReplaceForeign `
             -RenameForeign:$RenameForeign `
