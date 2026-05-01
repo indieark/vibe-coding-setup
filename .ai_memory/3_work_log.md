@@ -157,3 +157,9 @@
 - 新增命令模式参数 `-SkillName`、`-McpName`、`-CliName`，TUI 单项选择会写回这些参数并继续走原有 UAC、dry-run、Skill bundle、MCP 写入和前置依赖安装路径。
 - 新增 bundle 组件状态读取：状态页汇总 Profile、Skill、MCP、CLI 数量，展示 MCP 配置目标和 CLI 检测结果；缺失 CLI 的 check 命令返回未检测到，不中断状态页。
 - 验证通过：脚本解析、模块导入、单项 Skill dry-run、单项 MCP dry-run、单项 CLI dry-run、`-AllSuites` dry-run、组件状态读取。
+
+## 2026-05-01
+
+- 兼容 external skill 下载 URL 没有归档扩展名的来源：当下载路径不以 `.zip`、`.tar.gz` 或 `.tgz` 结尾时，安装器按 `.zip` 保存后再进入既有解压流程。
+- 该兼容用于 OpenClaw/ClawHub `chinese-office-automation` 下载端点；已验证下载产物是 zip 且包含 `SKILL.md`。
+- 使用刷新后的 registry bundle 执行 `-AllSuites -DryRun`，三条办公 external skill 均进入自动安装计划：`chinese-office-automation`、`running-effective-meetings`、`daily-feishu-cli-export`。

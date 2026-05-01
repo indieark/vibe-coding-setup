@@ -5234,6 +5234,9 @@ function Import-ExternalSkillsFromSelection {
                     if ([string]::IsNullOrWhiteSpace($fileName)) {
                         $fileName = 'archive.zip'
                     }
+                    elseif ($fileName -notmatch '\.(zip|tar\.gz|tgz)$') {
+                        $fileName = '{0}.zip' -f $fileName
+                    }
                     $archivePath = Join-Path $workRoot $fileName
                     Invoke-DownloadFile -Url $archiveUrl -DestinationPath $archivePath
                 }
