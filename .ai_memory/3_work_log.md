@@ -150,3 +150,10 @@
 - 保留“全部 Skill”旧语义，只导入 bundle 内离线 Skill。
 - 新增“所有套件” / `-AllSuites`，按所有 Profile 并集合并 Skill、external Skill、MCP 和前置 CLI。
 - TUI 选择页、命令交互菜单和执行日志都会显示 Skill / MCP / CLI 数量，避免把“全部 Skill”和“所有套件”混淆。
+
+## 2026-05-01
+
+- 补齐 TUI 工作台单项安装入口：在“安装套件”之外新增“任选安装 Skill”“任选安装 MCP”“任选安装 CLI”。
+- 新增命令模式参数 `-SkillName`、`-McpName`、`-CliName`，TUI 单项选择会写回这些参数并继续走原有 UAC、dry-run、Skill bundle、MCP 写入和前置依赖安装路径。
+- 新增 bundle 组件状态读取：状态页汇总 Profile、Skill、MCP、CLI 数量，展示 MCP 配置目标和 CLI 检测结果；缺失 CLI 的 check 命令返回未检测到，不中断状态页。
+- 验证通过：脚本解析、模块导入、单项 Skill dry-run、单项 MCP dry-run、单项 CLI dry-run、`-AllSuites` dry-run、组件状态读取。

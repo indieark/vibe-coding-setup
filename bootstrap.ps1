@@ -6,6 +6,9 @@ param(
     [switch]$SkipApps,
     [switch]$SkipSkills,
     [string[]]$SkillProfile,
+    [string[]]$SkillName,
+    [string[]]$McpName,
+    [string[]]$CliName,
     [switch]$AllSkills,
     [switch]$AllSuites,
     [switch]$NoReplaceOrphan,
@@ -1131,7 +1134,7 @@ function Show-TuiSkillProfileSelection {
             (ConvertFrom-BootstrapUtf8Base64String -Value 'ezB9IC0gU2tpbGwgezF977ybTUNQIHsyfe+8m0NMSSB7M30=') -f $profile.Name, $profileSkills.Count, $profileMcp.Count, $profilePrereqs.Count
         }
         else {
-            '{0} - {1}；{2}' -f $profile.Name, $profile.Description, $detail
+            '{0} - {1}; {2}' -f $profile.Name, $profile.Description, $detail
         }
         $options.Add([pscustomobject]@{
                 Key = $profile.Name
@@ -1255,6 +1258,87 @@ function Show-TuiSkillProfileSelection {
     }
 }
 
+function Show-TuiComponentSelection {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Title,
+        [Parameter(Mandatory)]
+        [string]$TypeName,
+        [object[]]$Entries = @()
+    )
+
+    $options = New-Object System.Collections.Generic.List[object]
+    foreach ($entry in @($Entries | Sort-Object Name)) {
+        $detail = ''
+        if ($entry.PSObject.Properties['Description']) {
+            $detail = [string]$entry.Description
+        }
+        elseif ($entry.PSObject.Properties['Kind']) {
+            $detail = [string]$entry.Kind
+        }
+        $options.Add([pscustomobject]@{
+                Name = [string]$entry.Name
+                Detail = $detail
+                Enabled = $false
+            })
+    }
+
+    if ($options.Count -eq 0) {
+        Write-TuiHeader -Title $Title
+        Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value '5rKh5pyJ5Y+v6YCJ5oup55qEIHswfeOAgg==') -f $TypeName) -ForegroundColor Yellow
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5oyJ5Lu75oSP6ZSu6L+U5ZueLi4u') -ForegroundColor DarkGray
+        [void][Console]::ReadKey($true)
+        return $null
+    }
+
+    $index = 0
+    while ($true) {
+        Write-TuiHeader -Title $Title
+        for ($i = 0; $i -lt $options.Count; $i++) {
+            $option = $options[$i]
+            $cursor = if ($i -eq $index) { '>' } else { ' ' }
+            $mark = if ($option.Enabled) { 'x' } else { ' ' }
+            $color = if ($i -eq $index) { 'Cyan' } else { 'Gray' }
+            Write-Host ('{0} [{1}] {2}' -f $cursor, $mark, $option.Name) -ForegroundColor $color
+            if (-not [string]::IsNullOrWhiteSpace($option.Detail)) {
+                Write-Host ('    {0}' -f $option.Detail) -ForegroundColor DarkGray
+            }
+        }
+
+        Write-Host ''
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIOepuuagvCDlpI3pgIkv5Y+W5raIICBBIOWFqOmAiSAgTiDmuIXnqbogIEVudGVyIOS4i+S4gOatpSAgQiDov5Tlm54gIFEg6YCA5Ye6') -ForegroundColor DarkGray
+        $key = [Console]::ReadKey($true)
+        switch ($key.Key) {
+            'UpArrow' { if ($index -gt 0) { $index-- } }
+            'DownArrow' { if ($index -lt ($options.Count - 1)) { $index++ } }
+            'Spacebar' { $options[$index].Enabled = -not $options[$index].Enabled }
+            'A' {
+                foreach ($option in $options) {
+                    $option.Enabled = $true
+                }
+            }
+            'N' {
+                foreach ($option in $options) {
+                    $option.Enabled = $false
+                }
+            }
+            'Enter' {
+                $selected = @($options | Where-Object { $_.Enabled } | ForEach-Object { $_.Name })
+                if ($selected.Count -eq 0) {
+                    Write-Host ''
+                    Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6YCJ5oup5Lu75L2VIHswfeOAgg==') -f $TypeName) -ForegroundColor Yellow
+                    Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5oyJ5Lu75oSP6ZSu6L+U5ZueLi4u') -ForegroundColor DarkGray
+                    [void][Console]::ReadKey($true)
+                    continue
+                }
+                return $selected
+            }
+            'B' { return $null }
+            'Q' { return 'quit' }
+        }
+    }
+}
+
 function Show-TuiSkillsManagerScenarioSelection {
     param(
         [string]$InitialMode = 'skip',
@@ -1355,6 +1439,9 @@ function Get-TuiBootstrapArgumentTokens {
         [AllowEmptyCollection()]
         [object[]]$Options,
         [string[]]$SkillProfiles = @(),
+        [string[]]$SkillNames = @(),
+        [string[]]$McpNames = @(),
+        [string[]]$CliNames = @(),
         [string]$SkillsManagerScenarioMode,
         [string]$SkillsManagerScenarioName,
         [switch]$ShowDefaultCommand,
@@ -1380,6 +1467,24 @@ function Get-TuiBootstrapArgumentTokens {
             $tokens.Add($profile)
         }
     }
+    if ($SkillNames -and @($SkillNames).Count -gt 0) {
+        $tokens.Add('-SkillName')
+        foreach ($name in $SkillNames) {
+            $tokens.Add($name)
+        }
+    }
+    if ($McpNames -and @($McpNames).Count -gt 0) {
+        $tokens.Add('-McpName')
+        foreach ($name in $McpNames) {
+            $tokens.Add($name)
+        }
+    }
+    if ($CliNames -and @($CliNames).Count -gt 0) {
+        $tokens.Add('-CliName')
+        foreach ($name in $CliNames) {
+            $tokens.Add($name)
+        }
+    }
     if (-not [string]::IsNullOrWhiteSpace($SkillsManagerScenarioMode) -and $SkillsManagerScenarioMode -ne 'prompt') {
         $tokens.Add('-SkillsManagerScenarioMode')
         $tokens.Add($SkillsManagerScenarioMode)
@@ -1399,6 +1504,9 @@ function Show-TuiReview {
         [AllowEmptyCollection()]
         [object[]]$Options = @(),
         [string[]]$SkillProfiles = @(),
+        [string[]]$SkillNames = @(),
+        [string[]]$McpNames = @(),
+        [string[]]$CliNames = @(),
         [string]$SkillsManagerScenarioMode,
         [string]$SkillsManagerScenarioName,
         [string]$ModeName,
@@ -1406,7 +1514,7 @@ function Show-TuiReview {
         [switch]$IncludeOnly
     )
 
-    $tokens = Get-TuiBootstrapArgumentTokens -SelectedAppKeys $SelectedAppKeys -Options $Options -SkillProfiles $SkillProfiles -SkillsManagerScenarioMode $SkillsManagerScenarioMode -SkillsManagerScenarioName $SkillsManagerScenarioName -ShowDefaultCommand:$UseDefaultInstall -IncludeOnly:$IncludeOnly
+    $tokens = Get-TuiBootstrapArgumentTokens -SelectedAppKeys $SelectedAppKeys -Options $Options -SkillProfiles $SkillProfiles -SkillNames $SkillNames -McpNames $McpNames -CliNames $CliNames -SkillsManagerScenarioMode $SkillsManagerScenarioMode -SkillsManagerScenarioName $SkillsManagerScenarioName -ShowDefaultCommand:$UseDefaultInstall -IncludeOnly:$IncludeOnly
     $commandText = '.\bootstrap.cmd'
     if ($tokens.Count -gt 0) {
         $commandText = '{0} {1}' -f $commandText, (ConvertTo-TuiArgumentText -Tokens $tokens)
@@ -1446,6 +1554,9 @@ function Show-TuiReview {
         }
         elseif ($SkillProfiles -and $SkillProfiles.Count -gt 0) {
             $SkillProfiles -join ', '
+        }
+        elseif ((@($SkillNames).Count + @($McpNames).Count + @($CliNames).Count) -gt 0) {
+            (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwgezB9IOS4qu+8m01DUCB7MX0g5Liq77ybQ0xJIHsyfSDkuKo=') -f @($SkillNames).Count, @($McpNames).Count, @($CliNames).Count
         }
         else {
             ConvertFrom-BootstrapUtf8Base64String -Value '5ZG95Luk5qih5byP6buY6K6k'
@@ -1505,6 +1616,9 @@ function New-TuiBootstrapResult {
         [AllowEmptyCollection()]
         [object[]]$Options = @(),
         [string[]]$SkillProfiles = @(),
+        [string[]]$SkillNames = @(),
+        [string[]]$McpNames = @(),
+        [string[]]$CliNames = @(),
         [string]$SkillsManagerScenarioMode,
         [string]$SkillsManagerScenarioName,
         [switch]$UseDefaultInstall
@@ -1519,6 +1633,9 @@ function New-TuiBootstrapResult {
         Only = $Only
         UseDefaultInstall = [bool]$UseDefaultInstall
         SkillProfile = @($SkillProfiles)
+        SkillName = @($SkillNames)
+        McpName = @($McpNames)
+        CliName = @($CliNames)
         SkillsManagerScenarioMode = $SkillsManagerScenarioMode
         SkillsManagerScenarioName = $SkillsManagerScenarioName
         DryRun = [bool]$switches['DryRun']
@@ -1582,7 +1699,8 @@ function Get-BootstrapTuiSkillBundleSummary {
         -DestinationRoot $DestinationRoot `
         -Refresh:$Refresh
 
-    $profiles = @(Get-SkillBundleProfiles -ZipPath $skillBundlePath)
+    $componentStatus = Get-SkillBundleComponentStatus -ZipPath $skillBundlePath
+    $profiles = @($componentStatus.Profiles)
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $archive = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $skillBundlePath).ProviderPath)
     try {
@@ -1626,6 +1744,10 @@ function Get-BootstrapTuiSkillBundleSummary {
         BundleSkills = $bundleSkills
         InstalledSkills = $installedSkills
         NewSkills = $newSkills
+        RegistrySkills = @($componentStatus.RegistrySkills)
+        SkillStatus = @($componentStatus.Skills)
+        McpStatus = @($componentStatus.Mcp)
+        PrereqStatus = @($componentStatus.Prereqs)
         ZipPath = $skillBundlePath
         LocalSkillRoot = $localSkillRoot
     }
@@ -1650,6 +1772,8 @@ function Show-TuiSkillStatus {
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5py65bey5a6J6KOF'), $summary.InstalledSkills.Count) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5Y+v6IO95paw5aKe'), $summary.NewSkills.Count) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'UHJvZmlsZSDmlbDph48='), $summary.Profiles.Count) -ForegroundColor Gray
+        Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value 'TUNQ77yaezB977yb5bey6YWN572u77yaezF9') -f $summary.McpStatus.Count, @($summary.McpStatus | Where-Object { $_.Configured }).Count) -ForegroundColor Gray
+        Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q0xJ77yaezB977yb5bey5a6J6KOF77yaezF9') -f $summary.PrereqStatus.Count, @($summary.PrereqStatus | Where-Object { $_.Installed }).Count) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5Y+v5pu05paw5YaF5a65'), (ConvertFrom-BootstrapUtf8Base64String -Value '5a+85YWl5pe255Sx5LiJ5oCB5ZCM5q2l57un57ut5Yik5pat44CC')) -ForegroundColor DarkGray
         Write-Host ''
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value 'UHJvZmlsZSDmuIXljZU=') -ForegroundColor Yellow
@@ -1658,8 +1782,22 @@ function Show-TuiSkillStatus {
         }
         else {
             foreach ($profile in $summary.Profiles | Select-Object -First 12) {
-                Write-Host ('  - {0}' -f $profile.Name) -ForegroundColor Gray
+                Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value 'ICAtIHswfe+8iFNraWxsIHsxfe+8m01DUCB7Mn3vvJtDTEkgezN977yJ') -f $profile.Name, @($profile.Skills).Count, @($profile.Mcp).Count, @($profile.Prereqs).Count) -ForegroundColor Gray
             }
+        }
+
+        Write-Host ''
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value 'TUNQIOeKtuaAge+8iOWJjSAxMiDkuKrvvIk=') -ForegroundColor Yellow
+        foreach ($mcp in $summary.McpStatus | Select-Object -First 12) {
+            $targetText = if (@($mcp.Targets).Count -gt 0) { @($mcp.Targets) -join ', ' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6YWN572u' }
+            Write-Host ('  - {0}: {1}' -f $mcp.Name, $targetText) -ForegroundColor Gray
+        }
+
+        Write-Host ''
+        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value 'Q0xJIOeKtuaAge+8iOWJjSAxMiDkuKrvvIk=') -ForegroundColor Yellow
+        foreach ($cli in $summary.PrereqStatus | Select-Object -First 12) {
+            $statusText = if ($cli.Installed) { ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5qOA5rWL5Yiw' }
+            Write-Host ('  - {0}: {1}' -f $cli.Name, $statusText) -ForegroundColor Gray
         }
 
         Write-Host ''
@@ -1720,8 +1858,11 @@ function Get-TuiWorkbenchSummaryText {
     elseif ($State.AllSuites) {
         ConvertFrom-BootstrapUtf8Base64String -Value '5omA5pyJ5aWX5Lu2'
     }
-    elseif ($State.SkillProfiles.Count -gt 0) {
+    elseif (@($State.SkillProfiles).Count -gt 0) {
         (ConvertFrom-BootstrapUtf8Base64String -Value 'UHJvZmlsZTogezB9') -f ($State.SkillProfiles -join ', ')
+    }
+    elseif ((@($State.SkillNames).Count + @($State.McpNames).Count + @($State.CliNames).Count) -gt 0) {
+        (ConvertFrom-BootstrapUtf8Base64String -Value '5Y2V6aG577yaU2tpbGwgezB977ybTUNQIHsxfe+8m0NMSSB7Mn0=') -f @($State.SkillNames).Count, @($State.McpNames).Count, @($State.CliNames).Count
     }
     else {
         ConvertFrom-BootstrapUtf8Base64String -Value '5peg'
@@ -1755,7 +1896,10 @@ function Show-TuiWorkbenchMenu {
         New-TuiWorkbenchAction -Action 'software-status' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l6L2v5Lu254q25oCB') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5p+l55yL5bey5a6J6KOF54mI5pys44CB55uu5qCH54mI5pys5ZKM5bu66K6u5Yqo5L2c44CC')
         New-TuiWorkbenchAction -Action 'software-install' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOFIC8g5pu05paw6L2v5Lu2') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5oup5bu66K6u6aG544CB5YWo6YOo5bqU55So5oiW5omL5Yqo5oyR6YCJ5bqU55So44CC')
         New-TuiWorkbenchAction -Action 'skill-status' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+lIFNraWxsIOeKtuaAgQ==') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5oyJ6ZyA6K+75Y+WIGJ1bmRsZe+8jOafpeeciyBQcm9maWxl44CB5bey5a6J6KOF5ZKM5Y+v6IO95paw5aKe5YaF5a6544CC')
-        New-TuiWorkbenchAction -Action 'skill-install' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOFIFNraWxs') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5oup5YWo6YOoIFNraWxsIOaIluS4gOS4qiAvIOWkmuS4qiBQcm9maWxl44CC')
+        New-TuiWorkbenchAction -Action 'skill-install' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5aWX5Lu2') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5oup5YWo6YOoIFNraWxs44CB5omA5pyJ5aWX5Lu277yM5oiW5LiA5LiqIC8g5aSa5LiqIFByb2ZpbGXjgII=')
+        New-TuiWorkbenchAction -Action 'skill-component-install' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5Lu76YCJ5a6J6KOFIFNraWxs') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5LuOIHJlZ2lzdHJ5IOS4reS7u+mAieS4gOS4quaIluWkmuS4qiBidW5kbGVkIC8gZXh0ZXJuYWwgU2tpbGzjgII=')
+        New-TuiWorkbenchAction -Action 'mcp-component-install' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5Lu76YCJ5a6J6KOFIE1DUA==') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5LuOIHJlZ2lzdHJ5IOS4reS7u+mAieS4gOS4quaIluWkmuS4qiBNQ1DvvIzlubboh6rliqjlpITnkIblhbYgQ0xJIOWJjee9ruS+nei1luOAgg==')
+        New-TuiWorkbenchAction -Action 'cli-component-install' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5Lu76YCJ5a6J6KOFIENMSQ==') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5LuOIHByZXJlcXMueWFtbCDkuK3ku7vpgInkuIDkuKrmiJblpJrkuKogQ0xJIC8gcnVudGltZSDliY3nva7kvp3otZbjgII=')
         New-TuiWorkbenchAction -Action 'review' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5omn6KGM5pGY6KaB') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '56Gu6K6k5b2T5YmN6YCJ5oup5bm25byA5aeL5omn6KGM44CC')
         New-TuiWorkbenchAction -Action 'back' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '6L+U5Zue') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5Zue5Yiw6L+Q6KGM5qih5byP6YCJ5oup44CC')
     )
@@ -1827,7 +1971,13 @@ function Invoke-BootstrapTuiWorkbench {
         AllSkills = $false
         AllSuites = $false
         SkillProfiles = @()
+        SkillNames = @()
+        McpNames = @()
+        CliNames = @()
         BundleSkillCount = 0
+        RegistrySkillEntries = @()
+        RegistryMcpEntries = @()
+        RegistryPrereqEntries = @()
         SkillsManagerScenarioMode = if ([string]::IsNullOrWhiteSpace($InitialSkillsManagerScenarioMode) -or $InitialSkillsManagerScenarioMode -eq 'prompt') { 'skip' } else { $InitialSkillsManagerScenarioMode }
         SkillsManagerScenarioName = $InitialSkillsManagerScenarioName
         BaseOptions = $baseOptions
@@ -1856,6 +2006,9 @@ function Invoke-BootstrapTuiWorkbench {
                     $availableSkillProfiles = @($skillStatus.Profiles)
                     $skillProfilesLoaded = $true
                     $state.BundleSkillCount = @($skillStatus.BundleSkills).Count
+                    $state.RegistrySkillEntries = @($skillStatus.RegistrySkills)
+                    $state.RegistryMcpEntries = @($skillStatus.McpStatus)
+                    $state.RegistryPrereqEntries = @($skillStatus.PrereqStatus)
                 }
             }
             'skill-install' {
@@ -1871,6 +2024,9 @@ function Invoke-BootstrapTuiWorkbench {
                             -Refresh $RefreshSkillBundle
                     $availableSkillProfiles = @($skillSummary.Profiles)
                     $state.BundleSkillCount = @($skillSummary.BundleSkills).Count
+                    $state.RegistrySkillEntries = @($skillSummary.RegistrySkills)
+                    $state.RegistryMcpEntries = @($skillSummary.McpStatus)
+                    $state.RegistryPrereqEntries = @($skillSummary.PrereqStatus)
                     $skillProfilesLoaded = $true
                 }
 
@@ -1882,6 +2038,9 @@ function Invoke-BootstrapTuiWorkbench {
                         $state.AllSkills = $false
                         $state.AllSuites = $false
                         $state.SkillProfiles = @()
+                        $state.SkillNames = @()
+                        $state.McpNames = @()
+                        $state.CliNames = @()
                         continue
                     }
 
@@ -1893,8 +2052,85 @@ function Invoke-BootstrapTuiWorkbench {
                     $state.AllSkills = [bool]$skillSelection.AllSkills
                     $state.AllSuites = [bool]$skillSelection.AllSuites
                     $state.SkillProfiles = @($skillSelection.SkillProfiles)
+                    $state.SkillNames = @()
+                    $state.McpNames = @()
+                    $state.CliNames = @()
                     $state.SkillsManagerScenarioMode = $scenarioSelection.Mode
                     $state.SkillsManagerScenarioName = $scenarioSelection.Name
+                }
+            }
+            'skill-component-install' {
+                if (@($state.RegistrySkillEntries).Count -eq 0) {
+                    $skillSummary = Get-BootstrapTuiSkillBundleSummary -Repo $BootstrapAssetsRepo -Tag $BootstrapAssetsTag -DestinationRoot $DestinationRoot -Refresh $RefreshSkillBundle
+                    $availableSkillProfiles = @($skillSummary.Profiles)
+                    $state.BundleSkillCount = @($skillSummary.BundleSkills).Count
+                    $state.RegistrySkillEntries = @($skillSummary.RegistrySkills)
+                    $state.RegistryMcpEntries = @($skillSummary.McpStatus)
+                    $state.RegistryPrereqEntries = @($skillSummary.PrereqStatus)
+                    $skillProfilesLoaded = $true
+                }
+                $selection = Show-TuiComponentSelection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5Lu76YCJ5a6J6KOFIFNraWxs') -TypeName 'Skill' -Entries $state.RegistrySkillEntries
+                if ($selection -eq 'quit') { return $null }
+                if ($null -ne $selection) {
+                    $scenarioSelection = Show-TuiSkillsManagerScenarioSelection -InitialMode $state.SkillsManagerScenarioMode -InitialName $state.SkillsManagerScenarioName
+                    if ($scenarioSelection -eq 'quit') { return $null }
+                    if ($null -eq $scenarioSelection) { continue }
+                    $state.SkipApps = $true
+                    $state.SkipSkills = $false
+                    $state.AllSkills = $false
+                    $state.AllSuites = $false
+                    $state.SkillProfiles = @()
+                    $state.SkillNames = @($selection)
+                    $state.SkillsManagerScenarioMode = $scenarioSelection.Mode
+                    $state.SkillsManagerScenarioName = $scenarioSelection.Name
+                }
+            }
+            'mcp-component-install' {
+                if (@($state.RegistryMcpEntries).Count -eq 0) {
+                    $skillSummary = Get-BootstrapTuiSkillBundleSummary -Repo $BootstrapAssetsRepo -Tag $BootstrapAssetsTag -DestinationRoot $DestinationRoot -Refresh $RefreshSkillBundle
+                    $availableSkillProfiles = @($skillSummary.Profiles)
+                    $state.BundleSkillCount = @($skillSummary.BundleSkills).Count
+                    $state.RegistrySkillEntries = @($skillSummary.RegistrySkills)
+                    $state.RegistryMcpEntries = @($skillSummary.McpStatus)
+                    $state.RegistryPrereqEntries = @($skillSummary.PrereqStatus)
+                    $skillProfilesLoaded = $true
+                }
+                $mcpEntries = @($state.RegistryMcpEntries | ForEach-Object { [pscustomobject]@{ Name = $_.Name; Description = ($(if ($_.Configured) { ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YWN572u' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6YWN572u' })) } })
+                $selection = Show-TuiComponentSelection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5Lu76YCJ5a6J6KOFIE1DUA==') -TypeName 'MCP' -Entries $mcpEntries
+                if ($selection -eq 'quit') { return $null }
+                if ($null -ne $selection) {
+                    $state.SkipApps = $true
+                    $state.SkipSkills = $false
+                    $state.AllSkills = $false
+                    $state.AllSuites = $false
+                    $state.SkillProfiles = @()
+                    $state.McpNames = @($selection)
+                    $state.SkillsManagerScenarioMode = 'skip'
+                    $state.SkillsManagerScenarioName = ''
+                }
+            }
+            'cli-component-install' {
+                if (@($state.RegistryPrereqEntries).Count -eq 0) {
+                    $skillSummary = Get-BootstrapTuiSkillBundleSummary -Repo $BootstrapAssetsRepo -Tag $BootstrapAssetsTag -DestinationRoot $DestinationRoot -Refresh $RefreshSkillBundle
+                    $availableSkillProfiles = @($skillSummary.Profiles)
+                    $state.BundleSkillCount = @($skillSummary.BundleSkills).Count
+                    $state.RegistrySkillEntries = @($skillSummary.RegistrySkills)
+                    $state.RegistryMcpEntries = @($skillSummary.McpStatus)
+                    $state.RegistryPrereqEntries = @($skillSummary.PrereqStatus)
+                    $skillProfilesLoaded = $true
+                }
+                $cliEntries = @($state.RegistryPrereqEntries | ForEach-Object { [pscustomobject]@{ Name = $_.Name; Description = ('{0}; {1}' -f $_.Kind, $(if ($_.Installed) { ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5qOA5rWL5Yiw' })) } })
+                $selection = Show-TuiComponentSelection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5Lu76YCJ5a6J6KOFIENMSQ==') -TypeName 'CLI' -Entries $cliEntries
+                if ($selection -eq 'quit') { return $null }
+                if ($null -ne $selection) {
+                    $state.SkipApps = $true
+                    $state.SkipSkills = $false
+                    $state.AllSkills = $false
+                    $state.AllSuites = $false
+                    $state.SkillProfiles = @()
+                    $state.CliNames = @($selection)
+                    $state.SkillsManagerScenarioMode = 'skip'
+                    $state.SkillsManagerScenarioName = ''
                 }
             }
             'review' {
@@ -1911,6 +2147,9 @@ function Invoke-BootstrapTuiWorkbench {
                     -SelectedAppKeys @($state.AppKeys) `
                     -Options $options `
                     -SkillProfiles @($state.SkillProfiles) `
+                    -SkillNames @($state.SkillNames) `
+                    -McpNames @($state.McpNames) `
+                    -CliNames @($state.CliNames) `
                     -SkillsManagerScenarioMode $state.SkillsManagerScenarioMode `
                     -SkillsManagerScenarioName $state.SkillsManagerScenarioName `
                     -ModeName (ConvertFrom-BootstrapUtf8Base64String -Value 'VFVJIOaooeW8jw==') `
@@ -1918,7 +2157,7 @@ function Invoke-BootstrapTuiWorkbench {
                 if ($review -eq 'quit') { return $null }
                 if ($null -eq $review) { continue }
 
-                return New-TuiBootstrapResult -Only @($state.AppKeys) -Options $review.Options -SkillProfiles @($state.SkillProfiles) -SkillsManagerScenarioMode $state.SkillsManagerScenarioMode -SkillsManagerScenarioName $state.SkillsManagerScenarioName
+                return New-TuiBootstrapResult -Only @($state.AppKeys) -Options $review.Options -SkillProfiles @($state.SkillProfiles) -SkillNames @($state.SkillNames) -McpNames @($state.McpNames) -CliNames @($state.CliNames) -SkillsManagerScenarioMode $state.SkillsManagerScenarioMode -SkillsManagerScenarioName $state.SkillsManagerScenarioName
             }
             'back' {
                 return 'back'
@@ -2149,6 +2388,9 @@ if ($shouldUseTui) {
 
     $Only = $tuiResult.Only
     $SkillProfile = @(ConvertTo-BootstrapNonEmptyStringArray -Value $tuiResult.SkillProfile)
+    $SkillName = @(ConvertTo-BootstrapNonEmptyStringArray -Value $tuiResult.SkillName)
+    $McpName = @(ConvertTo-BootstrapNonEmptyStringArray -Value $tuiResult.McpName)
+    $CliName = @(ConvertTo-BootstrapNonEmptyStringArray -Value $tuiResult.CliName)
     $SkillsManagerScenarioMode = if ([string]::IsNullOrWhiteSpace([string]$tuiResult.SkillsManagerScenarioMode)) { 'prompt' } else { [string]$tuiResult.SkillsManagerScenarioMode }
     $SkillsManagerScenarioName = [string]$tuiResult.SkillsManagerScenarioName
     $DryRun = [System.Management.Automation.SwitchParameter]([bool]$tuiResult.DryRun)
@@ -2177,6 +2419,24 @@ if ($shouldUseTui) {
     }
     else {
         $PSBoundParameters['SkillProfile'] = $SkillProfile
+    }
+    if ($SkillName.Count -eq 0) {
+        [void]$PSBoundParameters.Remove('SkillName')
+    }
+    else {
+        $PSBoundParameters['SkillName'] = $SkillName
+    }
+    if ($McpName.Count -eq 0) {
+        [void]$PSBoundParameters.Remove('McpName')
+    }
+    else {
+        $PSBoundParameters['McpName'] = $McpName
+    }
+    if ($CliName.Count -eq 0) {
+        [void]$PSBoundParameters.Remove('CliName')
+    }
+    else {
+        $PSBoundParameters['CliName'] = $CliName
     }
     if ([string]::IsNullOrWhiteSpace($SkillsManagerScenarioMode) -or $SkillsManagerScenarioMode -eq 'prompt') {
         [void]$PSBoundParameters.Remove('SkillsManagerScenarioMode')
@@ -2395,6 +2655,9 @@ if (-not $SkipSkills) {
         $skillResult = Install-SkillBundle `
             -ZipPath $skillBundlePath `
             -SkillProfiles $SkillProfile `
+            -SkillNames $SkillName `
+            -McpNames $McpName `
+            -PrereqNames $CliName `
             -AllSkills:$AllSkills `
             -AllSuites:$AllSuites `
             -NoReplaceOrphan:$NoReplaceOrphan `

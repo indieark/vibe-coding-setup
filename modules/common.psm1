@@ -3503,8 +3503,13 @@ function Test-RegistryCommandSucceeded {
         return $false
     }
 
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command $CommandText *> $null
-    return $LASTEXITCODE -eq 0
+    try {
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command $CommandText *> $null
+        return $LASTEXITCODE -eq 0
+    }
+    catch {
+        return $false
+    }
 }
 
 function Invoke-PrereqInstallCommand {
@@ -3534,7 +3539,7 @@ function Invoke-PrereqInstallCommand {
     }
 
     $tokens = @($CommandText -split '\s+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-    if ($tokens.Count -eq 0 -and -not $AllSuites) {
+    if ($tokens.Count -eq 0) {
         return
     }
 
@@ -3543,6 +3548,66 @@ function Invoke-PrereqInstallCommand {
     & $command @args
     if ($LASTEXITCODE -ne 0) {
         throw ('Prereq install command failed: {0}' -f $CommandText)
+    }
+}
+
+function Get-SkillBundleInventory {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ZipPath
+    )
+
+    if (-not (Test-Path -LiteralPath $ZipPath)) {
+        return [pscustomobject]@{
+            Profiles = @()
+            BundleSkills = @()
+            RegistrySkills = @()
+            Mcp = @()
+            Prereqs = @()
+            RegistryRoot = ''
+        }
+    }
+
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('skills-inventory-{0}' -f [guid]::NewGuid().ToString('N'))
+    try {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+        $resolvedZipPath = (Resolve-Path -LiteralPath $ZipPath).ProviderPath
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($resolvedZipPath, $tempRoot)
+        $registryRoot = Expand-BundleRegistryArchive -ExtractedBundleRoot $tempRoot -DestinationPath (Join-Path $tempRoot 'registry')
+        $bundleSkills = @(
+            Get-SkillDirectoriesFromExtractedRoot -RootPath $tempRoot |
+            ForEach-Object { Split-Path -Leaf $_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            Sort-Object -Unique
+        )
+        $profiles = @()
+        $registrySkills = @()
+        $mcpEntries = @()
+        $prereqEntries = @()
+        if ($registryRoot) {
+            $profiles = @(Read-SkillProfilesFromRegistry -RegistryRoot $registryRoot)
+            foreach ($profile in $profiles) {
+                $prereqs = @(Get-ProfilePrereqNames -RegistryRoot $registryRoot -SkillNames @($profile.Skills) -McpNames @($profile.Mcp))
+                $profile | Add-Member -MemberType NoteProperty -Name Prereqs -Value $prereqs -Force
+            }
+            $registrySkills = @(Read-RegistrySkillEntries -RegistryRoot $registryRoot)
+            $mcpEntries = @(Read-RegistryMcpEntries -RegistryRoot $registryRoot)
+            $prereqEntries = @(Read-RegistryPrereqEntries -RegistryRoot $registryRoot)
+        }
+
+        return [pscustomobject]@{
+            Profiles = $profiles
+            BundleSkills = $bundleSkills
+            RegistrySkills = $registrySkills
+            Mcp = $mcpEntries
+            Prereqs = $prereqEntries
+            RegistryRoot = if ($registryRoot) { $registryRoot } else { '' }
+        }
+    }
+    finally {
+        if (Test-Path -LiteralPath $tempRoot) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force
+        }
     }
 }
 
@@ -3975,6 +4040,161 @@ function Sync-RegistryMcpServers {
     Sync-JsonMcpClientConfigs -Entries $entries -DryRun:$DryRun
 }
 
+function Test-JsonMcpConfigHasServer {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ConfigPath,
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+
+    if (-not (Test-Path -LiteralPath $ConfigPath)) {
+        return $false
+    }
+
+    try {
+        $raw = Get-Content -Raw -Encoding UTF8 -LiteralPath $ConfigPath
+        if ([string]::IsNullOrWhiteSpace($raw)) {
+            return $false
+        }
+        $config = $raw | ConvertFrom-Json
+        if (-not $config -or -not $config.PSObject.Properties['mcpServers']) {
+            return $false
+        }
+        return @($config.mcpServers.PSObject.Properties | ForEach-Object { $_.Name }) -contains $Name
+    }
+    catch {
+        return $false
+    }
+}
+
+function Test-CodexMcpConfigHasServer {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ConfigPath,
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+
+    if (-not (Test-Path -LiteralPath $ConfigPath)) {
+        return $false
+    }
+
+    try {
+        $content = Get-Content -Raw -Encoding UTF8 -LiteralPath $ConfigPath
+        $pattern = '^\[mcp_servers\.{0}\]\s*$' -f [regex]::Escape($Name)
+        return [regex]::IsMatch($content, $pattern, [System.Text.RegularExpressions.RegexOptions]::Multiline)
+    }
+    catch {
+        return $false
+    }
+}
+
+function Test-ClaudeCodeMcpHasServer {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+
+    $claude = Get-Command claude -ErrorAction SilentlyContinue
+    if (-not $claude) {
+        return $false
+    }
+
+    try {
+        $output = & $claude.Source mcp list 2>$null | Out-String
+        return $output -match ('(?m)^\s*{0}(\s|$)' -f [regex]::Escape($Name))
+    }
+    catch {
+        return $false
+    }
+}
+
+function Get-SkillBundleComponentStatus {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ZipPath
+    )
+
+    $inventory = Get-SkillBundleInventory -ZipPath $ZipPath
+    $homeDir = Get-UserHomeDirectory
+    $roamingDir = Get-UserRoamingAppDataDirectory
+    $centralRoot = Join-Path $homeDir '.skills-manager\skills'
+    $bundleSkillSet = @{}
+    foreach ($name in @($inventory.BundleSkills)) {
+        $bundleSkillSet[$name.ToLowerInvariant()] = $true
+    }
+
+    $skillNames = @(
+        @($inventory.BundleSkills) + @($inventory.RegistrySkills | ForEach-Object { $_.Name }) |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique
+    )
+    $skillStatus = @(
+        foreach ($name in $skillNames) {
+            $path = Join-Path $centralRoot $name
+            $installed = Test-Path -LiteralPath (Join-Path $path 'SKILL.md')
+            [pscustomobject]@{
+                Name = $name
+                Kind = if ($bundleSkillSet.ContainsKey($name.ToLowerInvariant())) { 'bundle' } else { 'external' }
+                Installed = $installed
+                Path = $path
+            }
+        }
+    )
+
+    $codexConfigPath = Join-Path (Join-Path $homeDir '.codex') 'config.toml'
+    $jsonTargets = @()
+    if (-not [string]::IsNullOrWhiteSpace($roamingDir)) {
+        $jsonTargets += [pscustomobject]@{ Name = 'Claude Desktop'; Path = Join-Path $roamingDir 'Claude\claude_desktop_config.json' }
+    }
+    $jsonTargets += @(
+        [pscustomobject]@{ Name = 'Cursor'; Path = Join-Path $homeDir '.cursor\mcp.json' },
+        [pscustomobject]@{ Name = 'Gemini CLI'; Path = Join-Path $homeDir '.gemini\settings.json' },
+        [pscustomobject]@{ Name = 'Antigravity'; Path = Join-Path $homeDir '.gemini\antigravity\mcp_config.json' }
+    )
+    $mcpStatus = @(
+        foreach ($entry in @($inventory.Mcp)) {
+            $targets = New-Object System.Collections.Generic.List[string]
+            if (Test-CodexMcpConfigHasServer -ConfigPath $codexConfigPath -Name $entry.Name) {
+                $targets.Add('Codex')
+            }
+            foreach ($target in $jsonTargets) {
+                if (Test-JsonMcpConfigHasServer -ConfigPath $target.Path -Name $entry.Name) {
+                    $targets.Add($target.Name)
+                }
+            }
+            if (Test-ClaudeCodeMcpHasServer -Name $entry.Name) {
+                $targets.Add('Claude Code')
+            }
+            [pscustomobject]@{
+                Name = $entry.Name
+                Configured = $targets.Count -gt 0
+                Targets = $targets.ToArray()
+            }
+        }
+    )
+
+    $prereqStatus = @(
+        foreach ($entry in @($inventory.Prereqs)) {
+            [pscustomobject]@{
+                Name = $entry.Name
+                Kind = $entry.Kind
+                Installed = (Test-RegistryCommandSucceeded -CommandText $entry.Check)
+            }
+        }
+    )
+
+    return [pscustomobject]@{
+        Profiles = @($inventory.Profiles)
+        Skills = $skillStatus
+        Mcp = $mcpStatus
+        Prereqs = $prereqStatus
+        BundleSkills = @($inventory.BundleSkills)
+        RegistrySkills = @($inventory.RegistrySkills)
+    }
+}
+
 function Select-SkillDirectoriesForProfiles {
     param(
         [Parameter(Mandatory)]
@@ -4167,6 +4387,96 @@ function Select-SkillDirectoriesForProfiles {
     $script:LastSkillSelection = [pscustomobject]@{
         RegistryRoot = $RegistryRoot
         Profiles = @($selectedProfiles | ForEach-Object { $_.Name })
+        WantedSkills = @($wantedSkills)
+        BundledSkillDirs = @($selectedSkillDirs)
+        MissingSkills = @($missingSkills)
+        Mcp = @($wantedMcp)
+        Prereqs = @($wantedPrereqs)
+    }
+
+    return @($selectedSkillDirs)
+}
+
+function Select-SkillDirectoriesForExplicitSelection {
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$SkillDirectories,
+        [string]$RegistryRoot,
+        [string[]]$SkillNames,
+        [string[]]$McpNames,
+        [string[]]$PrereqNames
+    )
+
+    $wantedSkills = @(Split-SelectionTokens -Values $SkillNames | Sort-Object -Unique)
+    $wantedMcp = @(Split-SelectionTokens -Values $McpNames | Sort-Object -Unique)
+    $directPrereqs = @(Split-SelectionTokens -Values $PrereqNames | Sort-Object -Unique)
+    $wantedPrereqs = @($directPrereqs)
+    if (-not [string]::IsNullOrWhiteSpace($RegistryRoot)) {
+        $wantedPrereqs += @(Get-ProfilePrereqNames -RegistryRoot $RegistryRoot -SkillNames $wantedSkills -McpNames $wantedMcp)
+    }
+    $wantedPrereqs = @($wantedPrereqs | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+
+    $skillByName = @{}
+    $skillDirsByRegistryEntry = @{}
+    foreach ($skillDir in $SkillDirectories) {
+        $skillName = Split-Path -Leaf $skillDir
+        $skillByName[$skillName.ToLowerInvariant()] = $skillDir
+
+        $metaPath = Join-Path $skillDir '.skill-meta.json'
+        if (Test-Path -LiteralPath $metaPath) {
+            try {
+                $meta = Get-Content -Raw -Encoding UTF8 -LiteralPath $metaPath | ConvertFrom-Json
+                $entryName = [string](Get-ObjectPropertyValue -Object $meta -Name 'registry_entry_name')
+                if (-not [string]::IsNullOrWhiteSpace($entryName)) {
+                    $entryKey = $entryName.ToLowerInvariant()
+                    if (-not $skillDirsByRegistryEntry.ContainsKey($entryKey)) {
+                        $skillDirsByRegistryEntry[$entryKey] = New-Object System.Collections.Generic.List[string]
+                    }
+                    $skillDirsByRegistryEntry[$entryKey].Add($skillDir)
+                }
+            }
+            catch {
+                Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '6Kej5p6QIHNraWxsIG1ldGEg5aSx6LSl77yaezB9OyB7MX0=') -f $skillName, $_.Exception.Message)
+            }
+        }
+    }
+
+    $selectedSkillDirs = New-Object System.Collections.Generic.List[string]
+    $selectedSkillDirKeys = @{}
+    $missingSkills = New-Object System.Collections.Generic.List[string]
+    foreach ($skillName in $wantedSkills) {
+        $key = $skillName.ToLowerInvariant()
+        if ($skillByName.ContainsKey($key)) {
+            $skillDir = $skillByName[$key]
+            if (-not $selectedSkillDirKeys.ContainsKey($skillDir)) {
+                $selectedSkillDirs.Add($skillDir)
+                $selectedSkillDirKeys[$skillDir] = $true
+            }
+        }
+        elseif ($skillDirsByRegistryEntry.ContainsKey($key)) {
+            foreach ($skillDir in $skillDirsByRegistryEntry[$key]) {
+                if (-not $selectedSkillDirKeys.ContainsKey($skillDir)) {
+                    $selectedSkillDirs.Add($skillDir)
+                    $selectedSkillDirKeys[$skillDir] = $true
+                }
+            }
+        }
+        else {
+            $missingSkills.Add($skillName)
+        }
+    }
+
+    if ($missingSkills.Count -gt 0) {
+        Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '5Y2V6aG56YCJ5oup55qEIHNraWxsIOS4jeWcqOemu+e6vyBidW5kbGUg5Lit77yM5bCG5bCd6K+V5oyJIGV4dGVybmFsIOadpea6kOWkhOeQhu+8mnswfQ==') -f ($missingSkills -join ', '))
+    }
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5Y2V6aG56YCJ5oup77yaU2tpbGwgezB9IOS4qu+8m01DUCB7MX0g5Liq77ybQ0xJIHsyfSDkuKo=') -f $wantedSkills.Count, $wantedMcp.Count, $wantedPrereqs.Count)
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6YCJ5Lit55qEIHNraWxs77yaezB9L3sxfQ==') -f $selectedSkillDirs.Count, $SkillDirectories.Count)
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6YCJ5Lit55qEIE1DUO+8mnswfQ==') -f ($(if ($wantedMcp.Count -gt 0) { $wantedMcp -join ', ' } else { '(none)' })))
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6Kej5p6Q5Yiw55qE5YmN572u5L6d6LWW77yaezB9') -f ($(if ($wantedPrereqs.Count -gt 0) { $wantedPrereqs -join ', ' } else { '(none)' })))
+
+    $script:LastSkillSelection = [pscustomobject]@{
+        RegistryRoot = $RegistryRoot
+        Profiles = @()
         WantedSkills = @($wantedSkills)
         BundledSkillDirs = @($selectedSkillDirs)
         MissingSkills = @($missingSkills)
@@ -4991,6 +5301,9 @@ function Install-SkillBundle {
         [Parameter(Mandatory)]
         [string]$ZipPath,
         [string[]]$SkillProfiles,
+        [string[]]$SkillNames,
+        [string[]]$McpNames,
+        [string[]]$PrereqNames,
         [switch]$AllSkills,
         [switch]$AllSuites,
         [switch]$NoReplaceOrphan,
@@ -5021,16 +5334,25 @@ function Install-SkillBundle {
         $allSkillDirs = @(Get-SkillDirectoriesFromExtractedRoot -RootPath $tempRoot)
         $registryRoot = Expand-BundleRegistryArchive -ExtractedBundleRoot $tempRoot -DestinationPath (Join-Path $tempRoot 'registry')
         $profiles = if ($registryRoot) { @(Read-SkillProfilesFromRegistry -RegistryRoot $registryRoot) } else { @() }
-        $requestedProfiles = if ($AllSuites) { @($profiles | ForEach-Object { $_.Name }) } else { @($SkillProfiles) }
-        $skillDirs = @(Select-SkillDirectoriesForProfiles -SkillDirectories $allSkillDirs -Profiles $profiles -RequestedProfiles $requestedProfiles -RegistryRoot $registryRoot -AllSkills:$AllSkills -AllSuites:$AllSuites)
+        $explicitSkillNames = @(Split-SelectionTokens -Values $SkillNames)
+        $explicitMcpNames = @(Split-SelectionTokens -Values $McpNames)
+        $explicitPrereqNames = @(Split-SelectionTokens -Values $PrereqNames)
+        $hasExplicitComponents = ($explicitSkillNames.Count + $explicitMcpNames.Count + $explicitPrereqNames.Count) -gt 0
+        $skillDirs = if ($hasExplicitComponents) {
+            @(Select-SkillDirectoriesForExplicitSelection -SkillDirectories $allSkillDirs -RegistryRoot $registryRoot -SkillNames $explicitSkillNames -McpNames $explicitMcpNames -PrereqNames $explicitPrereqNames)
+        }
+        else {
+            $requestedProfiles = if ($AllSuites) { @($profiles | ForEach-Object { $_.Name }) } else { @($SkillProfiles) }
+            @(Select-SkillDirectoriesForProfiles -SkillDirectories $allSkillDirs -Profiles $profiles -RequestedProfiles $requestedProfiles -RegistryRoot $registryRoot -AllSkills:$AllSkills -AllSuites:$AllSuites)
+        }
 
-        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5Y+R546wIHswfSDkuKogc2tpbGwg55uu5b2V77yb6YCJ5LitIHsxfSDkuKo=') -f $allSkillDirs.Count, $skillDirs.Count)
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5Y+R546wIHswfSDkuKogc2tpbGwg55uu5b2V77yb6YCJ5LitIHsxfSDkuKo=') -f @($allSkillDirs).Count, @($skillDirs).Count)
 
         $selection = $script:LastSkillSelection
         $featurePrereqs = @()
         if ($selection -and -not [string]::IsNullOrWhiteSpace($selection.RegistryRoot)) {
             $featurePrereqs += @($selection.Prereqs)
-            if ($selection.MissingSkills.Count -gt 0) {
+            if (@($selection.MissingSkills).Count -gt 0) {
                 $registrySkillEntries = @(Read-RegistrySkillEntries -RegistryRoot $selection.RegistryRoot)
                 $externalEntries = @($registrySkillEntries | Where-Object { $_.Section -eq 'external' -and ($selection.MissingSkills -contains $_.Name) })
                 if ($externalEntries.Count -gt 0) {
@@ -5046,7 +5368,7 @@ function Install-SkillBundle {
         }
 
         $skillImportIndex = 0
-        $skillImportTotal = $skillDirs.Count
+        $skillImportTotal = @($skillDirs).Count
         foreach ($skillDir in $skillDirs) {
             $skillImportIndex++
             $skillName = Split-Path -Leaf $skillDir
@@ -5107,12 +5429,25 @@ function Install-SkillBundle {
             }
         }
 
+        $detail = if ($copiedSkillCount -gt 0) {
+            (ConvertFrom-Utf8Base64String -Value '5bey5a+85YWlIHswfSDkuKogc2tpbGw=') -f $copiedSkillCount
+        }
+        elseif ($selection -and (@($selection.Mcp).Count + @($selection.Prereqs).Count) -gt 0) {
+            (ConvertFrom-Utf8Base64String -Value '5bey5aSE55CGIFNraWxsIHswfSDkuKrvvJtNQ1AgezF9IOS4qu+8m0NMSSB7Mn0g5Liq') -f $copiedSkillCount, @($selection.Mcp).Count, @($selection.Prereqs).Count
+        }
+        elseif (@($skillDirs).Count -eq 0) {
+            ConvertFrom-Utf8Base64String -Value '5pyq5a+85YWlIFNraWxs'
+        }
+        else {
+            ConvertFrom-Utf8Base64String -Value '5YWo6YOoIHNraWxsIOW3suWQjOatpQ=='
+        }
+
         return [pscustomobject]@{
             Name = 'skills.zip'
             Key = 'skills-bundle'
             Status = 'ok'
             Source = 'local-zip'
-            Detail = if ($copiedSkillCount -gt 0) { (ConvertFrom-Utf8Base64String -Value '5bey5a+85YWlIHswfSDkuKogc2tpbGw=') -f $copiedSkillCount } elseif ($skillDirs.Count -eq 0) { ConvertFrom-Utf8Base64String -Value '5pyq5a+85YWlIFNraWxs' } else { ConvertFrom-Utf8Base64String -Value '5YWo6YOoIHNraWxsIOW3suWQjOatpQ==' }
+            Detail = $detail
         }
     }
     finally {
@@ -5136,5 +5471,7 @@ Export-ModuleMember -Function @(
     'Read-CodexProviderInput',
     'Import-CcSwitchCodexProvider',
     'Get-SkillBundleProfiles',
+    'Get-SkillBundleInventory',
+    'Get-SkillBundleComponentStatus',
     'Install-SkillBundle'
 )
