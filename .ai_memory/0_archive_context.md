@@ -632,3 +632,22 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 1. 如果用户继续反馈 Skill 数量不是预期的 80 多，优先检查 `00000-model` 私库 bundle 是否已构建，再检查本仓库 `Refresh bootstrap release assets` 是否已把公开 `bootstrap-assets/skills.zip` 刷新，最后检查本地 `downloads/skills.zip` 缓存。
 2. 后续修改自定义工作台入口时，保持“检查并安装/更新 ...”统一命名，并确保检查结果在选择页可见。
 3. 后续新增组件类型时，需要同时补状态检测、选择页详情、执行确认参数和 `docs/skill-import.md`。
+
+## 2026-05-02 — 自定义模式防闪烁与组件状态展示归档
+
+### 核心议题背景
+
+用户实测自定义模式时发现，方向键每移动一次都会明显闪烁，能看到界面先回到普通控制台，再闪回当前选项；随后又反馈任选 Skill、MCP、CLI 没有直观看到本地状态，并且进入 MCP 选择会闪退。
+
+### 关键处理
+
+- 闪烁根因是 `Write-TuiHeader` 每次菜单循环都调用 `Clear-Host`。修复为 TUI 首帧清屏一次，后续帧用 `[Console]::SetCursorPosition(0, 0)` 回到左上角覆盖重绘。
+- 新增 `Complete-TuiFrame`，在读取按键前记录当前帧行数并清掉上一帧多余行，避免残留文本。
+- 通用组件选择页支持 `Status` 列；Skill/MCP/CLI 入口传入 `Name / Status / Description`，让列表本身显示本机状态，而不是只在底部详情里展示。
+- MCP 状态转换显式使用 `$entry = $_` 后再访问 `Configured`、`Targets`、`Name`，避免嵌套表达式中 `$_` 解析不稳导致选择页闪退。
+
+### 当前结论
+
+- 自定义模式移动选项时不再每次整屏清空，闪烁应显著降低。
+- 任选 Skill / MCP / CLI 列表会直接显示状态列。
+- 本地组件状态读取验证通过：`Skills=105`、`MCP=10`、`CLI=12`。

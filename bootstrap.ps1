@@ -597,6 +597,55 @@ function Sync-BootstrapDependencies {
     }
 }
 
+$script:TuiFrameInitialized = $false
+$script:TuiFrameLastLineCount = 0
+
+function Start-TuiFrame {
+    if ([Console]::IsOutputRedirected) {
+        Clear-Host
+        return
+    }
+
+    try {
+        if (-not $script:TuiFrameInitialized) {
+            Clear-Host
+            $script:TuiFrameInitialized = $true
+        }
+        [Console]::CursorVisible = $false
+        [Console]::SetCursorPosition(0, 0)
+    }
+    catch {
+        Clear-Host
+    }
+}
+
+function Complete-TuiFrame {
+    if ([Console]::IsOutputRedirected) {
+        return
+    }
+
+    try {
+        $currentTop = [Console]::CursorTop
+        $previousTop = [int]$script:TuiFrameLastLineCount
+        if ($previousTop -gt $currentTop) {
+            $width = [Math]::Max(1, [Console]::BufferWidth - 1)
+            $blank = ' ' * $width
+            for ($line = $currentTop; $line -lt $previousTop; $line++) {
+                if ($line -ge [Console]::BufferHeight) {
+                    break
+                }
+                [Console]::SetCursorPosition(0, $line)
+                [Console]::Write($blank)
+            }
+        }
+        $script:TuiFrameLastLineCount = $currentTop
+        [Console]::SetCursorPosition(0, [Math]::Min($currentTop, [Console]::BufferHeight - 1))
+        [Console]::CursorVisible = $true
+    }
+    catch {
+    }
+}
+
 function Write-TuiHeader {
     param(
         [Parameter(Mandatory)]
@@ -604,7 +653,7 @@ function Write-TuiHeader {
         [switch]$ShowIntro
     )
 
-    Clear-Host
+    Start-TuiFrame
     Write-Host ('+ {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'VmliZSBDb2RpbmcgU2V0dXA=')) -ForegroundColor Cyan
     Write-Host ('  {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '546w5Luj5YyW5o6n5Yi25Y+w5a6J6KOF5ZCR5a+8')) -ForegroundColor DarkGray
     if ($ShowIntro) {
@@ -732,6 +781,8 @@ function Show-TuiModeSelection {
 
         Write-Host ''
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIEVudGVyIOmAieaLqSAgUSDpgIDlh7o=') -ForegroundColor DarkGray
+
+        Complete-TuiFrame
 
         $key = [Console]::ReadKey($true)
         switch ($key.Key) {
@@ -965,6 +1016,7 @@ function Show-TuiAppStatus {
 
         Write-Host ''
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value 'RW50ZXIg5oiWIEIg6L+U5ZueICBRIOmAgOWHug==') -ForegroundColor DarkGray
+        Complete-TuiFrame
         $key = [Console]::ReadKey($true)
         switch ($key.Key) {
             'Enter' { return 'back' }
@@ -1015,6 +1067,7 @@ function Show-TuiSoftwareActionSelection {
         $count = @($suggestedKeys | Where-Object { $selected[$_] }).Count
         Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YCJ5oupIHswfS97MX0g5Liq5bu66K6u6aG5') -f $count, $suggestedKeys.Count) -ForegroundColor DarkGray
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIOepuuagvCDljrvpmaQgIEEg5YWo6YCJICBOIOa4heepuiAgRW50ZXIg5LiL5LiA5q2lICBCIOi/lOWbniAgUSDpgIDlh7o=') -ForegroundColor DarkGray
+        Complete-TuiFrame
         $key = [Console]::ReadKey($true)
         switch ($key.Key) {
             'UpArrow' { if ($index -gt 0) { $index-- } }
@@ -1082,6 +1135,8 @@ function Show-TuiAppSelection {
         Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YCJ5oupIHswfS97MX0g5Liq5bqU55So') -f $count, $Apps.Count) -ForegroundColor DarkGray
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIOepuuagvCDpgInmi6kgIEEg5YWo6YCJICBOIOa4heepuiAgRW50ZXIg5LiL5LiA5q2lICBRIOmAgOWHug==') -ForegroundColor DarkGray
 
+        Complete-TuiFrame
+
         $key = [Console]::ReadKey($true)
         switch ($key.Key) {
             'UpArrow' { if ($index -gt 0) { $index-- } }
@@ -1124,6 +1179,8 @@ function Show-TuiOptionSelection {
 
         Write-Host ''
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIOepuuagvCDlpI3pgIkv5Y+W5raIICBFbnRlciDkuIvkuIDmraUgIEIg6L+U5ZueICBRIOmAgOWHug==') -ForegroundColor DarkGray
+
+        Complete-TuiFrame
 
         $key = [Console]::ReadKey($true)
         switch ($key.Key) {
@@ -1378,6 +1435,8 @@ function Show-TuiSkillProfileSelection {
         Write-Host ''
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIOepuuagvCDlpI3pgIkv5Y+W5raIICBBIOWFqOmAiSAgTiDmuIXnqbogIEVudGVyIOS4i+S4gOatpSAgQiDov5Tlm54gIFEg6YCA5Ye6') -ForegroundColor DarkGray
 
+        Complete-TuiFrame
+
         $key = [Console]::ReadKey($true)
         switch ($key.Key) {
             'UpArrow' { if ($index -gt 0) { $index-- } }
@@ -1501,6 +1560,10 @@ function Show-TuiComponentSelection {
     $options = New-Object System.Collections.Generic.List[object]
     foreach ($entry in @($Entries | Sort-Object Name)) {
         $detail = ''
+        $status = ''
+        if ($entry.PSObject.Properties['Status']) {
+            $status = [string]$entry.Status
+        }
         if ($entry.PSObject.Properties['Description']) {
             $detail = [string]$entry.Description
         }
@@ -1509,6 +1572,7 @@ function Show-TuiComponentSelection {
         }
         $options.Add([pscustomobject]@{
                 Name    = [string]$entry.Name
+                Status  = $status
                 Detail  = $detail
                 Enabled = $false
             })
@@ -1539,12 +1603,21 @@ function Show-TuiComponentSelection {
         }
         Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value '5pi+56S6IHswfS17MX0gLyB7Mn0=') -f ($start + 1), ($end + 1), $options.Count) -ForegroundColor DarkGray
 
+        $hasStatus = @($options | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.Status) }).Count -gt 0
+        if ($hasStatus) {
+            Write-Host ('  {0,-34} {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5ZCN56ew'), (ConvertFrom-BootstrapUtf8Base64String -Value '54q25oCB')) -ForegroundColor DarkGray
+        }
         for ($i = $start; $i -le $end; $i++) {
             $option = $options[$i]
             $cursor = if ($i -eq $index) { '>' } else { ' ' }
             $mark = if ($option.Enabled) { 'x' } else { ' ' }
             $color = if ($i -eq $index) { 'Cyan' } else { 'Gray' }
-            Write-Host ('{0} [{1}] {2}' -f $cursor, $mark, $option.Name) -ForegroundColor $color
+            if ($hasStatus) {
+                Write-Host ('{0} [{1}] {2,-34} {3}' -f $cursor, $mark, $option.Name, $option.Status) -ForegroundColor $color
+            }
+            else {
+                Write-Host ('{0} [{1}] {2}' -f $cursor, $mark, $option.Name) -ForegroundColor $color
+            }
         }
 
         Write-Host ''
@@ -1555,6 +1628,7 @@ function Show-TuiComponentSelection {
 
         Write-Host ''
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIOepuuagvCDlpI3pgIkv5Y+W5raIICBBIOWFqOmAiSAgTiDmuIXnqbogIEVudGVyIOS4i+S4gOatpSAgQiDov5Tlm54gIFEg6YCA5Ye6') -ForegroundColor DarkGray
+        Complete-TuiFrame
         $key = [Console]::ReadKey($true)
         switch ($key.Key) {
             'UpArrow' { if ($index -gt 0) { $index-- } }
@@ -1633,6 +1707,7 @@ function Show-TuiSkillsManagerScenarioSelection {
 
         Write-Host ''
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIEVudGVyIOmAieaLqSAgQiDov5Tlm54gIFEg6YCA5Ye6') -ForegroundColor DarkGray
+        Complete-TuiFrame
         $key = [Console]::ReadKey($true)
         switch ($key.Key) {
             'UpArrow' { if ($index -gt 0) { $index-- } }
@@ -1831,6 +1906,8 @@ function Show-TuiReview {
         Write-Host $commandText -ForegroundColor Cyan
         Write-Host ''
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value 'RW50ZXIg5byA5aeL5omn6KGMICBDIOWkjeWItuWRveS7pCAgQiDov5Tlm54gIFEg6YCA5Ye6') -ForegroundColor DarkGray
+
+        Complete-TuiFrame
 
         $key = [Console]::ReadKey($true)
         switch ($key.Key) {
@@ -2127,6 +2204,7 @@ function Show-TuiSkillStatus {
 
         Write-Host ''
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value 'RW50ZXIg5oiWIEIg6L+U5ZueICBRIOmAgOWHug==') -ForegroundColor DarkGray
+        Complete-TuiFrame
         $key = [Console]::ReadKey($true)
         switch ($key.Key) {
             'Enter' { return $summary }
@@ -2187,6 +2265,7 @@ function Show-TuiSuiteStatus {
 
         Write-Host ''
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value 'RW50ZXIg5oiWIEIg6L+U5ZueICBRIOmAgOWHug==') -ForegroundColor DarkGray
+        Complete-TuiFrame
         $key = [Console]::ReadKey($true)
         switch ($key.Key) {
             'Enter' { return $summary }
@@ -2319,6 +2398,7 @@ function Show-TuiWorkbenchMenu {
             -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5pON5L2c5o+Q56S6') `
             -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5L2/55So5pa55ZCR6ZSu56e75Yqo77yMRW50ZXIg56Gu6K6k44CC')
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '4oaRL+KGkyDnp7vliqggIEVudGVyIOmAieaLqSAgQiDov5Tlm54gIFEg6YCA5Ye6') -ForegroundColor DarkGray
+        Complete-TuiFrame
         $key = [Console]::ReadKey($true)
         switch ($key.Key) {
             'UpArrow' { if ($index -gt 0) { $index-- } }
@@ -2470,8 +2550,9 @@ function Invoke-BootstrapTuiWorkbench {
             'skill-component-install' {
                 Ensure-TuiSkillRegistry
                 $skillEntries = @($state.SkillStatus | ForEach-Object {
-                        $statusText = if ($_.Installed) { ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5a6J6KOF' }
-                        [pscustomobject]@{ Name = $_.Name; Description = ('{0}; {1}' -f $_.Kind, $statusText) }
+                        $entry = $_
+                        $statusText = if ($entry.Installed) { ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5a6J6KOF' }
+                        [pscustomobject]@{ Name = $entry.Name; Status = $statusText; Description = [string]$entry.Kind }
                     })
                 $selection = Show-TuiComponentSelection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l5bm25a6J6KOFL+abtOaWsCBTa2lsbA==') -TypeName 'Skill' -Entries $skillEntries
                 if ($selection -eq 'quit') { return $null }
@@ -2492,14 +2573,15 @@ function Invoke-BootstrapTuiWorkbench {
             'mcp-component-install' {
                 Ensure-TuiComponentRegistry
                 $mcpEntries = @($state.RegistryMcpEntries | ForEach-Object {
-                        $statusText = if ($_.Configured) {
-                            $targetsText = if (@($_.Targets).Count -gt 0) { @($_.Targets) -join ', ' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YWN572u' }
+                        $entry = $_
+                        $statusText = if ($entry.Configured) {
+                            $targetsText = if (@($entry.Targets).Count -gt 0) { @($entry.Targets) -join ', ' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YWN572u' }
                             '{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YWN572u'), $targetsText
                         }
                         else {
                             ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6YWN572u'
                         }
-                        [pscustomobject]@{ Name = $_.Name; Description = $statusText }
+                        [pscustomobject]@{ Name = $entry.Name; Status = $statusText; Description = $statusText }
                     })
                 $selection = Show-TuiComponentSelection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l5bm25a6J6KOFL+abtOaWsCBNQ1A=') -TypeName 'MCP' -Entries $mcpEntries
                 if ($selection -eq 'quit') { return $null }
@@ -2518,7 +2600,11 @@ function Invoke-BootstrapTuiWorkbench {
             }
             'cli-component-install' {
                 Ensure-TuiComponentRegistry
-                $cliEntries = @($state.RegistryPrereqEntries | ForEach-Object { [pscustomobject]@{ Name = $_.Name; Description = ('{0}; {1}' -f $_.Kind, $(if ($_.Installed) { ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5qOA5rWL5Yiw' })) } })
+                $cliEntries = @($state.RegistryPrereqEntries | ForEach-Object {
+                        $entry = $_
+                        $statusText = if ($entry.Installed) { ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5qOA5rWL5Yiw' }
+                        [pscustomobject]@{ Name = $entry.Name; Status = $statusText; Description = ('{0}; {1}' -f $entry.Kind, $statusText) }
+                    })
                 $selection = Show-TuiComponentSelection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l5bm25a6J6KOFL+abtOaWsCBDTEk=') -TypeName 'CLI' -Entries $cliEntries
                 if ($selection -eq 'quit') { return $null }
                 if ($null -ne $selection) {

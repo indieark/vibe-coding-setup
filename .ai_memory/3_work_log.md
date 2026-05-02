@@ -250,3 +250,11 @@
 - 修正 Skill 单项选择计数口径：合并 `BundleSkills + RegistrySkills` 后去重，并在选择页展示已安装状态。
 - 套件/Profile、Skill、MCP、CLI 选择页补充本机安装 / 配置 / 检测状态展示。
 - 同步 `docs/README.md`、`docs/installer-flow.md`、`docs/operations.md`、`docs/roadmap.md`、`docs/skill-import.md` 和 `.ai_memory`。
+
+## 2026-05-02
+
+- 修复自定义模式方向键移动时整屏闪烁：TUI 首帧清屏一次，后续帧回到左上角覆盖重绘，并在读取按键前清理上一帧残留行。
+- 通用组件选择页新增 `Status` 列，任选 Skill / MCP / CLI 列表直接显示本机安装、配置或检测状态。
+- 任选 Skill 显示 `已安装 / 未安装`；任选 MCP 显示 `已配置: 目标列表 / 未配置`；任选 CLI 显示 `已安装 / 未检测到`。
+- 修复 MCP 选择路径潜在闪退：MCP 状态转换改用显式 `$entry`，避免嵌套表达式里 `$_` 作用域异常。
+- 验证通过：`bootstrap.ps1` parser、`git diff --check`、本地 `Get-SkillBundleComponentStatus` 读取 `Skills=105 MCP=10 CLI=12`。
