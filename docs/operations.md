@@ -2,7 +2,7 @@
 
 ## 本地仓库运行
 
-本地手动装机直接进入拟似 TUI，可用方向键选择运行模式、工作台动作和 Skill Profile：
+本地手动装机直接进入拟似 TUI，可用方向键选择运行模式、工作台动作和 Skill Profile。运行模式首页会在标题下方说明本工具可安装应用、导入 Skill 套件、配置 MCP / CLI 与 CC Switch，并显示仓库地址：
 
 ```powershell
 Set-Location "C:\Vibe_Coding\IndieArk\gadget\vibe-coding-setup"

@@ -597,12 +597,17 @@ function Sync-BootstrapDependencies {
 function Write-TuiHeader {
     param(
         [Parameter(Mandatory)]
-        [string]$Title
+        [string]$Title,
+        [switch]$ShowIntro
     )
 
     Clear-Host
     Write-Host ('+ {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'VmliZSBDb2RpbmcgU2V0dXA=')) -ForegroundColor Cyan
     Write-Host ('  {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '546w5Luj5YyW5o6n5Yi25Y+w5a6J6KOF5ZCR5a+8')) -ForegroundColor DarkGray
+    if ($ShowIntro) {
+        Write-Host ('  {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5LiA6ZSu5YeG5aSHIFZpYmUgQ29kaW5nIOeOr+Wig++8muWuieijheW6lOeUqOOAgeWvvOWFpSBTa2lsbCDlpZfku7bjgIHphY3nva4gTUNQIC8gQ0xJIOS4jiBDQyBTd2l0Y2jjgII=')) -ForegroundColor DarkGray
+        Write-Host ('  {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5LuT5bqT77yaaHR0cHM6Ly9naXRodWIuY29tL2luZGllYXJrL3ZpYmUtY29kaW5nLXNldHVw')) -ForegroundColor DarkGray
+    }
     Write-Host ''
     Write-Host $Title -ForegroundColor Yellow
     Write-Host ('-' * 64) -ForegroundColor DarkGray
@@ -712,7 +717,7 @@ function Show-TuiModeSelection {
 
     $index = 0
     while ($true) {
-        Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5oup6L+Q6KGM5qih5byP')
+        Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5oup6L+Q6KGM5qih5byP') -ShowIntro
         for ($i = 0; $i -lt $modes.Count; $i++) {
             $mode = $modes[$i]
             $cursor = if ($i -eq $index) { '>' } else { ' ' }
