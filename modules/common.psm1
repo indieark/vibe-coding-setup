@@ -1550,7 +1550,9 @@ function Get-AppInstallDecisionBatch {
         while ($true) {
             $completedCount = @($jobs | Where-Object { $_.State -in @('Completed', 'Failed', 'Stopped') }).Count
             if ($completedCount -gt $reportedCompleted) {
-                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5qOA5p+l6L+b5bqm77yaezB9L3sxfSDkuKrlupTnlKjlt7LlrozmiJA=') -f $completedCount, $jobs.Count)
+                $progressPercent = if ($jobs.Count -gt 0) { [int](($completedCount * 100) / $jobs.Count) } else { 100 }
+                $progressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKrlupTnlKjlt7LlrozmiJA=') -f $completedCount, $jobs.Count
+                Write-OperationProgress -Label (ConvertFrom-Utf8Base64String -Value '5qOA5p+l') -Percent $progressPercent -Detail $progressDetail -Completed:($completedCount -ge $jobs.Count)
                 $reportedCompleted = $completedCount
             }
             if ($completedCount -ge $jobs.Count) {
@@ -4235,7 +4237,9 @@ function Get-SkillBundleComponentStatus {
     $mcpStatus = @(
         for ($i = 0; $i -lt $mcpEntries.Count; $i++) {
             $entry = $mcpEntries[$i]
-            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5qOA5p+lIE1DUCDphY3nva7nirbmgIHvvJp7MH0vezF9') -f ($i + 1), $mcpEntries.Count)
+            $mcpProgressPercent = if ($mcpEntries.Count -gt 0) { [int]((($i + 1) * 100) / $mcpEntries.Count) } else { 100 }
+            $mcpProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogTUNQIOW3suWujOaIkA==') -f ($i + 1), $mcpEntries.Count
+            Write-OperationProgress -Label 'MCP' -Percent $mcpProgressPercent -Detail $mcpProgressDetail -Completed:(($i + 1) -ge $mcpEntries.Count)
             $targets = New-Object System.Collections.Generic.List[string]
             if (Test-CodexMcpConfigHasServer -ConfigPath $codexConfigPath -Name $entry.Name) {
                 $targets.Add('Codex')
@@ -4260,7 +4264,9 @@ function Get-SkillBundleComponentStatus {
     $prereqStatus = @(
         for ($i = 0; $i -lt $prereqEntries.Count; $i++) {
             $entry = $prereqEntries[$i]
-            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5qOA5p+lIENMSSDkvp3otZbnirbmgIHvvJp7MH0vezF9') -f ($i + 1), $prereqEntries.Count)
+            $cliProgressPercent = if ($prereqEntries.Count -gt 0) { [int]((($i + 1) * 100) / $prereqEntries.Count) } else { 100 }
+            $cliProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogQ0xJIOW3suWujOaIkA==') -f ($i + 1), $prereqEntries.Count
+            Write-OperationProgress -Label 'CLI' -Percent $cliProgressPercent -Detail $cliProgressDetail -Completed:(($i + 1) -ge $prereqEntries.Count)
             $installed = Test-RegistryCommandSucceeded -CommandText $entry.Check
             if ((-not $installed) -and $entry.Name -eq 'lark' -and (Get-Command lark-cli -ErrorAction SilentlyContinue)) {
                 $installed = $true

@@ -189,7 +189,7 @@
 - 合并自定义模式检查与安装入口：移除独立“检查 Skill 状态”“检查所有套件”，改为“检查并安装套件”“检查并任选安装 Skill / MCP / CLI”。
 - 自定义模式内新增 Skill registry 与组件状态缓存；Skill / 套件入口走轻量 Skill-only 读取，MCP / CLI 入口才读取 MCP 配置和 CLI 检测状态，并在本轮复用。
 - 套件、Skill、MCP、CLI 长列表改为分页渲染；顶部显示已选数量与摘要，底部显示当前项详情，避免长列表强制滚到底部导致方向键抽动。
-- 默认模式和自定义模式的软件 precheck 增加完成数量进度；Skill / MCP / CLI 状态扫描增加逐项进度；generic prereq 命令也显示执行中提示。
+- 默认模式和自定义模式的软件 precheck 增加完成数量进度；Skill / MCP / CLI 状态扫描增加完成数量进度；generic prereq 命令也显示执行中提示。
 - 修复 winget 成功后不退出的卡住体验：已看到成功输出后短暂等待，如果外层 winget 仍不退出则自动收尾并继续后续检测。
 - 验证通过：脚本解析、模块导入、`git diff --check`、`-DryRun -SkipSkills -SkipCcSwitch -Only git,nodejs`、`-DryRun -SkipApps -SkipCcSwitch -SkipSkillsManagerLaunch -SkillsManagerScenarioMode skip -AllSuites`。
 
@@ -199,3 +199,10 @@
 - 将 Claude Code MCP 列表改为一次读取并缓存到哈希表，MCP 状态循环只做本地匹配；本机验证 10 个 MCP 进度在同一秒内完成。
 - 修复飞书 CLI 状态误判：当前 registry 仍写 `lark --version`，但 `@larksuite/cli` 实际安装 `lark-cli`；安装器兼容该别名后，lark 状态可识别为已安装。
 - 实测 `npm i -g @larksuite/cli --loglevel=error` 成功，`lark-cli --version` 为 `1.0.23`；`yt-dlp --version` 为 `2026.03.17`。
+
+## 2026-05-02
+
+- 将应用并行预检查的 `检查进度：N/M 个应用已完成` 从逐条日志改为 `Write-OperationProgress` 单行刷新。
+- 完成时刷新为 `检查 ... 100% N/M 个应用已完成`，随后再输出原有 `预检查完成` 汇总。
+- 验证通过：`bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only git,nodejs` 只保留最终完成进度行。
+- 继续统一所有检查进度：Skill-only 状态扫描、MCP 状态扫描、CLI 状态扫描也改为同一行刷新，真实终端动态覆盖，捕获输出只保留完成行。

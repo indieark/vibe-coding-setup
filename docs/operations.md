@@ -23,9 +23,9 @@ TUI 首屏包含三类入口：
 - 自定义模式：进入控制台工作台；软件入口会先检查状态，再默认勾选需要安装 / 更新的建议项，用户可用空格去除；Skill、套件、MCP、CLI 入口都先检查再选择安装，并在执行摘要页确认。
 - 安全演练：顶层独立 dry-run 路径，不再作为 TUI 内部复选项重复出现。
 
-自定义模式中，软件和行为以任务菜单表达；复选用于软件建议项去除、套件 Profile、单项 Skill、单项 MCP 和单项 CLI 选择。安装 Skill 时会继续选择 Skills Manager 场景注册方式：默认场景、自定义场景，或跳过场景注册只复制 Skill 文件。检查并任选安装 MCP 会写入 Codex、Claude Desktop、Claude Code、Cursor、Gemini CLI 和 Antigravity 的 MCP 配置；检查并任选安装 CLI 会只处理 `prereqs.yaml` 中的前置依赖。TUI 首屏不会预先下载 `skills.zip`。只有进入 Skill / 套件 / MCP / CLI 相关入口，或后续安装 / 演练确实要导入 Skill / MCP / CLI 时，脚本才会按需获取 bundle；读取结果会在本轮自定义模式中复用，读取前会显示提示，状态扫描期间会显示逐项进度，避免长时间无反馈。长列表选择页按当前光标分页显示，并在顶部保留已选数量和已选摘要。
+自定义模式中，软件和行为以任务菜单表达；复选用于软件建议项去除、套件 Profile、单项 Skill、单项 MCP 和单项 CLI 选择。安装 Skill 时会继续选择 Skills Manager 场景注册方式：默认场景、自定义场景，或跳过场景注册只复制 Skill 文件。检查并任选安装 MCP 会写入 Codex、Claude Desktop、Claude Code、Cursor、Gemini CLI 和 Antigravity 的 MCP 配置；检查并任选安装 CLI 会只处理 `prereqs.yaml` 中的前置依赖。TUI 首屏不会预先下载 `skills.zip`。只有进入 Skill / 套件 / MCP / CLI 相关入口，或后续安装 / 演练确实要导入 Skill / MCP / CLI 时，脚本才会按需获取 bundle；读取结果会在本轮自定义模式中复用，读取前会显示提示，状态扫描期间会同一行刷新完成数量，结束时只保留完成行，避免长时间无反馈。长列表选择页按当前光标分页显示，并在顶部保留已选数量和已选摘要。
 
-默认安装和自定义模式的软件入口都会在应用预检查期间输出已完成数量。winget 安装若已经报告安装完成但进程未退出，脚本会自动收尾后继续，不再长期停在“仍在运行”。
+默认安装和自定义模式的软件入口都会在应用预检查期间同一行刷新已完成数量，并在结束时刷新为完成行；Skill、MCP、CLI 状态扫描也遵循同一规则。winget 安装若已经报告安装完成但进程未退出，脚本会自动收尾后继续，不再长期停在“仍在运行”。
 
 `bootstrap.cmd` 使用 Windows PowerShell 5.1 启动。如果过程中触发 UAC 提权，当前窗口只提示已打开管理员窗口继续安装；脚本会优先用 Windows Terminal 承载管理员 PowerShell，避免经典蓝底 PowerShell 窗口。若系统没有 `wt.exe`，才回退到经典 PowerShell 窗口。新开的管理员终端会继续后续 TUI 或安装流程，并在执行完成后保持打开，方便查看 summary 或错误。
 

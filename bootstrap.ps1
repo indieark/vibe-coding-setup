@@ -126,6 +126,35 @@ function Test-BootstrapProgressRendering {
     }
 }
 
+function Write-BootstrapProgressLine {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Line,
+        [switch]$Completed,
+        [System.ConsoleColor]$ForegroundColor = [System.ConsoleColor]::Cyan
+    )
+
+    $canRenderInPlace = Test-BootstrapProgressRendering
+    if (-not $canRenderInPlace) {
+        if ($Completed) {
+            Write-Host $Line -ForegroundColor $ForegroundColor
+        }
+        return
+    }
+
+    $clearLength = [Math]::Max(0, $script:BootstrapProgressLastLineLength - $Line.Length)
+    $script:BootstrapProgressLastLineLength = $Line.Length
+    $displayLine = if ($clearLength -gt 0) { $Line + (' ' * $clearLength) } else { $Line }
+
+    if ($Completed) {
+        Write-Host ("`r{0}" -f $displayLine) -ForegroundColor $ForegroundColor
+        $script:BootstrapProgressLastLineLength = 0
+    }
+    else {
+        Write-Host ("`r{0}" -f $displayLine) -ForegroundColor $ForegroundColor -NoNewline
+    }
+}
+
 function Get-CurrentPowerShellExecutable {
     try {
         $currentProcess = Get-Process -Id $PID -ErrorAction Stop
@@ -369,26 +398,7 @@ function Write-BootstrapDownloadProgress {
     $emptyChar = [char]0x2591
     $bar = (([string]$filledChar) * $filled) + (([string]$emptyChar) * $empty)
     $line = ('[bootstrap] {0} [{1}] {2,3}% {3}' -f $Label, $bar, $safePercent, $Detail)
-    $canRenderInPlace = Test-BootstrapProgressRendering
-
-    if (-not $canRenderInPlace) {
-        if ($Completed) {
-            Write-Host $line
-        }
-        return
-    }
-
-    $clearLength = [Math]::Max(0, $script:BootstrapProgressLastLineLength - $line.Length)
-    $script:BootstrapProgressLastLineLength = $line.Length
-    $displayLine = if ($clearLength -gt 0) { $line + (' ' * $clearLength) } else { $line }
-
-    if ($Completed) {
-        Write-Host ("`r{0}" -f $displayLine)
-        $script:BootstrapProgressLastLineLength = 0
-    }
-    else {
-        Write-Host ("`r{0}" -f $displayLine) -NoNewline
-    }
+    Write-BootstrapProgressLine -Line $line -Completed:$Completed
 }
 
 function Invoke-BootstrapDownloadFile {
@@ -1993,7 +2003,11 @@ function Get-BootstrapTuiSkillOnlySummary {
     $skillStatus = @(
         for ($i = 0; $i -lt $registrySkills.Count; $i++) {
             $entry = $registrySkills[$i]
-            Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo5qOA5p+lIFNraWxsIOeKtuaAge+8mnswfS97MX0=') -f ($i + 1), $registrySkills.Count) -ForegroundColor DarkGray
+            $progressPercent = if ($registrySkills.Count -gt 0) { [int]((($i + 1) * 100) / $registrySkills.Count) } else { 100 }
+            $detail = (ConvertFrom-BootstrapUtf8Base64String -Value 'ezB9L3sxfSDkuKogU2tpbGwg5bey5a6M5oiQ') -f ($i + 1), $registrySkills.Count
+            $isComplete = (($i + 1) -ge $registrySkills.Count)
+            $line = '  Skill {0,3}%  {1}' -f $progressPercent, $detail
+            Write-BootstrapProgressLine -Line $line -Completed:$isComplete
             [pscustomobject]@{
                 Name = $entry.Name
                 Kind = $entry.Section

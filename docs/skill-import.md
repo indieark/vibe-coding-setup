@@ -16,7 +16,7 @@
 `Install-SkillBundle` 解压 `skills.zip` 后，会读取 bundle 内置的 `registry/profiles.yaml`：
 
 - 自定义模式的“检查并安装套件”动作会先读取 `skills.zip` 中的 Profile，并以复选项展示；默认选择“全部 Skill”，也可以选择“所有套件”或“跳过 Skill 导入”。
-- 自定义模式的“检查并任选安装 Skill / MCP / CLI”动作读取 registry 或状态后进入分页复选列表，并分别写回等价的 `-SkillName`、`-McpName`、`-CliName` 参数；读取和状态扫描期间会显示逐项进度。
+- 自定义模式的“检查并任选安装 Skill / MCP / CLI”动作读取 registry 或状态后进入分页复选列表，并分别写回等价的 `-SkillName`、`-McpName`、`-CliName` 参数；读取和状态扫描期间会同一行刷新完成数量，结束时只保留完成行。
 - Skill / 套件入口使用轻量 Skill registry 读取路径，不检测 MCP / CLI；MCP / CLI 入口才读取 MCP 配置状态和 CLI 检测状态。
 - “全部 Skill”只导入 bundle 内全部离线 Skill，并在终端显示 Skill 数量；它不会自动写入所有 MCP 或安装所有 CLI。
 - “所有套件”按全部 Profile 的并集合并 Skill / MCP / CLI 前置依赖，并在终端显示套件数、Skill 数、MCP 数和 CLI 数。
