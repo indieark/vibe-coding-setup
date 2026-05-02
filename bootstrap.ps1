@@ -1303,13 +1303,8 @@ function Show-TuiSkillProfileSelection {
     $allSuiteMcp = @($Profiles | ForEach-Object { $_.Mcp } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
     $allSuitePrereqs = @($Profiles | ForEach-Object { $_.Prereqs } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
     $allSkillCount = if ($RegistrySkillCount -gt 0) { $RegistrySkillCount } else { $BundleSkillCount }
-    $allSkillsLabel = if ($allSkillCount -gt 0) {
-        (ConvertFrom-BootstrapUtf8Base64String -Value '5YWo6YOoIFNraWxs77yIezB9IOS4qu+8m01DUCAw77ybQ0xJIDDvvIk=') -f $allSkillCount
-    }
-    else {
-        ConvertFrom-BootstrapUtf8Base64String -Value '5YWo6YOoIFNraWxs77yI6buY6K6k77yJ'
-    }
-    $allSuitesLabel = (ConvertFrom-BootstrapUtf8Base64String -Value '5omA5pyJ5aWX5Lu277yIezB9IOS4quWll+S7tu+8m1NraWxsIHsxfe+8m01DUCB7Mn3vvJtDTEkgezN977yJ') -f $Profiles.Count, $allSuiteSkills.Count, $allSuiteMcp.Count, $allSuitePrereqs.Count
+    $allSkillsLabel = ConvertFrom-BootstrapUtf8Base64String -Value '5YWo6YOoIFNraWxs'
+    $allSuitesLabel = ConvertFrom-BootstrapUtf8Base64String -Value '5omA5pyJ5aWX5Lu2'
     $options = New-Object System.Collections.Generic.List[object]
     $options.Add([pscustomobject]@{
             Key          = 'all'
@@ -1364,16 +1359,9 @@ function Show-TuiSkillProfileSelection {
         $profileSkills = @(Get-TuiProfileSkillNames -Profile $profile)
         $profileMcp = @($profile.Mcp | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
         $profilePrereqs = @($profile.Prereqs | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-        $detail = (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwgezB977ybTUNQIHsxfe+8m0NMSSB7Mn0=') -f $profileSkills.Count, $profileMcp.Count, $profilePrereqs.Count
-        $label = if ([string]::IsNullOrWhiteSpace($profile.Description)) {
-            (ConvertFrom-BootstrapUtf8Base64String -Value 'ezB9IC0gU2tpbGwgezF977ybTUNQIHsyfe+8m0NMSSB7M30=') -f $profile.Name, $profileSkills.Count, $profileMcp.Count, $profilePrereqs.Count
-        }
-        else {
-            '{0} - {1}; {2}' -f $profile.Name, $profile.Description, $detail
-        }
         $options.Add([pscustomobject]@{
                 Key          = $profile.Name
-                Label        = $label
+                Label        = $profile.Name
                 ProfileName  = $profile.Name
                 Enabled      = $false
                 IsAllSkills  = $false
@@ -1392,7 +1380,7 @@ function Show-TuiSkillProfileSelection {
     $index = 0
     $pageSize = 12
     while ($true) {
-        Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwg5aSN6YCJ6aG5')
+        Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5aWX5Lu25aSN6YCJ6aG5')
         if (-not $Profiles -or $Profiles.Count -eq 0) {
             Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6K+75Y+W5YiwIFByb2ZpbGXvvIzpu5jorqTlr7zlhaXlhajpg6ggU2tpbGzjgII=') -ForegroundColor DarkGray
             Write-Host ''
