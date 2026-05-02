@@ -270,5 +270,5 @@
 - 继续 debug 自定义模式单项安装页：确认“检查并安装/更新 Skill”缺少顶部状态总览，已给通用组件选择页新增 `SummaryLines`，Skill/MCP/CLI 单项页都会显示总数与本机状态统计。
 - MCP 单项入口增加 `try/catch` 错误页兜底：读取 MCP 状态或组装列表异常时停留在 TUI 错误页并显示异常详情，不再直接闪退。
 - 自定义工作台显示优化：菜单项改为一行列表，当前项详情统一显示在底部，减少长描述换行导致的视觉混乱。
-- 清屏策略改为强清屏兜底：优先 ANSI 清屏 + 清 scrollback + 光标归零，再回退 `[Console]::Clear()` / `Clear-Host`。
+- 清屏策略回退为 Windows 控制台 API：移除不兼容的 ANSI 清屏序列，使用 `[Console]::Clear()` + 光标归零，并以 `Clear-Host` 兜底。
 - 验证通过：`bootstrap.ps1` parser、`git diff --check`、本地组件状态读取 `Skill total=105 installed=74 missing=31`、`MCP total=10 configured=4 missing=6`、`CLI total=12 installed=8 missing=4`。
