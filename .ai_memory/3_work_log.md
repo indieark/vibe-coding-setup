@@ -182,3 +182,13 @@
 - 清理当前用户可见入口中的历史默认安装措辞：TUI 首屏改为“默认安装”，说明改为按默认配置安装应用并导入 Skill 与 CC Switch。
 - `全部 Skill` 的说明改为中性描述：只导入 bundle 内离线 Skill，不安装 MCP / CLI。
 - 重新验证 TUI：软件入口会先检查状态并展示建议项复选；Skill 状态页快速返回 Skill-only 清单；所有套件状态页展示 Profile / MCP / CLI 总览。
+
+## 2026-05-02
+
+- 将顶层“TUI 模式”和工作台标题统一改名为“自定义模式 / 自定义工作台”。
+- 合并自定义模式检查与安装入口：移除独立“检查 Skill 状态”“检查所有套件”，改为“检查并安装套件”“检查并任选安装 Skill / MCP / CLI”。
+- 自定义模式内新增 Skill registry 与组件状态缓存；Skill / 套件入口走轻量 Skill-only 读取，MCP / CLI 入口才读取 MCP 配置和 CLI 检测状态，并在本轮复用。
+- 套件、Skill、MCP、CLI 长列表改为分页渲染；顶部显示已选数量与摘要，底部显示当前项详情，避免长列表强制滚到底部导致方向键抽动。
+- 默认模式和自定义模式的软件 precheck 增加完成数量进度；Skill / MCP / CLI 状态扫描增加逐项进度；generic prereq 命令也显示执行中提示。
+- 修复 winget 成功后不退出的卡住体验：已看到成功输出后短暂等待，如果外层 winget 仍不退出则自动收尾并继续后续检测。
+- 验证通过：脚本解析、模块导入、`git diff --check`、`-DryRun -SkipSkills -SkipCcSwitch -Only git,nodejs`、`-DryRun -SkipApps -SkipCcSwitch -SkipSkillsManagerLaunch -SkillsManagerScenarioMode skip -AllSuites`。

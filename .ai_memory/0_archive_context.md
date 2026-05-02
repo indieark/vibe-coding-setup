@@ -448,3 +448,37 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 - `-AllSkills` dry-run 通过，日志显示 `全部 Skill：72 个；MCP：0 个；CLI：0 个`。
 - `-AllSuites` dry-run 通过，日志显示 `选中的套件：8 个；Skill：41 个；MCP：7 个；CLI：8 个`，并继续进入 external Skill、MCP 和 CLI 前置依赖计划。
 - TUI 冒烟通过：首屏显示“默认安装”；工作台显示“检查并安装 / 更新软件”“检查 Skill 状态”“检查所有套件”；Skill 状态读取提示明确不检测套件 / MCP / CLI；所有套件状态页展示 Profile / MCP / CLI 总览。
+
+## 2026-05-02 — 自定义模式合并检查安装与进度可视化
+
+### 核心议题背景
+
+用户继续基于 TUI 实测反馈：任选安装 Skill / MCP / 套件仍然慢，读取时有空白；检查 Skill / 检查套件和对应安装入口割裂；“任选安装 MCP”命名不清；长列表会强制滚到底部，导致方向键移动时画面抽动。随后用户补充截图：`winget install yt-dlp.yt-dlp` 已输出安装完成，但脚本仍停在“仍在运行”。
+
+### Cognitive Evolution Path
+
+1. 将“TUI 模式”改为“自定义模式”，强调这是可选的自定义工作台，而不是默认安装路径。
+2. 把独立状态检查入口并入安装入口：软件、套件、Skill、MCP、CLI 都采用“先检查，再选择安装”的路径。
+3. 将 Skill / 套件读取拆成轻量 Skill-only summary，避免进入 Skill 或套件选择时提前检测 MCP / CLI；只有 MCP / CLI 入口才读取组件状态。
+4. 在自定义模式状态对象中缓存本轮读取结果，避免用户反复进入 Skill、MCP、CLI 入口时重复下载 / 解析 bundle。
+5. 将套件 Profile、单项 Skill、MCP、CLI 选择页改为分页渲染：只显示当前窗口，顶部显示已选摘要，底部显示当前项详情。
+6. 给默认模式应用 precheck 和自定义模式软件入口补充完成数量进度；给 Skill / MCP / CLI 状态扫描补充逐项进度。
+7. 对截图中的 winget 卡住问题做兜底：只有已看到成功输出时，才在短暂等待后结束卡住的 winget 外壳并继续；没有成功输出仍按退出码失败处理。
+
+### 当前结论
+
+- 自定义模式下可以安装套件，也可以任选安装 Skill / MCP / CLI；进入对应入口时会先检查状态。
+- 长列表不再全量渲染，方向键移动不会因为终端强制滚到底部而抽动。
+- 默认模式的软件检查也会显示进度，不再只有自定义模式有提示。
+- 截图中的 `winget ... 仍在运行` 不是理想状态；如果安装已经成功输出，新逻辑会自动收尾继续后续步骤。
+- `yt-dlp` 在当前机器可通过 `yt-dlp --version` 检测到 `2026.03.17`；`@larksuite/cli` 的 npm 包存在，`npm i -g @larksuite/cli --dry-run` 可解析到 `1.0.23`，截图里的 lark 失败更像当次 npm 命令执行失败或环境瞬态，不会阻断后续可处理项。
+
+### 验证闭环
+
+- PowerShell 脚本解析通过：`bootstrap.ps1`、`modules/common.psm1`。
+- `Import-Module .\modules\common.psm1 -Force` 通过。
+- `git diff --check` 通过。
+- `bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only git,nodejs` 通过，并输出 `检查进度：1/2`、`检查进度：2/2`。
+- `bootstrap.ps1 -DryRun -SkipApps -SkipCcSwitch -SkipSkillsManagerLaunch -SkillsManagerScenarioMode skip -AllSuites` 通过，并完整输出所有套件、Skill、MCP、CLI 数量与 dry-run 计划。
+- `npm view @larksuite/cli version --json` 返回 `1.0.23`；`npm i -g @larksuite/cli --dry-run --loglevel=error` 通过。
+- `yt-dlp --version` 返回 `2026.03.17`。

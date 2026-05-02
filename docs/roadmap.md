@@ -24,7 +24,7 @@
 ## P3：体验增强
 
 - 已完成：无操作参数默认进入拟似 TUI，默认安装包含在 TUI 首屏，Skill Profile 支持运行时复选。
-- 已完成：TUI 信息架构按 [`plans/2026-04-30-tui-modernization-workbench.md`](../plans/2026-04-30-tui-modernization-workbench.md) 重做为工作台；顶层保留默认安装和安全演练，TUI 内部聚焦状态检查、软件安装 / 更新、Skill 状态和 Skill 安装选择。
+- 已完成：TUI 信息架构按 [`plans/2026-04-30-tui-modernization-workbench.md`](../plans/2026-04-30-tui-modernization-workbench.md) 重做为自定义模式；顶层保留默认安装和安全演练，自定义模式内部聚焦检查并安装 / 更新软件、检查并安装套件、检查并任选安装 Skill / MCP / CLI。
 - 已完成：Skill 导入后可选择写入默认场景、自定义场景或跳过 Skills Manager 场景注册，避免所有 Skill 默认堆到同一场景。
 - 为 `Codex Desktop` / `ChatGPT (Pake)` 增加稳定版本来源，未来从 presence-only 回到可比较版本门禁。
 - 继续观察 `Skills Manager` 是否提供稳定 CLI、可靠版本号或显式 rescan 命令。

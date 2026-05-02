@@ -9,16 +9,15 @@
 3. 终端用户运行安装器时，只下载当前仓库公开 `skills.zip`。
 4. 用户机器不需要 `indieark/00000-model` 私库 PAT。
 
-安装器不会在 TUI 首屏预取 `skills.zip`。只有进入 TUI 的 Skill 状态页、Skill 复选页，或后续安装 / 演练实际要导入 Skill 时，才会按需获取 bundle。
+安装器不会在 TUI 首屏预取 `skills.zip`。只有进入自定义模式的 Skill / 套件 / MCP / CLI 相关入口，或后续安装 / 演练实际要导入 Skill 时，才会按需获取 bundle；同一轮自定义模式会复用已读取的 registry / 状态结果。
 
 ## Profile 选择
 
 `Install-SkillBundle` 解压 `skills.zip` 后，会读取 bundle 内置的 `registry/profiles.yaml`：
 
-- TUI 模式的“安装套件”动作会先读取 `skills.zip` 中的 Profile，并以复选项展示；默认选择“全部 Skill”，也可以选择“所有套件”或“跳过 Skill 导入”。
-- TUI 模式的“任选安装 Skill / MCP / CLI”动作读取同一份 registry，并分别写回等价的 `-SkillName`、`-McpName`、`-CliName` 参数。
-- TUI 的 Skill 状态页只检查 bundled / external Skill 在本机是否存在，不再混入套件、MCP 或 CLI 总览。
-- TUI 的所有套件状态页会汇总 Profile、bundle Skill、MCP 配置数和 CLI 检测数，并列出前若干项状态；CLI 检测命令失败只标记为未检测到，不中断状态页。
+- 自定义模式的“检查并安装套件”动作会先读取 `skills.zip` 中的 Profile，并以复选项展示；默认选择“全部 Skill”，也可以选择“所有套件”或“跳过 Skill 导入”。
+- 自定义模式的“检查并任选安装 Skill / MCP / CLI”动作读取 registry 或状态后进入分页复选列表，并分别写回等价的 `-SkillName`、`-McpName`、`-CliName` 参数；读取和状态扫描期间会显示逐项进度。
+- Skill / 套件入口使用轻量 Skill registry 读取路径，不检测 MCP / CLI；MCP / CLI 入口才读取 MCP 配置状态和 CLI 检测状态。
 - “全部 Skill”只导入 bundle 内全部离线 Skill，并在终端显示 Skill 数量；它不会自动写入所有 MCP 或安装所有 CLI。
 - “所有套件”按全部 Profile 的并集合并 Skill / MCP / CLI 前置依赖，并在终端显示套件数、Skill 数、MCP 数和 CLI 数。
 - TUI 中选择任意 Profile 后，会取消“全部 Skill”，并在确认页生成等价 `-SkillProfile` 命令。
@@ -30,7 +29,7 @@
 - 传 `-McpName "名称"`：显式写入一个或多个 registry MCP，并自动安装这些 MCP 的前置 CLI / runtime。
 - 传 `-CliName "名称"`：显式安装一个或多个 `prereqs.yaml` 前置依赖；这适合只安装 GitHub CLI、飞书 CLI、uv 等命令行工具。
 - 传 `-SkipSkills`：完全跳过 `skills.zip` 下载和 Skill 导入。
-- 传 `-SkipApps`：跳过软件安装阶段，可用于只导入 Skill 的命令模式或 TUI 工作台路径。
+- 传 `-SkipApps`：跳过软件安装阶段，可用于只导入 Skill 的命令模式或自定义模式路径。
 - 不传 Profile 且处于交互式终端：显示中文选择菜单；输入 `0` 导入全部 Skill，输入 `00` 导入所有套件，直接回车跳过 Skill 导入。
 - 非交互式且未传 Profile：自动回退为全部导入，保持自动化兼容。
 

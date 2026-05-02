@@ -15,9 +15,9 @@
 3. 导入模块并读取 `manifest/apps.json`。
 4. 判断是否进入 TUI：无操作参数或显式 `-Tui` 时进入；`-Only`、`-DryRun`、`-SkipSkills` 等命令参数会沿用自动化命令模式。
 5. 如进入 TUI，先 best-effort 切换英文输入布局，并向前台终端窗口请求切换输入语言。
-6. 用户选择运行模式。默认安装会按默认配置继续执行；TUI 模式进入控制台工作台；安全演练走顶层独立 dry-run 路径。
-7. TUI 工作台的软件入口会先检查本机状态，再默认勾选需要安装 / 更新的建议项，用户可用空格去除本次不处理的项；Skill 状态只检查 Skill 是否存在，所有套件状态页才展示 Profile / MCP / CLI 总览；安装动作仍可选择套件或任选安装单项 Skill / MCP / CLI，并在执行摘要页把选择结果写回等价参数。
-8. 只有进入 Skill 状态页、所有套件状态页、Skill 复选页或实际执行 Skill 导入时，才按需获取 `skills.zip` 并读取 Profile；TUI 首屏不再预取 Skill bundle，读取前会先显示正在读取提示。
+6. 用户选择运行模式。默认安装会按默认配置继续执行；自定义模式进入控制台工作台；安全演练走顶层独立 dry-run 路径。
+7. 自定义模式的软件入口会先检查本机状态，再默认勾选需要安装 / 更新的建议项，用户可用空格去除本次不处理的项；Skill / 套件 / MCP / CLI 入口都采用“先检查、再选择安装”的单一路径，并在执行摘要页把选择结果写回等价参数。
+8. 只有进入 Skill / 套件 / MCP / CLI 相关入口，或后续安装 / 演练实际要导入 Skill 时，才按需获取 `skills.zip` 并读取 Profile；TUI 首屏不再预取 Skill bundle，读取结果会在本轮自定义模式中复用，读取前会先显示正在读取提示，并在 Skill / MCP / CLI 状态扫描期间显示逐项进度。
 9. 非 `-DryRun` 且非管理员时，通过 UAC 保留当前参数重新拉起；UAC 交接窗口只提示后续在管理员窗口继续。提权后优先用 Windows Terminal 承载管理员 PowerShell，系统没有 `wt.exe` 时才回退到经典 PowerShell。
 10. 如果没有 `-SkipApps`，按 `-Only` 过滤应用，并按 `order` 排序。
 11. 对选中的应用先做并行预检查：先判断是否存在；缺失项不查最新版本，后续直接安装；已存在项才查询目标版本并决定更新或跳过。
@@ -34,10 +34,12 @@
 
 `PauseOnExit`、`KeepShellOpen`、`UserHomeOverride`、`BootstrapSourceRoot`、`BootstrapAssetsRepo`、`BootstrapAssetsTag`、`RefreshBootstrapDependencies` 属于启动或自举参数，不会单独触发命令模式。
 
-TUI 默认安装模式只写入内部的 `BootstrapTuiResolved` 标记，用于防止 UAC 提权后重复进入 TUI；它不会写入 `-Only`，因此会使用默认全量应用。如果启动 TUI 时已经显式带了 `-DryRun`、`-SkipSkills`、`-SkipCcSwitch` 或 Skill 相关参数，默认安装会保留这些命令参数。TUI 模式和安全演练涉及应用集合时，会把数组参数压缩成逗号形式传递，避免 UAC 重启后出现位置参数解析错误；读取多选文本时兼容英文逗号、中文逗号和顿号。
+TUI 默认安装模式只写入内部的 `BootstrapTuiResolved` 标记，用于防止 UAC 提权后重复进入 TUI；它不会写入 `-Only`，因此会使用默认全量应用。如果启动 TUI 时已经显式带了 `-DryRun`、`-SkipSkills`、`-SkipCcSwitch` 或 Skill 相关参数，默认安装会保留这些命令参数。自定义模式和安全演练涉及应用集合时，会把数组参数压缩成逗号形式传递，避免 UAC 重启后出现位置参数解析错误；读取多选文本时兼容英文逗号、中文逗号和顿号。
 
 ## 应用安装门禁
 应用 precheck 会按所选应用并行执行，但实际安装仍按 `order` 串行执行，避免多个安装器同时运行产生锁冲突。预检查后会先展示带模式的应用清单；实际安装阶段只处理“安装 / 更新”项。单个应用的门禁规则是：
+
+并行预检查会在终端持续输出已完成数量，默认模式和自定义模式的软件入口使用同一套进度提示。winget 安装如果已经输出成功但外层进程未退出，脚本会短暂等待后结束卡住的 winget 外壳并继续后续检测；没有成功输出时仍按原始退出码处理失败。
 
 - 未安装：进入安装，不查询目标版本。
 - `installIfMissingOnly` 为真且已安装：跳过。
@@ -82,7 +84,7 @@ fallback 安装包统一下载到仓库内 `downloads/`，再根据 `installerTy
 
 应用阶段开始前只在存在安装 / 更新项时输出“准备安装或更新的应用清单”，逐行列出应用名称和 key。Skill 导入阶段按 skill 聚合展示进度和结果，不再默认输出每个目标目录的长路径复制明细；被跳过、警告或失败的情况仍保留原因。
 
-如果传入 `-SkipApps`，应用阶段会显示“跳过软件安装”，不会按 manifest 安装或更新任何应用。这个参数主要由 TUI 工作台的“只安装 Skill”路径生成，也可用于命令模式自动化。
+如果传入 `-SkipApps`，应用阶段会显示“跳过软件安装”，不会按 manifest 安装或更新任何应用。这个参数主要由自定义模式的“只安装 Skill”路径生成，也可用于命令模式自动化。
 
 Skill 文件复制完成后，`-SkillsManagerScenarioMode` 决定是否写入 Skills Manager 场景启用：`default` 写入当前默认场景，`custom` 写入或创建指定自定义场景，`skip` 只复制文件不写场景，`prompt` 在交互式终端询问并在非交互式环境跳过场景注册。
 

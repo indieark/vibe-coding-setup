@@ -789,6 +789,9 @@ function Invoke-WingetAction {
     $lastHeartbeat = Get-Date
     $lastWingetLine = $null
     $lastWingetProgressPercent = -1
+    $sawSuccessfulInstallOutput = $false
+    $successSeenAt = $null
+    $exitCode = $null
 
     try {
         $process = Start-Process -FilePath 'winget.exe' -ArgumentList $args -PassThru -NoNewWindow `
@@ -801,6 +804,10 @@ function Invoke-WingetAction {
                     @{ Path = $stderrPath; Offset = ([ref]$stderrOffset); Pending = ([ref]$stderrPending) }
                 )) {
                 $lines = @(Get-AppendedTextLines -Path $entry.Path -Offset $entry.Offset -PendingLine $entry.Pending)
+                if (($Action -eq 'install') -and (-not $sawSuccessfulInstallOutput) -and @($lines | Where-Object { $_ -match 'Successfully installed|Installation successful' }).Count -gt 0) {
+                    $sawSuccessfulInstallOutput = $true
+                    $successSeenAt = Get-Date
+                }
                 Write-WingetOutputLines -Lines $lines -LastLine ([ref]$lastWingetLine) -LastProgressPercent ([ref]$lastWingetProgressPercent) -Emitted ([ref]$sawOutput) -Action $Action -PackageId $PackageId
             }
 
@@ -810,6 +817,13 @@ function Invoke-WingetAction {
             elseif (((Get-Date) - $lastHeartbeat).TotalSeconds -ge 15) {
                 Write-OperationProgress -Label 'winget' -Percent $null -Detail ((ConvertFrom-Utf8Base64String -Value 'd2luZ2V0IHswfSB7MX0g5LuN5Zyo6L+Q6KGMLi4u') -f $Action, $PackageId)
                 $lastHeartbeat = Get-Date
+            }
+
+            if ($sawSuccessfulInstallOutput -and $null -ne $successSeenAt -and (-not $process.HasExited) -and ((Get-Date) - $successSeenAt).TotalSeconds -ge 20) {
+                Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'd2luZ2V0IOW3suaKpeWRiuWujOaIkOS9hui/m+eoi+acqumAgOWHuu+8jOato+WcqOaUtuWwvu+8mnswfQ==') -f $PackageId)
+                Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                $exitCode = 0
+                break
             }
 
             if (-not $process.HasExited) {
@@ -830,8 +844,10 @@ function Invoke-WingetAction {
         $stdoutText = if (Test-Path -LiteralPath $stdoutPath) { Get-Content -LiteralPath $stdoutPath -Raw -Encoding UTF8 -ErrorAction SilentlyContinue } else { '' }
         $stderrText = if (Test-Path -LiteralPath $stderrPath) { Get-Content -LiteralPath $stderrPath -Raw -Encoding UTF8 -ErrorAction SilentlyContinue } else { '' }
         $combinedOutput = @($stdoutText, $stderrText) -join "`n"
-        $process.WaitForExit()
-        $exitCode = $process.ExitCode
+        if ($null -eq $exitCode) {
+            $process.WaitForExit()
+            $exitCode = $process.ExitCode
+        }
     }
     finally {
         if (Test-Path -LiteralPath $tempRoot) {
@@ -1530,7 +1546,24 @@ function Get-AppInstallDecisionBatch {
     }
 
     try {
-        Wait-Job -Job $jobs.ToArray() | Out-Null
+        $reportedCompleted = 0
+        while ($true) {
+            $completedCount = @($jobs | Where-Object { $_.State -in @('Completed', 'Failed', 'Stopped') }).Count
+            if ($completedCount -gt $reportedCompleted) {
+                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5qOA5p+l6L+b5bqm77yaezB9L3sxfSDkuKrlupTnlKjlt7LlrozmiJA=') -f $completedCount, $jobs.Count)
+                $reportedCompleted = $completedCount
+            }
+            if ($completedCount -ge $jobs.Count) {
+                break
+            }
+            $runningJobs = @($jobs | Where-Object { $_.State -eq 'Running' })
+            if ($runningJobs.Count -gt 0) {
+                Wait-Job -Job $runningJobs -Any -Timeout 1 | Out-Null
+            }
+            else {
+                Start-Sleep -Milliseconds 200
+            }
+        }
         $results = @(
             foreach ($job in $jobs) {
                 Receive-Job -Job $job
@@ -3545,6 +3578,7 @@ function Invoke-PrereqInstallCommand {
 
     $command = $tokens[0]
     $args = @($tokens | Select-Object -Skip 1)
+    Write-OperationProgress -Label 'prereq' -Percent $null -Detail ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5omn6KGM5YmN572u5L6d6LWW5ZG95Luk77yaezB9') -f $CommandText)
     & $command @args
     if ($LASTEXITCODE -ne 0) {
         throw ('Prereq install command failed: {0}' -f $CommandText)
@@ -4153,8 +4187,11 @@ function Get-SkillBundleComponentStatus {
         [pscustomobject]@{ Name = 'Gemini CLI'; Path = Join-Path $homeDir '.gemini\settings.json' },
         [pscustomobject]@{ Name = 'Antigravity'; Path = Join-Path $homeDir '.gemini\antigravity\mcp_config.json' }
     )
+    $mcpEntries = @($inventory.Mcp)
     $mcpStatus = @(
-        foreach ($entry in @($inventory.Mcp)) {
+        for ($i = 0; $i -lt $mcpEntries.Count; $i++) {
+            $entry = $mcpEntries[$i]
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5qOA5p+lIE1DUCDphY3nva7nirbmgIHvvJp7MH0vezF9') -f ($i + 1), $mcpEntries.Count)
             $targets = New-Object System.Collections.Generic.List[string]
             if (Test-CodexMcpConfigHasServer -ConfigPath $codexConfigPath -Name $entry.Name) {
                 $targets.Add('Codex')
@@ -4175,8 +4212,11 @@ function Get-SkillBundleComponentStatus {
         }
     )
 
+    $prereqEntries = @($inventory.Prereqs)
     $prereqStatus = @(
-        foreach ($entry in @($inventory.Prereqs)) {
+        for ($i = 0; $i -lt $prereqEntries.Count; $i++) {
+            $entry = $prereqEntries[$i]
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5qOA5p+lIENMSSDkvp3otZbnirbmgIHvvJp7MH0vezF9') -f ($i + 1), $prereqEntries.Count)
             [pscustomobject]@{
                 Name = $entry.Name
                 Kind = $entry.Kind

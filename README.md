@@ -19,10 +19,11 @@
 - 安装常用 Windows 开发工具：Git、Node.js、Python、VS Code、Codex Desktop、ChatGPT、CC Switch、Codex Provider Sync、Skills Manager。
 - 先走公开主来源，失败后按 `bootstrap-assets` fallback。
 - 从公开 `skills.zip` 按 Profile 导入 Skill。
-- 默认进入拟似 TUI，可在进入脚本后选择默认安装、TUI 工作台或安全演练。
+- 默认进入拟似 TUI，可在进入脚本后选择默认安装、自定义模式或安全演练。
 - TUI 会尽量切换英文输入布局，Profile / 应用多选支持英文逗号、中文逗号和顿号。
 - `skills.zip` 不在 TUI 首屏预取；只有进入 Skill 选择或实际导入 Skill 时才按需获取。
-- 应用安装前会并行检查本机是否已安装；只有已安装项才查目标版本并判断是否需要更新。
+- 应用安装前会并行检查本机是否已安装，并持续显示已完成检查数量；只有已安装项才查目标版本并判断是否需要更新。
+- Skill / MCP / CLI 状态读取会显示逐项检查进度；winget 已报告安装完成但进程未退出时会自动收尾，避免终端停在“仍在运行”。
 - 安装阶段显示总步骤进度，并在命令日志中列出本次实际安装清单。
 - 使用 `.skill-meta.json` 识别 Skill 来源，并由用户选择是否写入 Skills Manager 默认场景或自定义场景。
 - 对同名 Skill 做安全三态判定：已跟踪、旧孤儿、第三方同名。
@@ -96,7 +97,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 ## 当前状态
 
 - `main` 已包含按需装机器 Phase 1-4：私库 bundle 镜像、Profile 选择、Skill meta 透传、三态去重，以及 registry 驱动的 external Skill / prereq / MCP 写入。
-- 安装器已包含集成拟似 TUI 工作台、运行时 Skill Profile 复选、UAC 交接提示和安装进度展示。
+- 安装器已包含集成拟似 TUI 自定义模式、运行时 Skill Profile 复选、UAC 交接提示和安装进度展示。
 - Phase 5 飞书只读镜像在 `indieark/00000-model` 侧按计划推进。
 - 下一步安装器增强应优先围绕可观测、可校验、可回滚，而不是继续堆安装项。
 

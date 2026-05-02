@@ -36,9 +36,13 @@
 - `CC Switch` Provider 导入只走 `ccswitch://v1/import` deep link，不写 SQLite。
 - `CC Switch` Provider 配置区按“说明 / 输入区 / 配置摘要”分块展示；输入区直接吞并默认值和 API Key。Provider 名称、Base URL、模型等预填值在真实控制台右侧以灰色占位显示，回车保持，输入则清除占位并覆盖。API Key 继续隐藏输入，预设密钥只显示来源不显示内容。
 - 面向用户的脚本提示、日志、错误和执行摘要默认使用简体中文；为兼容 Windows PowerShell 5.1，脚本文案通过 UTF-8 base64 解码输出，源码文件保持 UTF-8 无 BOM。
-- `bootstrap.ps1` 内置拟似 TUI 与自动化命令模式：无安装参数或显式 `-Tui` 时进入 TUI；带 `-Only`、`-DryRun`、`-SkipSkills` 等操作参数时继续走自动化模式；TUI 首屏保留“默认安装”“TUI 模式”“安全演练”，其中 TUI 模式进入控制台工作台。
-- TUI 工作台聚焦任务动作：检查软件状态、安装 / 更新软件、检查 Skill 状态、安装 Skill、执行摘要；复选主要用于 Skill Profile，软件选择放在安装 / 更新软件动作下。
-- `-SkipApps` 可跳过应用安装阶段，支持命令模式或 TUI 工作台只执行 Skill 导入。
+- `bootstrap.ps1` 内置拟似 TUI 与自动化命令模式：无安装参数或显式 `-Tui` 时进入 TUI；带 `-Only`、`-DryRun`、`-SkipSkills` 等操作参数时继续走自动化模式；TUI 首屏保留“默认安装”“自定义模式”“安全演练”，其中自定义模式进入控制台工作台。
+- 自定义模式聚焦任务动作：检查并安装 / 更新软件、检查并安装套件、检查并任选安装 Skill、检查并任选安装 MCP、检查并任选安装 CLI、执行摘要；独立“检查 Skill 状态 / 检查所有套件”已合并进对应安装入口，因为安装前必然检查。
+- 自定义模式的 Skill / 套件 / MCP / CLI 相关读取结果会在本轮工作台中复用；Skill / 套件入口只做轻量 Skill registry 与本机 Skill 状态读取，MCP / CLI 入口才读取 MCP 配置状态和 CLI 检测状态。
+- 自定义模式的套件、Skill、MCP、CLI 长列表都按当前光标分页显示，顶部保留已选数量和已选摘要，底部展示当前项详情，避免长列表强制滚到底部导致方向键抽动。
+- 默认模式和自定义模式的软件 precheck 都会输出已完成数量；Skill、MCP、CLI 状态扫描也会输出逐项进度。
+- winget 安装如果已经输出成功但进程迟迟不退出，脚本会短暂等待后结束卡住的 winget 外壳并继续后续检测；没有成功输出时仍按原始退出码处理失败。
+- `-SkipApps` 可跳过应用安装阶段，支持命令模式或自定义模式只执行 Skill 导入。
 - Skill 导入后不再默认把所有导入项堆到 Skills Manager 默认场景；`SkillsManagerScenarioMode` 支持 `prompt/default/custom/skip`，TUI 安装 Skill 时会选择默认场景、自定义场景或跳过场景注册。
 - 进入 TUI 前会 best-effort 切换英文输入布局，并向前台终端窗口发送输入语言切换请求；该行为不修改用户系统默认输入法。
 - Profile / 应用多选文本统一支持英文逗号、中文逗号和顿号分隔。

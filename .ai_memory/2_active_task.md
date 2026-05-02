@@ -2,17 +2,14 @@
 
 ## 当前状态
 
-- 本轮目标是拆清“全部 Skill”和“所有套件”的运行语义，并补齐 TUI 中单项 Skill / MCP / CLI 安装与状态检查。
-- `全部 Skill` 保持既有行为：只导入 bundle 内离线 Skill，并在终端写明 Skill 数、MCP 0、CLI 0。
-- 新增 `所有套件` / `-AllSuites`：按所有 Profile 并集合并 Skill、external Skill、MCP 和前置 CLI。
-- TUI 选择页会显示“全部 Skill”“所有套件”和每个单独套件的 Skill / MCP / CLI 数量。
-- 命令交互 Profile 菜单也会把 `0`、`00` 和普通套件分行展示：名称、数量摘要、说明；`0` 显示全部离线 Skill 数且 MCP/CLI 为 0，`00` 显示套件数与 Profile 并集 Skill/MCP/CLI 数。
-- TUI 光标停在具体套件时，下方详情区会展示将安装的 MCP 和相关 CLI 依赖；默认交互菜单在用户输入后、执行前也会输出同样摘要。
-- TUI 工作台现支持“安装套件”“任选安装 Skill”“任选安装 MCP”“任选安装 CLI”；单项选择写回 `-SkillName` / `-McpName` / `-CliName`。
-- TUI 软件入口已合并“检查状态”和“安装 / 更新”：先检查，再默认勾选需要处理的建议项，用户可用空格去除。
-- TUI Skill 状态页只解析 bundled / external Skill 是否存在，不检测套件 / MCP / CLI；Profile / MCP / CLI 总览迁移到新增“检查所有套件”入口，读取前会显示提示。
-- 命令交互菜单中 `0` 表示全部 Skill，`00` 表示所有套件；每个套件行也显示 Skill / MCP / CLI 数量。
-- `docs/skill-import.md` 已同步该语义。
+- 本轮已把 TUI 用户入口从“TUI 模式”改名为“自定义模式”。
+- 自定义模式已合并检查与安装入口：检查并安装 / 更新软件、检查并安装套件、检查并任选安装 Skill、检查并任选安装 MCP、检查并任选安装 CLI。
+- “检查 Skill 状态”和“检查所有套件”不再作为独立入口存在；对应检查分别在 Skill / 套件 / MCP / CLI 安装选择前执行。
+- 套件、Skill、MCP、CLI 长列表改为分页渲染，不再全量刷屏；顶部显示已选数量和摘要，底部显示当前项详情。
+- 自定义模式内会复用本轮已读取的 Skill registry / MCP / CLI 状态，减少反复进入不同入口时的等待。
+- 默认模式和自定义模式的软件预检查都会输出已完成数量；Skill / MCP / CLI 状态扫描会输出逐项进度。
+- winget 成功输出后如果外层进程不退出，会自动收尾并继续后续检测，避免停在“winget install ... 仍在运行”。
+- 文档入口已同步到 README、`docs/installer-flow.md`、`docs/operations.md`、`docs/skill-import.md`、`docs/roadmap.md`。
 
 ## 当前未完成项
 
@@ -21,8 +18,8 @@
 
 ## 下一步
 
-1. 后续若继续调整 Profile 菜单，保持 `docs/skill-import.md` 为行为说明入口。
-2. 本轮已进入验证、归档、提交、推送收口。
+1. 后续若继续调整 Skill / MCP / CLI registry，保持 `00000-model/00-编程配置/registry/*.yaml` 为唯一来源。
+2. 后续若继续调整安装器行为，优先同步 `docs/installer-flow.md` 和 `docs/skill-import.md`。
 
 ## 阻断
 
