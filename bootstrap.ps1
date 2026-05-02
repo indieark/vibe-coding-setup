@@ -124,12 +124,18 @@ function Write-BootstrapSection {
         [string]$Detail
     )
 
-    Write-Host ''
+    $sectionRenderedVariable = Get-Variable -Name 'BootstrapSectionRendered' -Scope Script -ErrorAction SilentlyContinue
+    if ($null -ne $sectionRenderedVariable -and [bool]$sectionRenderedVariable.Value) {
+        Write-Host ''
+        Write-Host ''
+    } else {
+        Write-Host ''
+        $script:BootstrapSectionRendered = $true
+    }
     Write-Host ('== {0} ==' -f $Title) -ForegroundColor Cyan
     Write-Host ('-' * 64) -ForegroundColor DarkGray
     if (-not [string]::IsNullOrWhiteSpace($Detail)) {
         Write-Host ('  {0}' -f $Detail) -ForegroundColor DarkGray
-        Write-Host ''
     }
 }
 
