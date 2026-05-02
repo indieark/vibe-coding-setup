@@ -603,14 +603,6 @@ $script:TuiFrameLastLineCount = 0
 function Start-TuiFrame {
     if (-not [Console]::IsOutputRedirected) {
         try {
-            [Console]::Write("`e[2J`e[3J`e[H")
-            [Console]::SetCursorPosition(0, 0)
-            return
-        }
-        catch {
-        }
-
-        try {
             [Console]::Clear()
             [Console]::SetCursorPosition(0, 0)
             return
@@ -2574,10 +2566,10 @@ function Invoke-BootstrapTuiWorkbench {
                 $externalSkillCount = @($state.SkillStatus | Where-Object { $_.Kind -eq 'external' }).Count
                 $skillSummaryLines = @(
                     '{0}: {1} {2}; {3} {4}; {5} {6}; bundle {7}; external {8}' -f `
-                        (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5py654q25oCB5oC76KeI'), `
-                        (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwg5oC75pWw'), @($state.SkillStatus).Count, `
-                        (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF'), $installedSkillCount, `
-                        (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5a6J6KOF'), $missingSkillCount, `
+                    (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5py654q25oCB5oC76KeI'), `
+                    (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwg5oC75pWw'), @($state.SkillStatus).Count, `
+                    (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF'), $installedSkillCount, `
+                    (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5a6J6KOF'), $missingSkillCount, `
                         $bundleSkillCount, $externalSkillCount
                 )
                 $skillEntries = @($state.SkillStatus | ForEach-Object {
@@ -2608,10 +2600,10 @@ function Invoke-BootstrapTuiWorkbench {
                     $missingMcpCount = @($state.RegistryMcpEntries | Where-Object { -not $_.Configured }).Count
                     $mcpSummaryLines = @(
                         '{0}: {1} {2}; {3} {4}; {5} {6}' -f `
-                            (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5py654q25oCB5oC76KeI'), `
-                            (ConvertFrom-BootstrapUtf8Base64String -Value 'TUNQIOaAu+aVsA=='), @($state.RegistryMcpEntries).Count, `
-                            (ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YWN572u'), $configuredMcpCount, `
-                            (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6YWN572u'), $missingMcpCount
+                        (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5py654q25oCB5oC76KeI'), `
+                        (ConvertFrom-BootstrapUtf8Base64String -Value 'TUNQIOaAu+aVsA=='), @($state.RegistryMcpEntries).Count, `
+                        (ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YWN572u'), $configuredMcpCount, `
+                        (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6YWN572u'), $missingMcpCount
                     )
                     $mcpEntries = @($state.RegistryMcpEntries | ForEach-Object {
                             $entry = $_
@@ -2653,10 +2645,10 @@ function Invoke-BootstrapTuiWorkbench {
                 $missingCliCount = @($state.RegistryPrereqEntries | Where-Object { -not $_.Installed }).Count
                 $cliSummaryLines = @(
                     '{0}: {1} {2}; {3} {4}; {5} {6}' -f `
-                        (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5py654q25oCB5oC76KeI'), `
-                        (ConvertFrom-BootstrapUtf8Base64String -Value 'Q0xJIOaAu+aVsA=='), @($state.RegistryPrereqEntries).Count, `
-                        (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5qOA5rWL5Yiw'), $installedCliCount, `
-                        (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5qOA5rWL5Yiw'), $missingCliCount
+                    (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5py654q25oCB5oC76KeI'), `
+                    (ConvertFrom-BootstrapUtf8Base64String -Value 'Q0xJIOaAu+aVsA=='), @($state.RegistryPrereqEntries).Count, `
+                    (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5qOA5rWL5Yiw'), $installedCliCount, `
+                    (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5qOA5rWL5Yiw'), $missingCliCount
                 )
                 $cliEntries = @($state.RegistryPrereqEntries | ForEach-Object {
                         $entry = $_
