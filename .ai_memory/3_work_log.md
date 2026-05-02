@@ -234,3 +234,10 @@
 - TUI “全部 Skill”显示数量改为优先使用 registry Skill 总数，而不是 bundle 离线目录数。
 - 更新 README、`docs/README.md`、`docs/skill-import.md`、`docs/operations.md`、`docs/asset-refresh.md`。
 - 验证通过：PowerShell parser、`git diff --check`；已提交并推送 `b355455 feat(skills): install all registry skills`。
+
+## 2026-05-02
+
+- 修正 `AllSkills` 交互路径：`-AllSkills`、Profile 菜单输入 `0`、无 Profile fallback 和非交互 fallback 现在共用 registry 全量解析，不再只返回 bundle 离线目录。
+- 修正“全部 Skill”显示数量：至少覆盖 registry 条目数、bundle 离线目录数和所有套件展开后的 Skill 并集，避免出现 `全部 Skill < 所有套件 Skill`。
+- 配合 `00000-model` 约定：自创 `pro-*` / `use-*` Skill 统一归入 `AI 调用基础套件`，其它业务套件不重复挂通用自创能力。
+- 保留 MCP / CLI 边界：`AllSkills` 仍不自动写入 MCP 或安装 CLI，`AllSuites` / Profile / 单项选择才处理 MCP / CLI。

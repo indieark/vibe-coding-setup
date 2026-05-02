@@ -23,6 +23,16 @@
 6. 如文件名变化，同步更新 `manifest/apps.json` 或相关 README 说明。
 7. dry-run 模式只报告计划，不上传、不提交。
 
+## Skill bundle 刷新顺序
+
+`skills.zip` 有两段刷新链路，不能只看 `00000-model` 是否已构建成功：
+
+1. `indieark/00000-model` 的 `build-bundle` workflow 从 registry 构建 `bundle_<semver>.zip`。
+2. 本仓库的 `Refresh bootstrap release assets` workflow 把最新 bundle 镜像为公开 `bootstrap-assets/skills.zip`。
+3. 本地安装器下载公开 `skills.zip` 后会缓存到 `downloads/skills.zip`；已经打开的 TUI 或旧缓存不会自动变成新 bundle。
+
+如果刚改完 registry 后仍看到旧文案、旧 Skill 数量或旧 Profile 数量，优先检查这三层：上游 bundle workflow、当前仓库刷新 workflow、本地 `downloads/skills.zip` 缓存。
+
 ## 当前私库镜像边界
 
 - `indieark/codex-provider-sync`：镜像安装包到当前仓库公开 Release。
@@ -44,6 +54,24 @@ Secret 名称、权限和轮换要求见 [PAT / Secret 规则](../.agent/rules/p
 gh workflow run refresh-bootstrap-assets.yml --ref main -f dry_run=true
 gh run watch <run-id> --exit-status
 ```
+
+真实刷新公开 `skills.zip` 时使用：
+
+```powershell
+gh workflow run refresh-bootstrap-assets.yml --ref main
+gh run watch <run-id> --exit-status
+gh release view bootstrap-assets --repo indieark/vibe-coding-setup --json assets --jq ".assets[] | select(.name==\"skills.zip\") | {name, size, url}"
+```
+
+本地缓存排查：
+
+```powershell
+Get-Item .\downloads\skills.zip
+Remove-Item .\downloads\skills.zip -Force
+.\bootstrap.cmd -RefreshSkillBundle
+```
+
+`Tauri 桌面开发套件` 当前在 registry 中是 `mcp: []`；如果 TUI 显示该套件有 MCP，通常说明正在读取旧 `skills.zip`。
 
 ## 单一信息源边界
 

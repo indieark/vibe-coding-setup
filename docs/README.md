@@ -21,7 +21,8 @@
 2. 看 [安装执行顺序](installer-flow.md) 理解安装器如何处理 precheck / fallback。
 3. 看 [资产刷新链路](asset-refresh.md) 理解 `bootstrap-assets` 和私库镜像边界。
 4. 改 Skill、MCP、前置依赖或 Profile 时，先改 `00000-model/00-编程配置/registry/*.yaml`，再同步 [Skill 导入契约](skill-import.md) 的安装器行为说明。
-5. 涉及 PAT 或 Secret 时，按 [PAT / Secret 治理](../.agent/rules/pat-secret-governance.md) 执行。
+5. 改完 `00000-model` bundle 后，必须确认本仓库 [资产刷新链路](asset-refresh.md) 已把最新 bundle 镜像成公开 `skills.zip`；旧缓存会导致 TUI 显示旧数量或旧文案。
+6. 涉及 PAT 或 Secret 时，按 [PAT / Secret 治理](../.agent/rules/pat-secret-governance.md) 执行。
 
 ### 后续 AI / 代理
 
@@ -38,7 +39,7 @@
 | [运行命令](operations.md)         | 要本地运行、远程自举、TUI、dry-run 或按 Profile 导入 Skill                                                                                      | 不解释内部状态机                 |
 | [安装执行顺序](installer-flow.md) | 要理解 bootstrap、TUI 入口、precheck、fallback、进度和退出码                                                                                    | 不列应用版本和 fallback 文件名   |
 | [Skill 导入契约](skill-import.md) | 要理解 TUI 复选、全部 Skill、命令 Profile、bundled / external Skill、MCP 写入、前置依赖、`.skill-meta.json`、三态去重和 Skills Manager 场景注册 | 不维护 Skill / MCP / prereq 清单 |
-| [资产刷新链路](asset-refresh.md)  | 要维护 `bootstrap-assets`、私库镜像或 workflow                                                                                                  | 不维护 PAT 最小权限表            |
+| [资产刷新链路](asset-refresh.md)  | 要维护 `bootstrap-assets`、私库镜像、workflow，或排查 `skills.zip` 旧缓存                                                                       | 不维护 PAT 最小权限表            |
 | [后续路线](roadmap.md)            | 要继续增强安装器能力                                                                                                                            | 不记录当前任务快照               |
 
 ## 最终事实源

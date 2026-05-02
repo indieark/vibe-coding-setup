@@ -4546,6 +4546,90 @@ function Write-SelectedProfileComponentPreview {
     Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5bCG5aSE55CGIENMSSDkvp3otZbvvJp7MH0=') -f (Format-RegistryComponentPreview -Values $Prereqs))
 }
 
+function Resolve-AllSkillSelection {
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$SkillDirectories,
+        [string]$RegistryRoot
+    )
+
+    $registrySkillEntries = if (-not [string]::IsNullOrWhiteSpace($RegistryRoot)) { @(Read-RegistrySkillEntries -RegistryRoot $RegistryRoot) } else { @() }
+    $wantedSkills = if ($registrySkillEntries.Count -gt 0) {
+        @($registrySkillEntries | ForEach-Object { $_.Name } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    }
+    else {
+        @($SkillDirectories | ForEach-Object { Split-Path -Leaf $_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    }
+
+    $skillByName = @{}
+    $skillDirsByRegistryEntry = @{}
+    foreach ($skillDir in $SkillDirectories) {
+        $skillName = Split-Path -Leaf $skillDir
+        $skillByName[$skillName.ToLowerInvariant()] = $skillDir
+
+        $metaPath = Join-Path $skillDir '.skill-meta.json'
+        if (Test-Path -LiteralPath $metaPath) {
+            try {
+                $meta = Get-Content -Raw -Encoding UTF8 -LiteralPath $metaPath | ConvertFrom-Json
+                $entryName = [string](Get-ObjectPropertyValue -Object $meta -Name 'registry_entry_name')
+                if (-not [string]::IsNullOrWhiteSpace($entryName)) {
+                    $entryKey = $entryName.ToLowerInvariant()
+                    if (-not $skillDirsByRegistryEntry.ContainsKey($entryKey)) {
+                        $skillDirsByRegistryEntry[$entryKey] = New-Object System.Collections.Generic.List[string]
+                    }
+                    $skillDirsByRegistryEntry[$entryKey].Add($skillDir)
+                }
+            }
+            catch {
+                Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '6Kej5p6QIHByb2ZpbGUg5p2h55uuIHswfSDml7YgLnNraWxsLW1ldGEuanNvbiDml6DmlYjvvJp7MX0=') -f $skillName, $_.Exception.Message)
+            }
+        }
+    }
+
+    $selectedSkillDirs = New-Object System.Collections.Generic.List[string]
+    $selectedSkillDirKeys = @{}
+    $missingSkills = New-Object System.Collections.Generic.List[string]
+    foreach ($skillName in $wantedSkills) {
+        $key = $skillName.ToLowerInvariant()
+        if ($skillByName.ContainsKey($key)) {
+            $skillDir = $skillByName[$key]
+            if (-not $selectedSkillDirKeys.ContainsKey($skillDir)) {
+                $selectedSkillDirs.Add($skillDir)
+                $selectedSkillDirKeys[$skillDir] = $true
+            }
+        }
+        elseif ($skillDirsByRegistryEntry.ContainsKey($key)) {
+            foreach ($skillDir in $skillDirsByRegistryEntry[$key]) {
+                if (-not $selectedSkillDirKeys.ContainsKey($skillDir)) {
+                    $selectedSkillDirs.Add($skillDir)
+                    $selectedSkillDirKeys[$skillDir] = $true
+                }
+            }
+        }
+        else {
+            $missingSkills.Add($skillName)
+        }
+    }
+
+    $effectiveSkillCount = [Math]::Max($wantedSkills.Count, ($selectedSkillDirs.Count + $missingSkills.Count))
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5YWo6YOoIFNraWxs77yaezB9IOS4qu+8m01DUO+8mjAg5Liq77ybQ0xJ77yaMCDkuKo=') -f $effectiveSkillCount)
+    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6YCJ5Lit55qEIHNraWxs77yaezB9L3sxfQ==') -f $selectedSkillDirs.Count, $SkillDirectories.Count)
+    if ($missingSkills.Count -gt 0) {
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5bCG5oyJIGV4dGVybmFsIOadpea6kOWuieijheeahCBTa2lsbO+8mnswfQ==') -f ($missingSkills -join ', '))
+    }
+    Write-SelectedProfileComponentPreview -Mcp @() -Prereqs @()
+    $script:LastSkillSelection = [pscustomobject]@{
+        RegistryRoot     = $RegistryRoot
+        Profiles         = @()
+        WantedSkills     = @($wantedSkills)
+        BundledSkillDirs = @($selectedSkillDirs)
+        MissingSkills    = @($missingSkills)
+        Mcp              = @()
+        Prereqs          = @()
+    }
+    return @($selectedSkillDirs)
+}
+
 function Select-SkillDirectoriesForProfiles {
     param(
         [Parameter(Mandatory)]
@@ -4558,94 +4642,11 @@ function Select-SkillDirectoriesForProfiles {
     )
 
     if ($AllSkills) {
-        $registrySkillEntries = if (-not [string]::IsNullOrWhiteSpace($RegistryRoot)) { @(Read-RegistrySkillEntries -RegistryRoot $RegistryRoot) } else { @() }
-        $wantedSkills = if ($registrySkillEntries.Count -gt 0) {
-            @($registrySkillEntries | ForEach-Object { $_.Name } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
-        }
-        else {
-            @($SkillDirectories | ForEach-Object { Split-Path -Leaf $_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
-        }
-
-        $skillByName = @{}
-        $skillDirsByRegistryEntry = @{}
-        foreach ($skillDir in $SkillDirectories) {
-            $skillName = Split-Path -Leaf $skillDir
-            $skillByName[$skillName.ToLowerInvariant()] = $skillDir
-
-            $metaPath = Join-Path $skillDir '.skill-meta.json'
-            if (Test-Path -LiteralPath $metaPath) {
-                try {
-                    $meta = Get-Content -Raw -Encoding UTF8 -LiteralPath $metaPath | ConvertFrom-Json
-                    $entryName = [string](Get-ObjectPropertyValue -Object $meta -Name 'registry_entry_name')
-                    if (-not [string]::IsNullOrWhiteSpace($entryName)) {
-                        $entryKey = $entryName.ToLowerInvariant()
-                        if (-not $skillDirsByRegistryEntry.ContainsKey($entryKey)) {
-                            $skillDirsByRegistryEntry[$entryKey] = New-Object System.Collections.Generic.List[string]
-                        }
-                        $skillDirsByRegistryEntry[$entryKey].Add($skillDir)
-                    }
-                }
-                catch {
-                    Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '6Kej5p6QIHByb2ZpbGUg5p2h55uuIHswfSDml7YgLnNraWxsLW1ldGEuanNvbiDml6DmlYjvvJp7MX0=') -f $skillName, $_.Exception.Message)
-                }
-            }
-        }
-
-        $selectedSkillDirs = New-Object System.Collections.Generic.List[string]
-        $selectedSkillDirKeys = @{}
-        $missingSkills = New-Object System.Collections.Generic.List[string]
-        foreach ($skillName in $wantedSkills) {
-            $key = $skillName.ToLowerInvariant()
-            if ($skillByName.ContainsKey($key)) {
-                $skillDir = $skillByName[$key]
-                if (-not $selectedSkillDirKeys.ContainsKey($skillDir)) {
-                    $selectedSkillDirs.Add($skillDir)
-                    $selectedSkillDirKeys[$skillDir] = $true
-                }
-            }
-            elseif ($skillDirsByRegistryEntry.ContainsKey($key)) {
-                foreach ($skillDir in $skillDirsByRegistryEntry[$key]) {
-                    if (-not $selectedSkillDirKeys.ContainsKey($skillDir)) {
-                        $selectedSkillDirs.Add($skillDir)
-                        $selectedSkillDirKeys[$skillDir] = $true
-                    }
-                }
-            }
-            else {
-                $missingSkills.Add($skillName)
-            }
-        }
-
-        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5YWo6YOoIFNraWxs77yaezB9IOS4qu+8m01DUO+8mjAg5Liq77ybQ0xJ77yaMCDkuKo=') -f $wantedSkills.Count)
-        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6YCJ5Lit55qEIHNraWxs77yaezB9L3sxfQ==') -f $selectedSkillDirs.Count, $SkillDirectories.Count)
-        if ($missingSkills.Count -gt 0) {
-            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5bCG5oyJIGV4dGVybmFsIOadpea6kOWuieijheeahCBTa2lsbO+8mnswfQ==') -f ($missingSkills -join ', '))
-        }
-        Write-SelectedProfileComponentPreview -Mcp @() -Prereqs @()
-        $script:LastSkillSelection = [pscustomobject]@{
-            RegistryRoot     = $RegistryRoot
-            Profiles         = @()
-            WantedSkills     = @($wantedSkills)
-            BundledSkillDirs = @($selectedSkillDirs)
-            MissingSkills    = @($missingSkills)
-            Mcp              = @()
-            Prereqs          = @()
-        }
-        return @($selectedSkillDirs)
+        return @(Resolve-AllSkillSelection -SkillDirectories $SkillDirectories -RegistryRoot $RegistryRoot)
     }
 
     if (-not $Profiles -or $Profiles.Count -eq 0) {
-        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5YWo6YOoIFNraWxs77yaezB9IOS4qu+8m01DUO+8mjAg5Liq77ybQ0xJ77yaMCDkuKo=') -f $SkillDirectories.Count)
-        $script:LastSkillSelection = [pscustomobject]@{
-            RegistryRoot     = $RegistryRoot
-            Profiles         = @()
-            WantedSkills     = @()
-            BundledSkillDirs = @($SkillDirectories)
-            MissingSkills    = @()
-            Mcp              = @()
-            Prereqs          = @()
-        }
-        return @($SkillDirectories)
+        return @(Resolve-AllSkillSelection -SkillDirectories $SkillDirectories -RegistryRoot $RegistryRoot)
     }
 
     $tokens = @(Split-SelectionTokens -Values $RequestedProfiles)
@@ -4655,17 +4656,7 @@ function Select-SkillDirectoriesForProfiles {
     }
     if ($tokens.Count -eq 0 -and -not $AllSuites -and -not (Test-InteractiveConsole)) {
         Write-Log -Message (ConvertFrom-Utf8Base64String -Value '5pyq5qOA5rWL5Yiw5Lqk5LqS5byP57uI56uv77yM5a6J6KOFIGJ1bmRsZSDkuK3nmoTlhajpg6ggc2tpbGw=')
-        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5YWo6YOoIFNraWxs77yaezB9IOS4qu+8m01DUO+8mjAg5Liq77ybQ0xJ77yaMCDkuKo=') -f $SkillDirectories.Count)
-        $script:LastSkillSelection = [pscustomobject]@{
-            RegistryRoot     = $RegistryRoot
-            Profiles         = @()
-            WantedSkills     = @()
-            BundledSkillDirs = @($SkillDirectories)
-            MissingSkills    = @()
-            Mcp              = @()
-            Prereqs          = @()
-        }
-        return @($SkillDirectories)
+        return @(Resolve-AllSkillSelection -SkillDirectories $SkillDirectories -RegistryRoot $RegistryRoot)
     }
 
     if ($tokens.Count -eq 0) {
@@ -4676,14 +4667,16 @@ function Select-SkillDirectoriesForProfiles {
         Write-Host ('  {0}' -f (ConvertFrom-Utf8Base64String -Value '6L6T5YWlIDAg5a6J6KOF5YWo6YOoIFNraWxs77yb6L6T5YWlIDAwIOWuieijheaJgOacieWll+S7tu+8mw==')) -ForegroundColor DarkGray
         Write-Host ('  {0}' -f (ConvertFrom-Utf8Base64String -Value '5LiN5aGr55u05o6l5Zue6L2m5YiZ6Lez6L+H5o+S5Lu25a6J6KOF44CC')) -ForegroundColor DarkGray
         Write-Host ''
+        $allSuitesSummary = Get-SkillProfileComponentSummary -Profiles $Profiles -RegistryRoot $RegistryRoot -SkillDirectories $SkillDirectories
+        $registrySkillCount = if (-not [string]::IsNullOrWhiteSpace($RegistryRoot)) { (@(Read-RegistrySkillEntries -RegistryRoot $RegistryRoot)).Count } else { 0 }
+        $allSkillPromptCount = @($SkillDirectories.Count, $registrySkillCount, $allSuitesSummary.SkillCount) | Measure-Object -Maximum | ForEach-Object { [int]$_.Maximum }
         Write-SkillProfilePromptOption `
             -Index '0' `
             -Name (ConvertFrom-Utf8Base64String -Value '5YWo6YOoIFNraWxs') `
-            -Description (ConvertFrom-Utf8Base64String -Value '5Y+q5a+85YWlIGJ1bmRsZSDlhoXnprvnur8gU2tpbGzvvIzkuI3lronoo4UgTUNQIC8gQ0xJ44CC') `
-            -SkillCount $SkillDirectories.Count `
+            -Description (ConvertFrom-Utf8Base64String -Value '5a6J6KOFIHJlZ2lzdHJ5IOWFqOmDqCBTa2lsbO+8jOS4jeWuieijhSBNQ1AgLyBDTEnjgII=') `
+            -SkillCount $allSkillPromptCount `
             -McpCount 0 `
             -CliCount 0
-        $allSuitesSummary = Get-SkillProfileComponentSummary -Profiles $Profiles -RegistryRoot $RegistryRoot -SkillDirectories $SkillDirectories
         Write-SkillProfilePromptOption `
             -Index '00' `
             -Name (ConvertFrom-Utf8Base64String -Value '5omA5pyJ5aWX5Lu2') `
@@ -4720,18 +4713,7 @@ function Select-SkillDirectoriesForProfiles {
             return @()
         }
         if ($tokens -contains '0') {
-            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5YWo6YOoIFNraWxs77yaezB9IOS4qu+8m01DUO+8mjAg5Liq77ybQ0xJ77yaMCDkuKo=') -f $SkillDirectories.Count)
-            Write-SelectedProfileComponentPreview -Mcp @() -Prereqs @()
-            $script:LastSkillSelection = [pscustomobject]@{
-                RegistryRoot     = $RegistryRoot
-                Profiles         = @()
-                WantedSkills     = @()
-                BundledSkillDirs = @($SkillDirectories)
-                MissingSkills    = @()
-                Mcp              = @()
-                Prereqs          = @()
-            }
-            return @($SkillDirectories)
+            return @(Resolve-AllSkillSelection -SkillDirectories $SkillDirectories -RegistryRoot $RegistryRoot)
         }
         if ($tokens -contains '00') {
             $AllSuites = $true

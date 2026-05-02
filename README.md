@@ -78,14 +78,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 
 ## 文档中心
 
-| 你想做什么                              | 去哪里看                                                 |
-| --------------------------------------- | -------------------------------------------------------- |
-| 第一次使用安装器                        | [运行命令](docs/operations.md)                           |
-| 理解完整执行顺序                        | [安装执行顺序](docs/installer-flow.md)                   |
-| 理解 Skill/Profile/三态去重             | [Skill 导入契约](docs/skill-import.md)                   |
-| 维护 release asset 和 `skills.zip` 镜像 | [资产刷新链路](docs/asset-refresh.md)                    |
-| 查看后续增强路线                        | [后续路线](docs/roadmap.md)                              |
-| 了解文档如何维护                        | [文档治理规则](.agent/rules/documentation-governance.md) |
+| 你想做什么                                         | 去哪里看                                                 |
+| -------------------------------------------------- | -------------------------------------------------------- |
+| 第一次使用安装器                                   | [运行命令](docs/operations.md)                           |
+| 理解完整执行顺序                                   | [安装执行顺序](docs/installer-flow.md)                   |
+| 理解 Skill/Profile/三态去重                        | [Skill 导入契约](docs/skill-import.md)                   |
+| 维护 release asset、刷新 `skills.zip` 或排查旧缓存 | [资产刷新链路](docs/asset-refresh.md)                    |
+| 查看后续增强路线                                   | [后续路线](docs/roadmap.md)                              |
+| 了解文档如何维护                                   | [文档治理规则](.agent/rules/documentation-governance.md) |
 
 完整目录见 [文档中心首页](docs/README.md)。
 

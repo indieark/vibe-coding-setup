@@ -11,6 +11,8 @@
 
 安装器不会在 TUI 首屏预取 `skills.zip`。只有进入自定义模式的 Skill / 套件 / MCP / CLI 相关入口，或后续安装 / 演练实际要导入 Skill 时，才会按需获取 bundle；同一轮自定义模式会复用已读取的 registry / 状态结果。
 
+`skills.zip` 是公开 release asset，不等于 `00000-model` 刚刚构建出的私库 bundle。改完 registry 后，必须等本仓库 `Refresh bootstrap release assets` workflow 镜像完成；本地 `downloads/skills.zip` 旧缓存也会导致 TUI 继续显示旧文案、旧 Skill 数量或旧 Profile 统计。排查和刷新步骤见 [资产刷新链路](asset-refresh.md)。
+
 ## Profile 选择
 
 `Install-SkillBundle` 解压 `skills.zip` 后，会读取 bundle 内置的 `registry/profiles.yaml`：
@@ -33,7 +35,9 @@
 - 不传 Profile 且处于交互式终端：显示中文选择菜单；输入 `0` 导入全部 Skill，输入 `00` 导入所有套件，直接回车跳过 Skill 导入。
 - 非交互式且未传 Profile：自动回退为全部导入，保持自动化兼容。
 
-Profile 交互菜单会把 `0`、`00` 和每个套件展示为两行：第一行是名称和暗灰色括号说明，说明过长时按当前终端宽度截断为 `...`；第二行是带不同颜色的 Skill / MCP / CLI 数量摘要。`0` 会显示 registry 全部 Skill 数、MCP 0、CLI 0，`00` 会显示 Profile 并集 Skill 数、MCP 数和 CLI 数。TUI 复选页光标停在某个套件时，会临时展示该套件将写入的 MCP 和将处理的 CLI 前置依赖；默认交互菜单在用户输入后、执行前也会输出同样摘要。可输入序号/名称，多个可用英文逗号、中文逗号或顿号分隔；输入 `0` 安装全部 Skill，输入 `00` 安装所有套件。
+Profile 交互菜单会把 `0`、`00` 和每个套件展示为两行：第一行是名称和暗灰色括号说明，说明过长时按当前终端宽度截断为 `...`；第二行是带不同颜色的 Skill / MCP / CLI 数量摘要。`0` 会显示全部 Skill 的有效导入数量、MCP 0、CLI 0；该数量至少覆盖 registry 条目数、bundle 离线目录数和所有套件展开后的 Skill 并集，不能小于 `00` 的 Skill 数。`00` 会显示 Profile 并集 Skill 数、MCP 数和 CLI 数。TUI 复选页光标停在某个套件时，会临时展示该套件将写入的 MCP 和将处理的 CLI 前置依赖；默认交互菜单在用户输入后、执行前也会输出同样摘要。可输入序号/名称，多个可用英文逗号、中文逗号或顿号分隔；输入 `0` 安装全部 Skill，输入 `00` 安装所有套件。
+
+当前 registry 中 `Tauri 桌面开发套件` 的 MCP 数应为 0。若显示非 0，优先怀疑正在读取旧 `skills.zip` 或旧脚本，而不是修改 Tauri Profile。
 
 单项安装与套件安装共用同一条执行路径：先解析 registry，汇总 Skill / MCP / CLI 数量，再安装前置依赖、导入 Skill、写入 MCP 配置。单项 MCP 或单项 CLI 即使不导入任何 Skill，执行摘要也会显示已处理的 MCP / CLI 数量。
 
