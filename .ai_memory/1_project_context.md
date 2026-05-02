@@ -30,6 +30,8 @@
 - 下载、winget 下载 / 安装和 Skill bundle 解压统一使用脚本自绘同一行进度；winget 输出会过滤许可证、免责声明和重复进度行，并中文化常见状态；Skill bundle 解压不再调用 `Expand-Archive`，避免 PowerShell 宿主蓝色进度区域。非交互捕获输出不打印中间百分比，只保留完成行，避免 `\r` 被展开成多行刷屏。
 - Skill 导入是“Profile 选择 + `.skill-meta.json` 来源判定 + 增量同步 + Skills Manager SQLite 注册”的组合流程。
 - Skill 选择语义已经拆开：`全部 Skill` 只导入 bundle 内离线 Skill；`所有套件` / `-AllSuites` 按所有 Profile 并集导入 Skill、external Skill、MCP 和前置 CLI。命令交互菜单和 TUI 都应明确显示 `全部 Skill`、`所有套件`、各套件自身的 Skill / MCP / CLI 数量；TUI 光标停在套件时展示该套件将写入的 MCP 和将处理的 CLI 依赖，默认交互菜单在输入后、执行前输出同样摘要。
+- Profile 菜单顺序不在安装器中硬编码；安装器通过 `Read-SkillProfilesFromRegistry` 按 `skills.zip` 内 `registry.tar.gz/profiles.yaml` 的原始顺序展示。当前顺序来源由 `indieark/00000-model/00-编程配置/registry/profiles.yaml` 维护。
+- 默认模式的插件安装输入区在交互终端中默认不安装任何 Profile；直接回车 / 不填会跳过 Skill 导入，只有输入 `0`、`00` 或具体套件序号 / 名称才安装。
 - registry 驱动导入已经支持 bundled skill、external skill、MCP 和前置依赖。external skill 可从 `repo`、`archive_url` / `download_url`、`local_path` 自动导入；只有 `homepage` 的条目只提示人工处理。
 - 前置依赖由 `registry/prereqs.yaml` 驱动，安装器按 `check` 先判定，再根据平台和 `command` / `npm` / `pipx` / `pip` / `brew` / `winget` / `scoop` 等安装方式处理；单项失败汇总告警，不阻断后续可安装项。
 - MCP 写入由 `registry/mcp.yaml` 与 Profile 引用驱动，目前覆盖 Codex、Claude Desktop、Claude Code、Cursor、Gemini CLI 和 Antigravity；Antigravity 的目标文件是 `~/.gemini/antigravity/mcp_config.json`。
@@ -51,6 +53,7 @@
 - Profile / 应用多选文本统一支持英文逗号、中文逗号和顿号分隔。
 
 ## 文档维护约定
+
 - README 只做入口索引，不维护应用来源表、PAT 表或完整安装流程。
 - 一个专题只能有一个说明入口；其它文件只链接，不复制完整规则。
 - 修改应用安装项时，先改 `manifest/apps.json`，再按需要更新 `docs/installer-flow.md` 或 `docs/asset-refresh.md`。

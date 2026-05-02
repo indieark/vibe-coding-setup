@@ -4484,7 +4484,8 @@ function Select-SkillDirectoriesForProfiles {
             -Title (ConvertFrom-Utf8Base64String -Value '6L6T5YWl5Yy6')
         Write-Host ('  {0}' -f (ConvertFrom-Utf8Base64String -Value '6K+36YCJ5oup6KaB5a6J6KOF55qE5o+S5Lu25aWX5Lu244CC')) -ForegroundColor DarkGray
         Write-Host ('  {0}' -f (ConvertFrom-Utf8Base64String -Value '5Y+v6L6T5YWl5bqP5Y+35oiW5ZCN56ew77yM5aSa5Liq55So6Iux5paH6YCX5Y+344CB5Lit5paH6YCX5Y+35oiW6aG/5Y+35YiG6ZqU77yb')) -ForegroundColor DarkGray
-        Write-Host ('  {0}' -f (ConvertFrom-Utf8Base64String -Value '6L6T5YWlIDAg5a6J6KOF5YWo6YOoIFNraWxs77yb6L6T5YWlIDAwIOWuieijheaJgOacieWll+S7tuOAgg==')) -ForegroundColor DarkGray
+        Write-Host ('  {0}' -f (ConvertFrom-Utf8Base64String -Value '6L6T5YWlIDAg5a6J6KOF5YWo6YOoIFNraWxs77yb6L6T5YWlIDAwIOWuieijheaJgOacieWll+S7tu+8mw==')) -ForegroundColor DarkGray
+        Write-Host ('  {0}' -f (ConvertFrom-Utf8Base64String -Value '5LiN5aGr55u05o6l5Zue6L2m5YiZ6Lez6L+H5o+S5Lu25a6J6KOF44CC')) -ForegroundColor DarkGray
         Write-Host ''
         Write-SkillProfilePromptOption `
             -Index '0' `

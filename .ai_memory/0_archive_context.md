@@ -513,3 +513,32 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 - `Get-SkillBundleComponentStatus` 验证 lark 状态为已安装。
 - `lark-cli --version` 返回 `1.0.23`。
 - `yt-dlp --version` 返回 `2026.03.17`。
+
+## 2026-05-02 — Profile 顺序链路复核与默认插件输入提示
+
+### 核心议题背景
+
+用户要求把 8 个 Profile 套件排序固定为：AI 调用基础、飞书办公、中文办公自动化、演示文稿与文档、媒体创作、GitHub 工作流、前端开发、Tauri 桌面开发，并要求确认是否都实现且无不良影响。随后用户指出相关分发应由 GitHub Actions 管理，不要做破坏性操作。
+
+### Cognitive Evolution Path
+
+1. 先区分事实源与消费端：排序事实源在 `indieark/00000-model/00-编程配置/registry/profiles.yaml`；安装器只读取 bundle 中的 `registry.tar.gz/profiles.yaml`，不应硬编码顺序。
+2. 检查 `Read-SkillProfilesFromRegistry`：函数逐行读取 `profiles.yaml` 并按读取顺序追加 `$profiles`，菜单循环按数组索引展示，因此安装器消费端天然保序。
+3. 检查本地 `downloads/skills.zip` 和旧 `dist/bundle_0.2.0.zip` 时发现它们仍是旧顺序；确认二者都是生成 / 缓存产物，不应提交，也不代表源码未实现。
+4. 本地仅重建 ignored dist bundle 做验证，不 push、不触发 workflow、不改 release asset；用 `Get-SkillBundleProfiles` 验证安装器从新 bundle 读出的 8 个套件顺序正确。
+5. 用 `gh` 只读检查 Actions：`00000-model` 的 `build-bundle.yml` 会在 `profiles.yaml` push 后发布新 bundle；本仓库 `refresh-bootstrap-assets.yml` 会用 `MODEL_00000_TOKEN` 把最新 bundle 镜像为公开 `bootstrap-assets/skills.zip`，且同名 asset 会比较内容并替换。
+6. 同时处理用户关于默认模式插件安装输入区的要求：当前空输入已经返回空数组并跳过导入，本次只补明确提示，避免用户误以为直接回车会安装全部。
+
+### 当前结论
+
+- 排序实现点在 `00000-model`，安装器保序消费，无需也不应在 `vibe-coding-setup` 中复制排序表。
+- 公开 `skills.zip` 的最终生效依赖 `00000-model` push 后的 `build-bundle` Action 和本仓库资产刷新 Action。
+- 默认交互菜单中直接回车 / 不填会跳过 Skill 导入，提示已明确写出。
+
+### 验证闭环
+
+- `modules/common.psm1` PowerShell 语法解析通过。
+- `git diff --check` 通过。
+- `python 00-编程配置/registry/scripts/build-bundle.py --dry-run` 通过。
+- 本地重建 ignored bundle 后，`Get-SkillBundleProfiles` 读取顺序为用户要求的 8 项顺序。
+- `gh run list` / `gh release view` 只读确认当前线上旧 `skills.zip` 仍为旧 digest，需要本轮 push 后由 Actions 刷新。
