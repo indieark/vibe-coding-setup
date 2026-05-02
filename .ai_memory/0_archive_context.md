@@ -658,6 +658,6 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 
 ### 复盘补充 2
 
-用户随后确认重复字符主要来自旧缓存/旧脚本未刷新，但仍希望继续优化显示，并指出 Skill 单项页没有总览、MCP 单项入口仍会闪退。本轮继续收敛为：不再做半套覆盖重绘，而是在整屏清理层增强可靠性；`Start-TuiFrame` 优先使用 ANSI 清屏、清 scrollback、光标归零，再回退 `[Console]::Clear()` 和 `Clear-Host`。自定义工作台菜单压缩为一行列表，当前项详情放到底部，减少长描述换行。
+用户随后确认重复字符主要来自旧缓存/旧脚本未刷新，但仍希望继续优化显示，并指出 Skill 单项页没有总览、MCP 单项入口仍会闪退。本轮继续收敛为：不再做半套覆盖重绘，而是在整屏清理层使用 Windows 控制台 API；`Start-TuiFrame` 移除不兼容的 ANSI 清屏序列，改为 `[Console]::Clear()` + 光标归零，并以 `Clear-Host` 兜底。自定义工作台菜单压缩为一行列表，当前项详情放到底部，减少长描述换行。随后进一步调整工作台布局：先显示 `[可执行动作]`，只有已有可执行选择时才在动作区下方显示 `[当前选择]`，底部文案固定为 `当前项`。
 
 组件选择页新增 `SummaryLines`，Skill/MCP/CLI 单项页顶部统一展示本机状态总览；MCP 分支增加 `try/catch` 错误页兜底，读取 MCP 状态或组装列表异常时展示错误详情并返回工作台，不再直接闪退。验证时本地状态为 `Skill total=105 installed=74 missing=31`、`MCP total=10 configured=4 missing=6`、`CLI total=12 installed=8 missing=4`。
