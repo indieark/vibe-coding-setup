@@ -655,3 +655,9 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 ### 复盘补充
 
 用户截图反馈上一版防闪烁方案造成重复字符。原因是用 `SetCursorPosition(0,0)` 覆盖重绘时没有对每一行执行清到行尾；当新帧某行比旧帧短，旧帧尾部会残留在屏幕上。为避免继续影响使用，当前先回滚帧复用方案，恢复 `Clear-Host` 的可靠渲染；Skill/MCP/CLI 状态列和 MCP 闪退修复保留。后续若继续优化闪烁，应改成真正的行级渲染或每行定宽清尾，不再使用半套覆盖重绘。
+
+### 复盘补充 2
+
+用户随后确认重复字符主要来自旧缓存/旧脚本未刷新，但仍希望继续优化显示，并指出 Skill 单项页没有总览、MCP 单项入口仍会闪退。本轮继续收敛为：不再做半套覆盖重绘，而是在整屏清理层增强可靠性；`Start-TuiFrame` 优先使用 ANSI 清屏、清 scrollback、光标归零，再回退 `[Console]::Clear()` 和 `Clear-Host`。自定义工作台菜单压缩为一行列表，当前项详情放到底部，减少长描述换行。
+
+组件选择页新增 `SummaryLines`，Skill/MCP/CLI 单项页顶部统一展示本机状态总览；MCP 分支增加 `try/catch` 错误页兜底，读取 MCP 状态或组装列表异常时展示错误详情并返回工作台，不再直接闪退。验证时本地状态为 `Skill total=105 installed=74 missing=31`、`MCP total=10 configured=4 missing=6`、`CLI total=12 installed=8 missing=4`。
