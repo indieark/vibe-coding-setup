@@ -5786,9 +5786,21 @@ function Install-SkillBundle {
             @(Select-SkillDirectoriesForProfiles -SkillDirectories $allSkillDirs -Profiles $profiles -RequestedProfiles $requestedProfiles -RegistryRoot $registryRoot -AllSkills:$AllSkills -AllSuites:$AllSuites)
         }
 
-        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5Y+R546wIHswfSDkuKogc2tpbGwg55uu5b2V77yb6YCJ5LitIHsxfSDkuKo=') -f @($allSkillDirs).Count, @($skillDirs).Count)
-
         $selection = $script:LastSkillSelection
+        $selectionHasWork = $hasExplicitComponents -or $AllSkills -or $AllSuites -or `
+        (@($SkillProfiles).Count -gt 0) -or `
+        ($selection -and (
+                @($selection.WantedSkills).Count -gt 0 -or
+                @($selection.MissingSkills).Count -gt 0 -or
+                @($selection.Mcp).Count -gt 0 -or
+                @($selection.Prereqs).Count -gt 0
+            ))
+        if (@($skillDirs).Count -eq 0 -and -not $selectionHasWork) {
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5bey6Lez6L+HIFNraWxsIOWvvOWFpe+8m+emu+e6vyBidW5kbGUg5YyF5ZCrIHswfSDkuKogc2tpbGwg55uu5b2V77yM5pyq5aSE55CG44CC') -f @($allSkillDirs).Count)
+        }
+        else {
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5Y+R546wIHswfSDkuKogc2tpbGwg55uu5b2V77yb6YCJ5LitIHsxfSDkuKo=') -f @($allSkillDirs).Count, @($skillDirs).Count)
+        }
         $featurePrereqs = @()
         if ($selection -and -not [string]::IsNullOrWhiteSpace($selection.RegistryRoot)) {
             $featurePrereqs += @($selection.Prereqs)
