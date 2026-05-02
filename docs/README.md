@@ -32,25 +32,26 @@
 3. 最后读 `.ai_memory/2_active_task.md` 获取当前任务快照。
 
 ## 专题目录
-| 文档 | 适合什么时候读 | 不维护什么 |
-| --- | --- | --- |
-| [运行命令](operations.md) | 要本地运行、远程自举、TUI、dry-run 或按 Profile 导入 Skill | 不解释内部状态机 |
-| [安装执行顺序](installer-flow.md) | 要理解 bootstrap、TUI 入口、precheck、fallback、进度和退出码 | 不列应用版本和 fallback 文件名 |
-| [Skill 导入契约](skill-import.md) | 要理解 TUI 复选、命令 Profile、bundled / external Skill、MCP 写入、前置依赖、`.skill-meta.json`、三态去重和 Skills Manager 场景注册 | 不维护 Skill / MCP / prereq 清单 |
-| [资产刷新链路](asset-refresh.md) | 要维护 `bootstrap-assets`、私库镜像或 workflow | 不维护 PAT 最小权限表 |
-| [后续路线](roadmap.md) | 要继续增强安装器能力 | 不记录当前任务快照 |
+
+| 文档                              | 适合什么时候读                                                                                                                                  | 不维护什么                       |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| [运行命令](operations.md)         | 要本地运行、远程自举、TUI、dry-run 或按 Profile 导入 Skill                                                                                      | 不解释内部状态机                 |
+| [安装执行顺序](installer-flow.md) | 要理解 bootstrap、TUI 入口、precheck、fallback、进度和退出码                                                                                    | 不列应用版本和 fallback 文件名   |
+| [Skill 导入契约](skill-import.md) | 要理解 TUI 复选、全部 Skill、命令 Profile、bundled / external Skill、MCP 写入、前置依赖、`.skill-meta.json`、三态去重和 Skills Manager 场景注册 | 不维护 Skill / MCP / prereq 清单 |
+| [资产刷新链路](asset-refresh.md)  | 要维护 `bootstrap-assets`、私库镜像或 workflow                                                                                                  | 不维护 PAT 最小权限表            |
+| [后续路线](roadmap.md)            | 要继续增强安装器能力                                                                                                                            | 不记录当前任务快照               |
 
 ## 最终事实源
 
-| 事实 | 唯一来源 |
-| --- | --- |
-| 应用 key、名称、安装策略、fallback asset | `manifest/apps.json` |
-| 安装器真实行为 | `bootstrap.ps1`、`modules/common.psm1` |
+| 事实                                         | 唯一来源                                                                  |
+| -------------------------------------------- | ------------------------------------------------------------------------- |
+| 应用 key、名称、安装策略、fallback asset     | `manifest/apps.json`                                                      |
+| 安装器真实行为                               | `bootstrap.ps1`、`modules/common.psm1`                                    |
 | Skill / MCP / prereq / Profile / bundle 内容 | `indieark/00000-model` 的 `00-编程配置/registry/*.yaml` 与 release bundle |
-| Skill / MCP / prereq 安装器行为说明 | `docs/skill-import.md` |
-| PAT / Secret 规则 | `.agent/rules/pat-secret-governance.md` |
-| 文档治理规则 | `.agent/rules/documentation-governance.md` |
-| 当前接手状态 | `.ai_memory/2_active_task.md` |
+| Skill / MCP / prereq 安装器行为说明          | `docs/skill-import.md`                                                    |
+| PAT / Secret 规则                            | `.agent/rules/pat-secret-governance.md`                                   |
+| 文档治理规则                                 | `.agent/rules/documentation-governance.md`                                |
+| 当前接手状态                                 | `.ai_memory/2_active_task.md`                                             |
 
 ## 更新文档前检查
 

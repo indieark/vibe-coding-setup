@@ -72,6 +72,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 ```powershell
 .\bootstrap.cmd -SkipCcSwitch
 ```
+
 按 Profile 导入 Skill：
 
 ```powershell
@@ -96,7 +97,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 .\bootstrap.cmd -SkillProfile "飞书办公套件","前端开发套件"
 ```
 
-显式导入全部 Skill：
+显式导入全部 Skill（registry 全量：bundled 直接导入，external 按来源安装）：
 
 ```powershell
 .\bootstrap.cmd -AllSkills
@@ -125,7 +126,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 命令模式默认行为：
 
 - 未传 `-SkipSkills` 时会导入 Skill。
-- 未传 `-SkillProfile`、`-AllSkills`、`-AllSuites`、`-SkillName`、`-McpName`、`-CliName` 时，交互式终端会提示选择 Profile；输入 `0` 才导入全部 Skill，输入 `00` 导入所有套件，直接回车会跳过 Skill 导入，避免误装全部。非交互式环境默认导入全部 Skill，保持旧自动化兼容。
+- 未传 `-SkillProfile`、`-AllSkills`、`-AllSuites`、`-SkillName`、`-McpName`、`-CliName` 时，交互式终端会提示选择 Profile；输入 `0` 才导入 registry 全部 Skill，输入 `00` 导入所有套件，直接回车会跳过 Skill 导入，避免误装全部。非交互式环境默认导入全部 Skill，保持旧自动化兼容。
 - 传 `-SkipSkills` 会完全跳过 Skill 导入。
 - 传 `-SkipApps` 会跳过应用安装阶段，只保留工作区、Skill 和 CC Switch Provider 等其它被选中的阶段。
 - 传 `-SkipCcSwitch` 会跳过 CC Switch Provider 导入。

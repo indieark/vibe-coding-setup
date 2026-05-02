@@ -297,8 +297,8 @@ function Initialize-CodexWorkspaceDirectory {
     if ($DryRun) {
         Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5Yib5bu6IENvZGV4IOW3peS9nOWMuuebruW9le+8mnswfQ==') -f $chatPath)
         return [pscustomobject]@{
-            Name = (ConvertFrom-Utf8Base64String -Value 'Q29kZXgg5bel5L2c5Yy6')
-            Key = 'codex-workspace'
+            Name   = (ConvertFrom-Utf8Base64String -Value 'Q29kZXgg5bel5L2c5Yy6')
+            Key    = 'codex-workspace'
             Status = 'ok'
             Source = 'filesystem'
             Detail = $chatPath
@@ -315,8 +315,8 @@ function Initialize-CodexWorkspaceDirectory {
     }
 
     return [pscustomobject]@{
-        Name = (ConvertFrom-Utf8Base64String -Value 'Q29kZXgg5bel5L2c5Yy6')
-        Key = 'codex-workspace'
+        Name   = (ConvertFrom-Utf8Base64String -Value 'Q29kZXgg5bel5L2c5Yy6')
+        Key    = 'codex-workspace'
         Status = 'ok'
         Source = 'filesystem'
         Detail = $chatPath
@@ -345,7 +345,7 @@ function Get-GitHubLatestReleaseAsset {
     $uri = 'https://api.github.com/repos/{0}/releases/latest' -f $Repo
     $headers = @{
         'User-Agent' = 'VibeCodingSetup/1.0'
-        'Accept' = 'application/vnd.github+json'
+        'Accept'     = 'application/vnd.github+json'
     }
 
     Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5p+l6K+iIEdpdEh1YiDmnIDmlrAgUmVsZWFzZe+8mnswfQ==') -f $Repo)
@@ -357,10 +357,10 @@ function Get-GitHubLatestReleaseAsset {
     }
 
     return [pscustomobject]@{
-        Repo = $Repo
+        Repo    = $Repo
         Version = $release.tag_name
-        Name = $asset.name
-        Url = $asset.browser_download_url
+        Name    = $asset.name
+        Url     = $asset.browser_download_url
     }
 }
 
@@ -592,7 +592,7 @@ function Get-WingetProgressInfo {
     if ($Line -match '(?<percent>\d{1,3})%' -and $Line -notmatch '[A-Za-z]') {
         return [pscustomobject]@{
             Percent = [int]$Matches['percent']
-            Detail = $null
+            Detail  = $null
         }
     }
 
@@ -602,7 +602,7 @@ function Get-WingetProgressInfo {
         if ($totalBytes -gt 0) {
             return [pscustomobject]@{
                 Percent = [Math]::Min(100, [Math]::Max(0, [int](($doneBytes * 100) / $totalBytes)))
-                Detail = ('{0} {1} / {2}' -f (ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5LiL6L29'), ('{0} {1}' -f $Matches['done'], $Matches['doneUnit']), ('{0} {1}' -f $Matches['total'], $Matches['totalUnit']))
+                Detail  = ('{0} {1} / {2}' -f (ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5LiL6L29'), ('{0} {1}' -f $Matches['done'], $Matches['doneUnit']), ('{0} {1}' -f $Matches['total'], $Matches['totalUnit']))
             }
         }
     }
@@ -1078,19 +1078,19 @@ function Get-InstalledRegistryVersion {
 
     if ($matched.Count -eq 0) {
         return [pscustomobject]@{
-            Found = $false
+            Found   = $false
             Version = $null
-            Source = 'registry'
-            Detail = $displayName
+            Source  = 'registry'
+            Detail  = $displayName
         }
     }
 
     $selected = Select-BestVersionRecord -Records $matched -VersionSelector { param($entry) $entry.DisplayVersion }
     return [pscustomobject]@{
-        Found = $true
+        Found   = $true
         Version = $selected.DisplayVersion
-        Source = 'registry'
-        Detail = $selected.DisplayName
+        Source  = 'registry'
+        Detail  = $selected.DisplayName
     }
 }
 
@@ -1108,19 +1108,19 @@ function Get-InstalledAppxVersion {
     $packages = @(Get-AppxPackage -Name $appxName -ErrorAction SilentlyContinue)
     if ($packages.Count -eq 0) {
         return [pscustomobject]@{
-            Found = $false
+            Found   = $false
             Version = $null
-            Source = 'appx'
-            Detail = $appxName
+            Source  = 'appx'
+            Detail  = $appxName
         }
     }
 
     $selected = $packages | Sort-Object Version -Descending | Select-Object -First 1
     return [pscustomobject]@{
-        Found = $true
+        Found   = $true
         Version = $selected.Version.ToString()
-        Source = 'appx'
-        Detail = $selected.Name
+        Source  = 'appx'
+        Detail  = $selected.Name
     }
 }
 
@@ -1138,8 +1138,8 @@ function Get-InstalledCommandVersion {
     $commandSpecs = New-Object System.Collections.Generic.List[object]
     $commandSpecs.Add([pscustomobject]@{
             command = $primaryCommandName
-            args = @((Get-ObjectPropertyValue -Object $DetectConfig -Name 'args' -Default @()))
-            regex = [string](Get-ObjectPropertyValue -Object $DetectConfig -Name 'regex')
+            args    = @((Get-ObjectPropertyValue -Object $DetectConfig -Name 'args' -Default @()))
+            regex   = [string](Get-ObjectPropertyValue -Object $DetectConfig -Name 'regex')
         })
 
     foreach ($fallbackSpec in @((Get-ObjectPropertyValue -Object $DetectConfig -Name 'fallbackCommands' -Default @()))) {
@@ -1155,10 +1155,10 @@ function Get-InstalledCommandVersion {
 
         if (-not (Get-Command $commandName -ErrorAction SilentlyContinue)) {
             $lastFailure = [pscustomobject]@{
-                Found = $false
+                Found   = $false
                 Version = $null
-                Source = 'command'
-                Detail = $commandName
+                Source  = 'command'
+                Detail  = $commandName
             }
             continue
         }
@@ -1170,10 +1170,10 @@ function Get-InstalledCommandVersion {
         }
         catch {
             $lastFailure = [pscustomobject]@{
-                Found = $false
+                Found   = $false
                 Version = $null
-                Source = 'command'
-                Detail = (ConvertFrom-Utf8Base64String -Value 'ezB9IOiwg+eUqOWksei0pe+8mnsxfQ==') -f $commandName, $_.Exception.Message
+                Source  = 'command'
+                Detail  = (ConvertFrom-Utf8Base64String -Value 'ezB9IOiwg+eUqOWksei0pe+8mnsxfQ==') -f $commandName, $_.Exception.Message
             }
             continue
         }
@@ -1192,10 +1192,10 @@ function Get-InstalledCommandVersion {
         }
 
         return [pscustomobject]@{
-            Found = $true
+            Found   = $true
             Version = $version
-            Source = 'command'
-            Detail = $commandName
+            Source  = 'command'
+            Detail  = $commandName
         }
     }
 
@@ -1204,10 +1204,10 @@ function Get-InstalledCommandVersion {
     }
 
     return [pscustomobject]@{
-        Found = $false
+        Found   = $false
         Version = $null
-        Source = 'command'
-        Detail = $primaryCommandName
+        Source  = 'command'
+        Detail  = $primaryCommandName
     }
 }
 
@@ -1220,10 +1220,10 @@ function Get-InstalledAppVersion {
     $detectConfig = Get-ObjectPropertyValue -Object $Definition -Name 'detect'
     if ($null -eq $detectConfig) {
         return [pscustomobject]@{
-            Found = $false
+            Found   = $false
             Version = $null
-            Source = 'none'
-            Detail = (ConvertFrom-Utf8Base64String -Value '5rKh5pyJ5qOA5rWL6KeE5YiZ')
+            Source  = 'none'
+            Detail  = (ConvertFrom-Utf8Base64String -Value '5rKh5pyJ5qOA5rWL6KeE5YiZ')
         }
     }
 
@@ -1249,10 +1249,10 @@ function Get-InstalledAppVersion {
     }
 
     return [pscustomobject]@{
-        Found = $false
+        Found   = $false
         Version = $null
-        Source = 'none'
-        Detail = (ConvertFrom-Utf8Base64String -Value '5rKh5pyJ5qOA5rWL6KeE5YiZ')
+        Source  = 'none'
+        Detail  = (ConvertFrom-Utf8Base64String -Value '5rKh5pyJ5qOA5rWL6KeE5YiZ')
     }
 }
 
@@ -1335,9 +1335,9 @@ function Get-DesiredAppVersion {
     $explicitTarget = Get-ObjectPropertyValue -Object $Definition -Name 'targetVersion'
     if (-not [string]::IsNullOrWhiteSpace([string]$explicitTarget)) {
         return [pscustomobject]@{
-            Found = $true
+            Found   = $true
             Version = [string]$explicitTarget
-            Source = 'manifest'
+            Source  = 'manifest'
         }
     }
 
@@ -1347,18 +1347,18 @@ function Get-DesiredAppVersion {
             $version = Get-WingetPackageLatestVersion -PackageId $Definition.wingetId -Source $wingetSource
             if (-not [string]::IsNullOrWhiteSpace($version)) {
                 return [pscustomobject]@{
-                    Found = $true
+                    Found   = $true
                     Version = $version
-                    Source = 'winget-show'
+                    Source  = 'winget-show'
                 }
             }
 
             $fallbackVersion = Get-FallbackReleaseAssetVersion -Definition $Definition
             if (-not [string]::IsNullOrWhiteSpace($fallbackVersion)) {
                 return [pscustomobject]@{
-                    Found = $true
+                    Found   = $true
                     Version = $fallbackVersion
-                    Source = 'fallback-release-asset'
+                    Source  = 'fallback-release-asset'
                 }
             }
         }
@@ -1366,9 +1366,9 @@ function Get-DesiredAppVersion {
             $tag = Get-GitHubLatestTagViaRedirect -Repo $Definition.repo
             if (-not [string]::IsNullOrWhiteSpace($tag)) {
                 return [pscustomobject]@{
-                    Found = $true
+                    Found   = $true
                     Version = $tag.TrimStart('v')
-                    Source = 'github-latest-tag'
+                    Source  = 'github-latest-tag'
                 }
             }
         }
@@ -1377,18 +1377,18 @@ function Get-DesiredAppVersion {
             $version = Get-NormalizedVersionString -VersionText $assetName
             if (-not [string]::IsNullOrWhiteSpace($version)) {
                 return [pscustomobject]@{
-                    Found = $true
+                    Found   = $true
                     Version = $version
-                    Source = 'release-asset-name'
+                    Source  = 'release-asset-name'
                 }
             }
         }
     }
 
     return [pscustomobject]@{
-        Found = $false
+        Found   = $false
         Version = $null
-        Source = 'unknown'
+        Source  = 'unknown'
     }
 }
 
@@ -1403,21 +1403,21 @@ function Get-AppInstallDecision {
 
     if (-not $installed.Found) {
         return [pscustomobject]@{
-            Action = 'install'
-            Reason = 'missing'
+            Action           = 'install'
+            Reason           = 'missing'
             InstalledVersion = $null
-            DesiredVersion = $null
-            Detail = (ConvertFrom-Utf8Base64String -Value '5pyq5a6J6KOF')
+            DesiredVersion   = $null
+            Detail           = (ConvertFrom-Utf8Base64String -Value '5pyq5a6J6KOF')
         }
     }
 
     if ($installIfMissingOnly) {
         return [pscustomobject]@{
-            Action = 'skip'
-            Reason = 'present'
+            Action           = 'skip'
+            Reason           = 'present'
             InstalledVersion = $installed.Version
-            DesiredVersion = $null
-            Detail = (ConvertFrom-Utf8Base64String -Value '5bey5qOA5rWL5Yiw5bqU55So77yM5LiU5ZCv55SoIGluc3RhbGxJZk1pc3NpbmdPbmx5')
+            DesiredVersion   = $null
+            Detail           = (ConvertFrom-Utf8Base64String -Value '5bey5qOA5rWL5Yiw5bqU55So77yM5LiU5ZCv55SoIGluc3RhbGxJZk1pc3NpbmdPbmx5')
         }
     }
 
@@ -1425,51 +1425,51 @@ function Get-AppInstallDecision {
 
     if ([string]::IsNullOrWhiteSpace([string]$installed.Version)) {
         return [pscustomobject]@{
-            Action = 'install'
-            Reason = 'unknown-installed-version'
+            Action           = 'install'
+            Reason           = 'unknown-installed-version'
             InstalledVersion = $null
-            DesiredVersion = $desired.Version
-            Detail = (ConvertFrom-Utf8Base64String -Value '5peg5rOV56Gu5a6a5bey5a6J6KOF54mI5pys')
+            DesiredVersion   = $desired.Version
+            Detail           = (ConvertFrom-Utf8Base64String -Value '5peg5rOV56Gu5a6a5bey5a6J6KOF54mI5pys')
         }
     }
 
     if (-not $desired.Found -or [string]::IsNullOrWhiteSpace([string]$desired.Version)) {
         return [pscustomobject]@{
-            Action = 'install'
-            Reason = 'unknown-target-version'
+            Action           = 'install'
+            Reason           = 'unknown-target-version'
             InstalledVersion = $installed.Version
-            DesiredVersion = $null
-            Detail = (ConvertFrom-Utf8Base64String -Value '5bey5qOA5rWL5Yiw5a6J6KOF54mI5pys77yM5L2G55uu5qCH54mI5pys5LiN5Y+v5q+U6L6D')
+            DesiredVersion   = $null
+            Detail           = (ConvertFrom-Utf8Base64String -Value '5bey5qOA5rWL5Yiw5a6J6KOF54mI5pys77yM5L2G55uu5qCH54mI5pys5LiN5Y+v5q+U6L6D')
         }
     }
 
     $comparison = Compare-VersionStrings -LeftVersion $installed.Version -RightVersion $desired.Version
     if ($null -eq $comparison) {
         return [pscustomobject]@{
-            Action = 'install'
-            Reason = 'non-comparable'
+            Action           = 'install'
+            Reason           = 'non-comparable'
             InstalledVersion = $installed.Version
-            DesiredVersion = $desired.Version
-            Detail = (ConvertFrom-Utf8Base64String -Value '5bey5a6J6KOF54mI5pys5ZKM55uu5qCH54mI5pys5LiN5Y+v5q+U6L6D')
+            DesiredVersion   = $desired.Version
+            Detail           = (ConvertFrom-Utf8Base64String -Value '5bey5a6J6KOF54mI5pys5ZKM55uu5qCH54mI5pys5LiN5Y+v5q+U6L6D')
         }
     }
 
     if ($comparison -ge 0) {
         return [pscustomobject]@{
-            Action = 'skip'
-            Reason = 'current'
+            Action           = 'skip'
+            Reason           = 'current'
             InstalledVersion = $installed.Version
-            DesiredVersion = $desired.Version
-            Detail = (ConvertFrom-Utf8Base64String -Value '5bey5a6J6KOF54mI5pys5Li65pyA5paw')
+            DesiredVersion   = $desired.Version
+            Detail           = (ConvertFrom-Utf8Base64String -Value '5bey5a6J6KOF54mI5pys5Li65pyA5paw')
         }
     }
 
     return [pscustomobject]@{
-        Action = 'install'
-        Reason = 'outdated'
+        Action           = 'install'
+        Reason           = 'outdated'
         InstalledVersion = $installed.Version
-        DesiredVersion = $desired.Version
-        Detail = (ConvertFrom-Utf8Base64String -Value '5bey5a6J6KOF54mI5pys5L2O5LqO55uu5qCH54mI5pys')
+        DesiredVersion   = $desired.Version
+        Detail           = (ConvertFrom-Utf8Base64String -Value '5bey5a6J6KOF54mI5pys5L2O5LqO55uu5qCH54mI5pys')
     }
 }
 
@@ -1494,12 +1494,12 @@ function Get-AppInstallDecisionBatch {
             ForEach-Object {
                 $decision = Get-AppInstallDecision -Definition $_
                 [pscustomobject]@{
-                    Key = $_.key
-                    Name = $_.name
-                    Order = [int]$_.order
-                    Status = 'ok'
+                    Key      = $_.key
+                    Name     = $_.name
+                    Order    = [int]$_.order
+                    Status   = 'ok'
                     Decision = $decision
-                    Error = $null
+                    Error    = $null
                 }
             }
         )
@@ -1523,22 +1523,22 @@ function Get-AppInstallDecisionBatch {
             try {
                 $decision = Get-AppInstallDecision -Definition $definition
                 [pscustomobject]@{
-                    Key = $definition.key
-                    Name = $definition.name
-                    Order = [int]$definition.order
-                    Status = 'ok'
+                    Key      = $definition.key
+                    Name     = $definition.name
+                    Order    = [int]$definition.order
+                    Status   = 'ok'
                     Decision = $decision
-                    Error = $null
+                    Error    = $null
                 }
             }
             catch {
                 [pscustomobject]@{
-                    Key = $definition.key
-                    Name = $definition.name
-                    Order = [int]$definition.order
-                    Status = 'failed'
+                    Key      = $definition.key
+                    Name     = $definition.name
+                    Order    = [int]$definition.order
+                    Status   = 'failed'
                     Decision = $null
-                    Error = $_.Exception.Message
+                    Error    = $_.Exception.Message
                 }
             }
         } -ArgumentList $modulePath, $definitionJson
@@ -1599,18 +1599,18 @@ function Test-InstallRecoveredAfterPrimaryFailure {
         if ($installed.Found) {
             if ($InitialDecision.Reason -eq 'missing') {
                 return [pscustomobject]@{
-                    Recovered = $true
+                    Recovered        = $true
                     InstalledVersion = $installed.Version
-                    Detail = (ConvertFrom-Utf8Base64String -Value '5Li75a6J6KOF5Zmo6L+U5Zue6ZSZ6K+v5ZCO77yM5bqU55So5bey5Y+v5qOA5rWL')
+                    Detail           = (ConvertFrom-Utf8Base64String -Value '5Li75a6J6KOF5Zmo6L+U5Zue6ZSZ6K+v5ZCO77yM5bqU55So5bey5Y+v5qOA5rWL')
                 }
             }
 
             $postDecision = Get-AppInstallDecision -Definition $Definition
             if ($postDecision.Action -eq 'skip') {
                 return [pscustomobject]@{
-                    Recovered = $true
+                    Recovered        = $true
                     InstalledVersion = $postDecision.InstalledVersion
-                    Detail = $postDecision.Detail
+                    Detail           = $postDecision.Detail
                 }
             }
         }
@@ -1621,9 +1621,9 @@ function Test-InstallRecoveredAfterPrimaryFailure {
     }
 
     return [pscustomobject]@{
-        Recovered = $false
+        Recovered        = $false
         InstalledVersion = $null
-        Detail = (ConvertFrom-Utf8Base64String -Value '5aSN5p+l5ZCO5LuN5peg5rOV56Gu6K6k5bqU55So5bey5a6J6KOF')
+        Detail           = (ConvertFrom-Utf8Base64String -Value '5aSN5p+l5ZCO5LuN5peg5rOV56Gu6K6k5bqU55So5bey5a6J6KOF')
     }
 }
 
@@ -1646,8 +1646,8 @@ function Resolve-PrimaryInstallFailure {
         if ($recovered.Recovered) {
             Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'ezB9IOWcqOWksei0peWQjuWkjeafpeaXtueci+i1t+adpeW3suWuieijhe+8jOi3s+i/hyB7MX0gZmFsbGJhY2s=') -f $Definition.name, $PrimarySource)
             return [pscustomobject]@{
-                Name = $Definition.name
-                Key = $Definition.key
+                Name   = $Definition.name
+                Key    = $Definition.key
                 Status = 'ok'
                 Source = '{0}-postcheck' -f $PrimarySource
                 Detail = if ([string]::IsNullOrWhiteSpace([string]$recovered.InstalledVersion)) { $recovered.Detail } else { '{0} ({1})' -f $recovered.Detail, $recovered.InstalledVersion }
@@ -1813,8 +1813,8 @@ function Install-AppFromDefinition {
         }
 
         return [pscustomobject]@{
-            Name = $Definition.name
-            Key = $Definition.key
+            Name   = $Definition.name
+            Key    = $Definition.key
             Status = 'ok'
             Source = 'precheck-skip'
             Detail = $skipDetail
@@ -1827,8 +1827,8 @@ function Install-AppFromDefinition {
                 $wingetSource = [string](Get-ObjectPropertyValue -Object $Definition -Name 'wingetSource')
                 Invoke-WingetAction -Action 'install' -PackageId $Definition.wingetId -Source $wingetSource -DryRun:$DryRun
                 return [pscustomobject]@{
-                    Name = $Definition.name
-                    Key = $Definition.key
+                    Name   = $Definition.name
+                    Key    = $Definition.key
                     Status = 'ok'
                     Source = 'winget'
                     Detail = if (-not [string]::IsNullOrWhiteSpace($wingetSource)) { '{0} ({1})' -f $Definition.wingetId, $wingetSource } else { $Definition.wingetId }
@@ -1853,8 +1853,8 @@ function Install-AppFromDefinition {
                     -DryRun:$DryRun
 
                 return [pscustomobject]@{
-                    Name = $Definition.name
-                    Key = $Definition.key
+                    Name   = $Definition.name
+                    Key    = $Definition.key
                     Status = 'ok'
                     Source = 'github-release'
                     Detail = '{0} ({1})' -f $asset.Repo, $asset.Version
@@ -1880,8 +1880,8 @@ function Install-AppFromDefinition {
                     -DryRun:$DryRun
 
                 return [pscustomobject]@{
-                    Name = $Definition.name
-                    Key = $Definition.key
+                    Name   = $Definition.name
+                    Key    = $Definition.key
                     Status = 'ok'
                     Source = 'release-asset'
                     Detail = '{0}@{1}/{2}' -f $Definition.repo, $Definition.tag, $assetName
@@ -1906,8 +1906,8 @@ function Install-AppFromDefinition {
                     -DryRun:$DryRun
 
                 return [pscustomobject]@{
-                    Name = $Definition.name
-                    Key = $Definition.key
+                    Name   = $Definition.name
+                    Key    = $Definition.key
                     Status = 'ok'
                     Source = 'direct-url'
                     Detail = $Definition.url
@@ -1937,8 +1937,8 @@ function Install-AppFromDefinition {
                     -DryRun:$DryRun
 
                 return [pscustomobject]@{
-                    Name = $Definition.name
-                    Key = $Definition.key
+                    Name   = $Definition.name
+                    Key    = $Definition.key
                     Status = 'ok'
                     Source = 'github-latest-tag'
                     Detail = '{0} ({1})' -f $Definition.repo, $tag
@@ -1967,8 +1967,8 @@ function Install-AppFromDefinition {
             Invoke-WingetAction -Action 'install' -PackageId $fallbackWingetId -Source $fallbackWingetSource -DryRun:$DryRun
 
             return [pscustomobject]@{
-                Name = $Definition.name
-                Key = $Definition.key
+                Name   = $Definition.name
+                Key    = $Definition.key
                 Status = 'ok'
                 Source = 'winget-fallback'
                 Detail = if (-not [string]::IsNullOrWhiteSpace($fallbackWingetSource)) { '{0} ({1})' -f $fallbackWingetId, $fallbackWingetSource } else { $fallbackWingetId }
@@ -1996,8 +1996,8 @@ function Install-AppFromDefinition {
                 -DryRun:$DryRun
 
             return [pscustomobject]@{
-                Name = $Definition.name
-                Key = $Definition.key
+                Name   = $Definition.name
+                Key    = $Definition.key
                 Status = 'ok'
                 Source = 'release-fallback'
                 Detail = '{0}@{1}/{2}' -f $releaseRepo, $releaseTag, $assetName
@@ -2018,8 +2018,8 @@ function Install-AppFromDefinition {
                     -DryRun:$DryRun
 
                 return [pscustomobject]@{
-                    Name = $Definition.name
-                    Key = $Definition.key
+                    Name   = $Definition.name
+                    Key    = $Definition.key
                     Status = 'ok'
                     Source = 'uri-fallback'
                     Detail = [string]$fallbackUri
@@ -2359,7 +2359,7 @@ limit 1;
         }
 
         return [pscustomobject]@{
-            Id = [WinSqliteInterop]::PtrToStringUtf8([WinSqliteInterop]::sqlite3_column_text($stmt, 0))
+            Id   = [WinSqliteInterop]::PtrToStringUtf8([WinSqliteInterop]::sqlite3_column_text($stmt, 0))
             Name = [WinSqliteInterop]::PtrToStringUtf8([WinSqliteInterop]::sqlite3_column_text($stmt, 1))
         }
     }
@@ -2438,10 +2438,10 @@ function Read-CodexProviderInput {
     Write-CodexProviderInputLine -Label 'API Key' -Value $apiKeyStatus
 
     return [pscustomobject]@{
-        Name = $name.Trim()
+        Name    = $name.Trim()
         BaseUrl = $baseUrl.Trim()
-        Model = $model.Trim()
-        ApiKey = $finalApiKey
+        Model   = $model.Trim()
+        ApiKey  = $finalApiKey
     }
 }
 
@@ -2526,8 +2526,8 @@ function Import-CcSwitchCodexProvider {
 
         Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5bCG6YCa6L+HIGNjc3dpdGNoOi8vIGRlZXAgbGluayDlr7zlhaUgcHJvdmlkZXLvvJp7MH0gLT4gezF9') -f $ProviderInfo.Name, $ProviderInfo.BaseUrl)
         return [pscustomobject]@{
-            Name = (ConvertFrom-Utf8Base64String -Value '6YWN572u5a+85YWl')
-            Key = 'cc-switch-provider'
+            Name   = (ConvertFrom-Utf8Base64String -Value '6YWN572u5a+85YWl')
+            Key    = 'cc-switch-provider'
             Status = 'ok'
             Source = 'ccswitch-deeplink'
             Detail = $ProviderInfo.Name
@@ -2568,8 +2568,8 @@ function Import-CcSwitchCodexProvider {
     }
 
     return [pscustomobject]@{
-        Name = (ConvertFrom-Utf8Base64String -Value '6YWN572u5a+85YWl')
-        Key = 'cc-switch-provider'
+        Name   = (ConvertFrom-Utf8Base64String -Value '6YWN572u5a+85YWl')
+        Key    = 'cc-switch-provider'
         Status = 'ok'
         Source = 'ccswitch-deeplink'
         Detail = $ProviderInfo.Name
@@ -2688,8 +2688,8 @@ function Test-SkillMetaMatchesSource {
     $destinationRef = Get-SkillMetaStringValue -Meta $DestinationMeta -Name 'source_ref'
     if (-not [string]::IsNullOrWhiteSpace($sourceRef)) {
         return ($sourceRef -eq $destinationRef) -and
-            ((Get-SkillMetaStringValue -Meta $SourceMeta -Name 'source_subpath') -eq (Get-SkillMetaStringValue -Meta $DestinationMeta -Name 'source_subpath')) -and
-            ((Get-SkillMetaStringValue -Meta $SourceMeta -Name 'source_branch') -eq (Get-SkillMetaStringValue -Meta $DestinationMeta -Name 'source_branch'))
+        ((Get-SkillMetaStringValue -Meta $SourceMeta -Name 'source_subpath') -eq (Get-SkillMetaStringValue -Meta $DestinationMeta -Name 'source_subpath')) -and
+        ((Get-SkillMetaStringValue -Meta $SourceMeta -Name 'source_branch') -eq (Get-SkillMetaStringValue -Meta $DestinationMeta -Name 'source_branch'))
     }
 
     $sourceRegistryType = Get-SkillMetaStringValue -Meta $SourceMeta -Name 'registry_source_type'
@@ -2814,9 +2814,9 @@ function Get-SkillImportDecision {
     }
 
     return [pscustomobject]@{
-        State = $installState.State
-        Detail = $installState.Detail
-        Action = $action
+        State     = $installState.State
+        Detail    = $installState.Detail
+        Action    = $action
         FinalName = $finalName
         FinalPath = $finalPath
     }
@@ -3071,6 +3071,27 @@ function Expand-BundleRegistryArchive {
     return $DestinationPath
 }
 
+function Get-RegistryMirrorAssetNames {
+    param(
+        [Parameter(Mandatory)]
+        [string]$RegistryRoot,
+        [Parameter(Mandatory)]
+        [string]$RelativePath
+    )
+
+    $root = Join-Path $RegistryRoot $RelativePath
+    if (-not (Test-Path -LiteralPath $root)) {
+        return @()
+    }
+
+    return @(
+        Get-ChildItem -LiteralPath $root -Recurse -File |
+        ForEach-Object { $_.FullName.Substring($root.Length).TrimStart('\', '/') -replace '\\', '/' } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique
+    )
+}
+
 function Read-SkillProfilesFromRegistry {
     param(
         [Parameter(Mandatory)]
@@ -3099,11 +3120,11 @@ function Read-SkillProfilesFromRegistry {
             }
 
             $current = [ordered]@{
-                Name = ConvertFrom-ProfileScalar -Value $Matches[1]
+                Name        = ConvertFrom-ProfileScalar -Value $Matches[1]
                 Description = ''
-                Tags = @()
-                Mcp = @()
-                Skills = @()
+                Tags        = @()
+                Mcp         = @()
+                Skills      = @()
             }
             $currentList = $null
             continue
@@ -3165,10 +3186,13 @@ function Get-SkillBundleProfiles {
         [System.IO.Compression.ZipFile]::ExtractToDirectory($resolvedZipPath, $tempRoot)
         $registryRoot = Expand-BundleRegistryArchive -ExtractedBundleRoot $tempRoot -DestinationPath (Join-Path $tempRoot 'registry')
         if ($registryRoot) {
+            $skillDirs = @(Get-SkillDirectoriesFromExtractedRoot -RootPath $tempRoot)
             $profiles = @(Read-SkillProfilesFromRegistry -RegistryRoot $registryRoot)
             foreach ($profile in $profiles) {
                 $prereqs = @(Get-ProfilePrereqNames -RegistryRoot $registryRoot -SkillNames @($profile.Skills) -McpNames @($profile.Mcp))
                 $profile | Add-Member -MemberType NoteProperty -Name Prereqs -Value $prereqs -Force
+                $expandedSkills = @(Expand-ProfileSkillReferences -SkillNames @($profile.Skills) -SkillDirectories $skillDirs)
+                $profile | Add-Member -MemberType NoteProperty -Name ExpandedSkills -Value $expandedSkills -Force
             }
             return @($profiles)
         }
@@ -3284,19 +3308,19 @@ function Read-RegistrySkillEntries {
                 $entries.Add([pscustomobject]$current)
             }
             $current = [ordered]@{
-                Name = ConvertFrom-ProfileScalar -Value $Matches[1]
-                Section = $section
-                Category = ''
+                Name        = ConvertFrom-ProfileScalar -Value $Matches[1]
+                Section     = $section
+                Category    = ''
                 Description = ''
-                Requires = @()
-                SourceType = ''
-                Repo = ''
-                Subpath = ''
-                Homepage = ''
-                ArchiveUrl = ''
+                Requires    = @()
+                SourceType  = ''
+                Repo        = ''
+                Subpath     = ''
+                Homepage    = ''
+                ArchiveUrl  = ''
                 DownloadUrl = ''
-                LocalPath = ''
-                Branch = ''
+                LocalPath   = ''
+                Branch      = ''
             }
             $inSource = $false
             continue
@@ -3400,9 +3424,9 @@ function Read-RegistryPrereqEntries {
                 $entries.Add([pscustomobject]$current)
             }
             $current = [ordered]@{
-                Name = ConvertFrom-ProfileScalar -Value $Matches[1]
-                Kind = ''
-                Check = ''
+                Name    = ConvertFrom-ProfileScalar -Value $Matches[1]
+                Kind    = ''
+                Check   = ''
                 Install = @{}
             }
             $inInstall = $false
@@ -3465,12 +3489,12 @@ function Read-RegistryMcpEntries {
                 $entries.Add([pscustomobject]$current)
             }
             $current = [ordered]@{
-                Name = ConvertFrom-ProfileScalar -Value $Matches[1]
+                Name      = ConvertFrom-ProfileScalar -Value $Matches[1]
                 Transport = 'stdio'
-                Command = ''
-                Args = @()
-                Url = ''
-                Env = @()
+                Command   = ''
+                Args      = @()
+                Url       = ''
+                Env       = @()
             }
             $inInstall = $false
             continue
@@ -3600,12 +3624,14 @@ function Get-SkillBundleInventory {
 
     if (-not (Test-Path -LiteralPath $ZipPath)) {
         return [pscustomobject]@{
-            Profiles = @()
-            BundleSkills = @()
+            Profiles       = @()
+            BundleSkills   = @()
             RegistrySkills = @()
-            Mcp = @()
-            Prereqs = @()
-            RegistryRoot = ''
+            Mcp            = @()
+            Prereqs        = @()
+            McpAssets      = @()
+            PrereqAssets   = @()
+            RegistryRoot   = ''
         }
     }
 
@@ -3615,8 +3641,9 @@ function Get-SkillBundleInventory {
         $resolvedZipPath = (Resolve-Path -LiteralPath $ZipPath).ProviderPath
         [System.IO.Compression.ZipFile]::ExtractToDirectory($resolvedZipPath, $tempRoot)
         $registryRoot = Expand-BundleRegistryArchive -ExtractedBundleRoot $tempRoot -DestinationPath (Join-Path $tempRoot 'registry')
+        $skillDirs = @(Get-SkillDirectoriesFromExtractedRoot -RootPath $tempRoot)
         $bundleSkills = @(
-            Get-SkillDirectoriesFromExtractedRoot -RootPath $tempRoot |
+            $skillDirs |
             ForEach-Object { Split-Path -Leaf $_ } |
             Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
             Sort-Object -Unique
@@ -3625,24 +3652,32 @@ function Get-SkillBundleInventory {
         $registrySkills = @()
         $mcpEntries = @()
         $prereqEntries = @()
+        $mcpAssets = @()
+        $prereqAssets = @()
         if ($registryRoot) {
             $profiles = @(Read-SkillProfilesFromRegistry -RegistryRoot $registryRoot)
             foreach ($profile in $profiles) {
                 $prereqs = @(Get-ProfilePrereqNames -RegistryRoot $registryRoot -SkillNames @($profile.Skills) -McpNames @($profile.Mcp))
                 $profile | Add-Member -MemberType NoteProperty -Name Prereqs -Value $prereqs -Force
+                $expandedSkills = @(Expand-ProfileSkillReferences -SkillNames @($profile.Skills) -SkillDirectories $skillDirs)
+                $profile | Add-Member -MemberType NoteProperty -Name ExpandedSkills -Value $expandedSkills -Force
             }
             $registrySkills = @(Read-RegistrySkillEntries -RegistryRoot $registryRoot)
             $mcpEntries = @(Read-RegistryMcpEntries -RegistryRoot $registryRoot)
             $prereqEntries = @(Read-RegistryPrereqEntries -RegistryRoot $registryRoot)
+            $mcpAssets = @(Get-RegistryMirrorAssetNames -RegistryRoot $registryRoot -RelativePath 'mcps')
+            $prereqAssets = @(Get-RegistryMirrorAssetNames -RegistryRoot $registryRoot -RelativePath 'prereqs')
         }
 
         return [pscustomobject]@{
-            Profiles = $profiles
-            BundleSkills = $bundleSkills
+            Profiles       = $profiles
+            BundleSkills   = $bundleSkills
             RegistrySkills = $registrySkills
-            Mcp = $mcpEntries
-            Prereqs = $prereqEntries
-            RegistryRoot = if ($registryRoot) { $registryRoot } else { '' }
+            Mcp            = $mcpEntries
+            Prereqs        = $prereqEntries
+            McpAssets      = $mcpAssets
+            PrereqAssets   = $prereqAssets
+            RegistryRoot   = if ($registryRoot) { $registryRoot } else { '' }
         }
     }
     finally {
@@ -3713,11 +3748,11 @@ function Install-RegistryPrereqs {
 
     $names = @($PrereqNames | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
     $result = [ordered]@{
-        Already = @()
+        Already   = @()
         Installed = @()
-        Manual = @()
-        Missing = @()
-        Failed = @()
+        Manual    = @()
+        Missing   = @()
+        Failed    = @()
     }
 
     if ($names.Count -eq 0) {
@@ -3843,7 +3878,7 @@ function Set-JsonMcpServerConfig {
 
     $serverEntries = @($Entries | Where-Object {
             (($_.Transport -eq 'stdio' -and -not [string]::IsNullOrWhiteSpace($_.Command)) -or
-                ($_.Transport -ne 'stdio' -and -not [string]::IsNullOrWhiteSpace($_.Url)))
+            ($_.Transport -ne 'stdio' -and -not [string]::IsNullOrWhiteSpace($_.Url)))
         })
     if ($serverEntries.Count -eq 0) {
         return
@@ -3902,7 +3937,7 @@ function Sync-ClaudeCodeMcpServers {
 
     $serverEntries = @($Entries | Where-Object {
             (($_.Transport -eq 'stdio' -and -not [string]::IsNullOrWhiteSpace($_.Command)) -or
-                ($_.Transport -ne 'stdio' -and -not [string]::IsNullOrWhiteSpace($_.Url)))
+            ($_.Transport -ne 'stdio' -and -not [string]::IsNullOrWhiteSpace($_.Url)))
         })
     if ($serverEntries.Count -eq 0) {
         return
@@ -4204,10 +4239,10 @@ function Get-SkillBundleComponentStatus {
             $path = Join-Path $centralRoot $name
             $installed = Test-Path -LiteralPath (Join-Path $path 'SKILL.md')
             [pscustomobject]@{
-                Name = $name
-                Kind = if ($bundleSkillSet.ContainsKey($name.ToLowerInvariant())) { 'bundle' } else { 'external' }
+                Name      = $name
+                Kind      = if ($bundleSkillSet.ContainsKey($name.ToLowerInvariant())) { 'bundle' } else { 'external' }
                 Installed = $installed
-                Path = $path
+                Path      = $path
             }
         }
     )
@@ -4246,9 +4281,9 @@ function Get-SkillBundleComponentStatus {
                 $targets.Add('Claude Code')
             }
             [pscustomobject]@{
-                Name = $entry.Name
+                Name       = $entry.Name
                 Configured = $targets.Count -gt 0
-                Targets = $targets.ToArray()
+                Targets    = $targets.ToArray()
             }
         }
     )
@@ -4265,34 +4300,111 @@ function Get-SkillBundleComponentStatus {
                 $installed = $true
             }
             [pscustomobject]@{
-                Name = $entry.Name
-                Kind = $entry.Kind
+                Name      = $entry.Name
+                Kind      = $entry.Kind
                 Installed = $installed
             }
         }
     )
 
     return [pscustomobject]@{
-        Profiles = @($inventory.Profiles)
-        Skills = $skillStatus
-        Mcp = $mcpStatus
-        Prereqs = $prereqStatus
-        BundleSkills = @($inventory.BundleSkills)
+        Profiles       = @($inventory.Profiles)
+        Skills         = $skillStatus
+        Mcp            = $mcpStatus
+        Prereqs        = $prereqStatus
+        BundleSkills   = @($inventory.BundleSkills)
         RegistrySkills = @($inventory.RegistrySkills)
+        McpAssets      = @($inventory.McpAssets)
+        PrereqAssets   = @($inventory.PrereqAssets)
     }
+}
+
+function Expand-ProfileSkillReferences {
+    param(
+        [string[]]$SkillNames = @(),
+        [string[]]$SkillDirectories = @()
+    )
+
+    $expanded = New-Object System.Collections.Generic.List[string]
+    $seen = @{}
+    $dirsByName = @{}
+    $dirsByRegistryEntry = @{}
+
+    foreach ($skillDir in @($SkillDirectories)) {
+        $skillName = Split-Path -Leaf $skillDir
+        if ([string]::IsNullOrWhiteSpace($skillName)) {
+            continue
+        }
+
+        $dirsByName[$skillName.ToLowerInvariant()] = $skillName
+        $metaPath = Join-Path $skillDir '.skill-meta.json'
+        if (Test-Path -LiteralPath $metaPath) {
+            try {
+                $meta = Get-Content -Raw -Encoding UTF8 -LiteralPath $metaPath | ConvertFrom-Json
+                $entryName = [string](Get-ObjectPropertyValue -Object $meta -Name 'registry_entry_name')
+                if (-not [string]::IsNullOrWhiteSpace($entryName)) {
+                    $entryKey = $entryName.ToLowerInvariant()
+                    if (-not $dirsByRegistryEntry.ContainsKey($entryKey)) {
+                        $dirsByRegistryEntry[$entryKey] = New-Object System.Collections.Generic.List[string]
+                    }
+                    $dirsByRegistryEntry[$entryKey].Add($skillName)
+                }
+            }
+            catch {
+            }
+        }
+    }
+
+    foreach ($skillName in @($SkillNames | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)) {
+        $key = $skillName.ToLowerInvariant()
+        $matched = $false
+
+        if ($dirsByName.ContainsKey($key)) {
+            $name = [string]$dirsByName[$key]
+            if (-not $seen.ContainsKey($name.ToLowerInvariant())) {
+                $expanded.Add($name)
+                $seen[$name.ToLowerInvariant()] = $true
+            }
+            $matched = $true
+        }
+
+        if ($dirsByRegistryEntry.ContainsKey($key)) {
+            foreach ($name in @($dirsByRegistryEntry[$key])) {
+                if (-not $seen.ContainsKey($name.ToLowerInvariant())) {
+                    $expanded.Add($name)
+                    $seen[$name.ToLowerInvariant()] = $true
+                }
+            }
+            $matched = $true
+        }
+
+        if (-not $matched -and -not $seen.ContainsKey($key)) {
+            $expanded.Add($skillName)
+            $seen[$key] = $true
+        }
+    }
+
+    return @($expanded)
 }
 
 function Get-SkillProfileComponentSummary {
     param(
         [object[]]$Profiles = @(),
-        [string]$RegistryRoot
+        [string]$RegistryRoot,
+        [string[]]$SkillDirectories = @()
     )
 
-    $skills = @($Profiles | ForEach-Object { $_.Skills } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    $skillRefs = @($Profiles | ForEach-Object { $_.Skills } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    $skills = if (@($SkillDirectories).Count -gt 0) {
+        @(Expand-ProfileSkillReferences -SkillNames $skillRefs -SkillDirectories $SkillDirectories)
+    }
+    else {
+        @($skillRefs)
+    }
     $mcp = @($Profiles | ForEach-Object { $_.Mcp } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
     $prereqs = @()
     if (-not [string]::IsNullOrWhiteSpace($RegistryRoot)) {
-        $prereqs = @(Get-ProfilePrereqNames -RegistryRoot $RegistryRoot -SkillNames $skills -McpNames $mcp)
+        $prereqs = @(Get-ProfilePrereqNames -RegistryRoot $RegistryRoot -SkillNames $skillRefs -McpNames $mcp)
     }
     else {
         $prereqs = @($Profiles | ForEach-Object { $_.Prereqs } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
@@ -4301,8 +4413,8 @@ function Get-SkillProfileComponentSummary {
     return [pscustomobject]@{
         SuiteCount = @($Profiles).Count
         SkillCount = $skills.Count
-        McpCount = $mcp.Count
-        CliCount = $prereqs.Count
+        McpCount   = $mcp.Count
+        CliCount   = $prereqs.Count
     }
 }
 
@@ -4445,16 +4557,93 @@ function Select-SkillDirectoriesForProfiles {
         [switch]$AllSuites
     )
 
-    if ($AllSkills -or -not $Profiles -or $Profiles.Count -eq 0) {
+    if ($AllSkills) {
+        $registrySkillEntries = if (-not [string]::IsNullOrWhiteSpace($RegistryRoot)) { @(Read-RegistrySkillEntries -RegistryRoot $RegistryRoot) } else { @() }
+        $wantedSkills = if ($registrySkillEntries.Count -gt 0) {
+            @($registrySkillEntries | ForEach-Object { $_.Name } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+        }
+        else {
+            @($SkillDirectories | ForEach-Object { Split-Path -Leaf $_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+        }
+
+        $skillByName = @{}
+        $skillDirsByRegistryEntry = @{}
+        foreach ($skillDir in $SkillDirectories) {
+            $skillName = Split-Path -Leaf $skillDir
+            $skillByName[$skillName.ToLowerInvariant()] = $skillDir
+
+            $metaPath = Join-Path $skillDir '.skill-meta.json'
+            if (Test-Path -LiteralPath $metaPath) {
+                try {
+                    $meta = Get-Content -Raw -Encoding UTF8 -LiteralPath $metaPath | ConvertFrom-Json
+                    $entryName = [string](Get-ObjectPropertyValue -Object $meta -Name 'registry_entry_name')
+                    if (-not [string]::IsNullOrWhiteSpace($entryName)) {
+                        $entryKey = $entryName.ToLowerInvariant()
+                        if (-not $skillDirsByRegistryEntry.ContainsKey($entryKey)) {
+                            $skillDirsByRegistryEntry[$entryKey] = New-Object System.Collections.Generic.List[string]
+                        }
+                        $skillDirsByRegistryEntry[$entryKey].Add($skillDir)
+                    }
+                }
+                catch {
+                    Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '6Kej5p6QIHByb2ZpbGUg5p2h55uuIHswfSDml7YgLnNraWxsLW1ldGEuanNvbiDml6DmlYjvvJp7MX0=') -f $skillName, $_.Exception.Message)
+                }
+            }
+        }
+
+        $selectedSkillDirs = New-Object System.Collections.Generic.List[string]
+        $selectedSkillDirKeys = @{}
+        $missingSkills = New-Object System.Collections.Generic.List[string]
+        foreach ($skillName in $wantedSkills) {
+            $key = $skillName.ToLowerInvariant()
+            if ($skillByName.ContainsKey($key)) {
+                $skillDir = $skillByName[$key]
+                if (-not $selectedSkillDirKeys.ContainsKey($skillDir)) {
+                    $selectedSkillDirs.Add($skillDir)
+                    $selectedSkillDirKeys[$skillDir] = $true
+                }
+            }
+            elseif ($skillDirsByRegistryEntry.ContainsKey($key)) {
+                foreach ($skillDir in $skillDirsByRegistryEntry[$key]) {
+                    if (-not $selectedSkillDirKeys.ContainsKey($skillDir)) {
+                        $selectedSkillDirs.Add($skillDir)
+                        $selectedSkillDirKeys[$skillDir] = $true
+                    }
+                }
+            }
+            else {
+                $missingSkills.Add($skillName)
+            }
+        }
+
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5YWo6YOoIFNraWxs77yaezB9IOS4qu+8m01DUO+8mjAg5Liq77ybQ0xJ77yaMCDkuKo=') -f $wantedSkills.Count)
+        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6YCJ5Lit55qEIHNraWxs77yaezB9L3sxfQ==') -f $selectedSkillDirs.Count, $SkillDirectories.Count)
+        if ($missingSkills.Count -gt 0) {
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5bCG5oyJIGV4dGVybmFsIOadpea6kOWuieijheeahCBTa2lsbO+8mnswfQ==') -f ($missingSkills -join ', '))
+        }
+        Write-SelectedProfileComponentPreview -Mcp @() -Prereqs @()
+        $script:LastSkillSelection = [pscustomobject]@{
+            RegistryRoot     = $RegistryRoot
+            Profiles         = @()
+            WantedSkills     = @($wantedSkills)
+            BundledSkillDirs = @($selectedSkillDirs)
+            MissingSkills    = @($missingSkills)
+            Mcp              = @()
+            Prereqs          = @()
+        }
+        return @($selectedSkillDirs)
+    }
+
+    if (-not $Profiles -or $Profiles.Count -eq 0) {
         Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5YWo6YOoIFNraWxs77yaezB9IOS4qu+8m01DUO+8mjAg5Liq77ybQ0xJ77yaMCDkuKo=') -f $SkillDirectories.Count)
         $script:LastSkillSelection = [pscustomobject]@{
-            RegistryRoot = $RegistryRoot
-            Profiles = @()
-            WantedSkills = @()
+            RegistryRoot     = $RegistryRoot
+            Profiles         = @()
+            WantedSkills     = @()
             BundledSkillDirs = @($SkillDirectories)
-            MissingSkills = @()
-            Mcp = @()
-            Prereqs = @()
+            MissingSkills    = @()
+            Mcp              = @()
+            Prereqs          = @()
         }
         return @($SkillDirectories)
     }
@@ -4468,13 +4657,13 @@ function Select-SkillDirectoriesForProfiles {
         Write-Log -Message (ConvertFrom-Utf8Base64String -Value '5pyq5qOA5rWL5Yiw5Lqk5LqS5byP57uI56uv77yM5a6J6KOFIGJ1bmRsZSDkuK3nmoTlhajpg6ggc2tpbGw=')
         Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5YWo6YOoIFNraWxs77yaezB9IOS4qu+8m01DUO+8mjAg5Liq77ybQ0xJ77yaMCDkuKo=') -f $SkillDirectories.Count)
         $script:LastSkillSelection = [pscustomobject]@{
-            RegistryRoot = $RegistryRoot
-            Profiles = @()
-            WantedSkills = @()
+            RegistryRoot     = $RegistryRoot
+            Profiles         = @()
+            WantedSkills     = @()
             BundledSkillDirs = @($SkillDirectories)
-            MissingSkills = @()
-            Mcp = @()
-            Prereqs = @()
+            MissingSkills    = @()
+            Mcp              = @()
+            Prereqs          = @()
         }
         return @($SkillDirectories)
     }
@@ -4494,7 +4683,7 @@ function Select-SkillDirectoriesForProfiles {
             -SkillCount $SkillDirectories.Count `
             -McpCount 0 `
             -CliCount 0
-        $allSuitesSummary = Get-SkillProfileComponentSummary -Profiles $Profiles -RegistryRoot $RegistryRoot
+        $allSuitesSummary = Get-SkillProfileComponentSummary -Profiles $Profiles -RegistryRoot $RegistryRoot -SkillDirectories $SkillDirectories
         Write-SkillProfilePromptOption `
             -Index '00' `
             -Name (ConvertFrom-Utf8Base64String -Value '5omA5pyJ5aWX5Lu2') `
@@ -4505,7 +4694,7 @@ function Select-SkillDirectoriesForProfiles {
             -CliCount $allSuitesSummary.CliCount
         for ($index = 0; $index -lt $Profiles.Count; $index++) {
             $profile = $Profiles[$index]
-            $profileSummary = Get-SkillProfileComponentSummary -Profiles @($profile) -RegistryRoot $RegistryRoot
+            $profileSummary = Get-SkillProfileComponentSummary -Profiles @($profile) -RegistryRoot $RegistryRoot -SkillDirectories $SkillDirectories
             Write-SkillProfilePromptOption `
                 -Index ([string]($index + 1)) `
                 -Name $profile.Name `
@@ -4520,13 +4709,13 @@ function Select-SkillDirectoriesForProfiles {
         if ($tokens.Count -eq 0) {
             Write-Log -Message (ConvertFrom-Utf8Base64String -Value '5pyq6YCJ5oupIFByb2ZpbGXvvIzlt7Lot7Pov4cgU2tpbGwg5a+85YWl44CC')
             $script:LastSkillSelection = [pscustomobject]@{
-                RegistryRoot = $RegistryRoot
-                Profiles = @()
-                WantedSkills = @()
+                RegistryRoot     = $RegistryRoot
+                Profiles         = @()
+                WantedSkills     = @()
                 BundledSkillDirs = @()
-                MissingSkills = @()
-                Mcp = @()
-                Prereqs = @()
+                MissingSkills    = @()
+                Mcp              = @()
+                Prereqs          = @()
             }
             return @()
         }
@@ -4534,13 +4723,13 @@ function Select-SkillDirectoriesForProfiles {
             Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5YWo6YOoIFNraWxs77yaezB9IOS4qu+8m01DUO+8mjAg5Liq77ybQ0xJ77yaMCDkuKo=') -f $SkillDirectories.Count)
             Write-SelectedProfileComponentPreview -Mcp @() -Prereqs @()
             $script:LastSkillSelection = [pscustomobject]@{
-                RegistryRoot = $RegistryRoot
-                Profiles = @()
-                WantedSkills = @()
+                RegistryRoot     = $RegistryRoot
+                Profiles         = @()
+                WantedSkills     = @()
                 BundledSkillDirs = @($SkillDirectories)
-                MissingSkills = @()
-                Mcp = @()
-                Prereqs = @()
+                MissingSkills    = @()
+                Mcp              = @()
+                Prereqs          = @()
             }
             return @($SkillDirectories)
         }
@@ -4651,13 +4840,13 @@ function Select-SkillDirectoriesForProfiles {
     Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6Kej5p6Q5Yiw55qE5YmN572u5L6d6LWW77yaezB9') -f $prereqDetail)
 
     $script:LastSkillSelection = [pscustomobject]@{
-        RegistryRoot = $RegistryRoot
-        Profiles = @($selectedProfiles | ForEach-Object { $_.Name })
-        WantedSkills = @($wantedSkills)
+        RegistryRoot     = $RegistryRoot
+        Profiles         = @($selectedProfiles | ForEach-Object { $_.Name })
+        WantedSkills     = @($wantedSkills)
         BundledSkillDirs = @($selectedSkillDirs)
-        MissingSkills = @($missingSkills)
-        Mcp = @($wantedMcp)
-        Prereqs = @($wantedPrereqs)
+        MissingSkills    = @($missingSkills)
+        Mcp              = @($wantedMcp)
+        Prereqs          = @($wantedPrereqs)
     }
 
     return @($selectedSkillDirs)
@@ -4741,13 +4930,13 @@ function Select-SkillDirectoriesForExplicitSelection {
     Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6Kej5p6Q5Yiw55qE5YmN572u5L6d6LWW77yaezB9') -f ($(if ($wantedPrereqs.Count -gt 0) { $wantedPrereqs -join ', ' } else { '(none)' })))
 
     $script:LastSkillSelection = [pscustomobject]@{
-        RegistryRoot = $RegistryRoot
-        Profiles = @()
-        WantedSkills = @($wantedSkills)
+        RegistryRoot     = $RegistryRoot
+        Profiles         = @()
+        WantedSkills     = @($wantedSkills)
         BundledSkillDirs = @($selectedSkillDirs)
-        MissingSkills = @($missingSkills)
-        Mcp = @($wantedMcp)
-        Prereqs = @($wantedPrereqs)
+        MissingSkills    = @($missingSkills)
+        Mcp              = @($wantedMcp)
+        Prereqs          = @($wantedPrereqs)
     }
 
     return @($selectedSkillDirs)
@@ -4758,8 +4947,8 @@ function Get-OptionalSkillTargets {
     $targets = New-Object System.Collections.Generic.List[object]
 
     $targets.Add([pscustomobject]@{
-            Name = 'codex'
-            Path = Join-Path $homeDir '.codex\skills'
+            Name    = 'codex'
+            Path    = Join-Path $homeDir '.codex\skills'
             Enabled = $true
         })
 
@@ -4771,8 +4960,8 @@ function Get-OptionalSkillTargets {
             @{ Name = 'github_copilot'; Root = Join-Path $homeDir '.copilot'; Path = Join-Path $homeDir '.copilot\skills' }
         )) {
         $targets.Add([pscustomobject]@{
-                Name = $target.Name
-                Path = $target.Path
+                Name    = $target.Name
+                Path    = $target.Path
                 Enabled = (Test-Path -LiteralPath $target.Root)
             })
     }
@@ -4820,14 +5009,14 @@ function Initialize-SkillsManagerDatabase {
 
     if (Test-Path -LiteralPath $DbPath) {
         return [pscustomobject]@{
-            Available = $true
+            Available             = $true
             LaunchedSkillsManager = $false
         }
     }
 
     if ($DryRun -or [string]::IsNullOrWhiteSpace($SkillsManagerExe)) {
         return [pscustomobject]@{
-            Available = $false
+            Available             = $false
             LaunchedSkillsManager = $false
         }
     }
@@ -4839,7 +5028,7 @@ function Initialize-SkillsManagerDatabase {
     do {
         if (Test-Path -LiteralPath $DbPath) {
             return [pscustomobject]@{
-                Available = $true
+                Available             = $true
                 LaunchedSkillsManager = $true
             }
         }
@@ -4848,7 +5037,7 @@ function Initialize-SkillsManagerDatabase {
     } while ((Get-Date) -lt $deadline)
 
     return [pscustomobject]@{
-        Available = (Test-Path -LiteralPath $DbPath)
+        Available             = (Test-Path -LiteralPath $DbPath)
         LaunchedSkillsManager = $true
     }
 }
@@ -4894,15 +5083,15 @@ function Read-SkillMetadata {
     }
 
     return [pscustomobject]@{
-        Name = $SkillName
-        Description = ''
-        SourceType = $sourceType
-        SourceRef = $sourceRef
-        SourceSubpath = $sourceSubpath
-        SourceBranch = $sourceBranch
-        SourceRevision = $sourceRevision
+        Name              = $SkillName
+        Description       = ''
+        SourceType        = $sourceType
+        SourceRef         = $sourceRef
+        SourceSubpath     = $sourceSubpath
+        SourceBranch      = $sourceBranch
+        SourceRevision    = $sourceRevision
         RegistryEntryName = $registryEntryName
-        CentralPath = $CentralPath
+        CentralPath       = $CentralPath
     }
 }
 
@@ -4971,7 +5160,7 @@ function Sync-SkillsManagerRegistry {
     if ($scenarioSelection.Mode -eq 'skip') {
         Write-Log -Message (ConvertFrom-Utf8Base64String -Value '6Lez6L+HIFNraWxscyBNYW5hZ2VyIOWcuuaZr+azqOWGjO+8m+S7heWkjeWItiBTa2lsbCDmlofku7bjgII=')
         return [pscustomobject]@{
-            Synchronized = $false
+            Synchronized          = $false
             LaunchedSkillsManager = $false
         }
     }
@@ -4997,7 +5186,7 @@ function Sync-SkillsManagerRegistry {
     if (-not $dbState.Available) {
         Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '5om+5LiN5YiwIHNraWxscy1tYW5hZ2VyIERC77yM6Lez6L+H5rOo5YaM5ZCM5q2l77yaezB9') -f $dbPath)
         return [pscustomobject]@{
-            Synchronized = $false
+            Synchronized          = $false
             LaunchedSkillsManager = $dbState.LaunchedSkillsManager
         }
     }
@@ -5008,7 +5197,7 @@ function Sync-SkillsManagerRegistry {
     $payloadPath = Join-Path $tempRoot 'skills.json'
     $scriptPath = Join-Path $tempRoot 'sync_skills_manager_registry.py'
     $payloadJson = @{
-        skills = $ImportedSkills
+        skills   = $ImportedSkills
         scenario = @{
             mode = $scenarioSelection.Mode
             name = $scenarioSelection.Name
@@ -5167,7 +5356,7 @@ conn.close()
     }
 
     return [pscustomobject]@{
-        Synchronized = $true
+        Synchronized          = $true
         LaunchedSkillsManager = $dbState.LaunchedSkillsManager
     }
 }
@@ -5202,11 +5391,11 @@ function Import-SkillDirectoryToTargets {
     if ($centralDecision.Action -eq 'Skip' -and $centralDecision.State -in @('Orphan', 'Foreign')) {
         Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '6Lez6L+HIHNraWxs77ya546w5pyJ55uu5b2V54q25oCB5Li6IHswfe+8mnsxfQ==') -f $centralDecision.State, $centralDecision.FinalPath)
         return [pscustomobject]@{
-            Imported = $false
-            Copied = $false
-            Metadata = $null
+            Imported      = $false
+            Copied        = $false
+            Metadata      = $null
             EffectiveName = $centralDecision.FinalName
-            TargetCount = 0
+            TargetCount   = 0
         }
     }
 
@@ -5243,12 +5432,12 @@ function Import-SkillDirectoryToTargets {
     $skillMetadata | Add-Member -MemberType NoteProperty -Name 'Targets' -Value $skillTargets -Force
 
     return [pscustomobject]@{
-        Imported = $true
-        Copied = -not ($centralDecision.Action -eq 'Skip' -and -not $targetChanged)
-        Metadata = $skillMetadata
+        Imported      = $true
+        Copied        = -not ($centralDecision.Action -eq 'Skip' -and -not $targetChanged)
+        Metadata      = $skillMetadata
         EffectiveName = $effectiveSkillName
-        TargetCount = $skillTargets.Count
-        Action = $centralDecision.Action
+        TargetCount   = $skillTargets.Count
+        Action        = $centralDecision.Action
     }
 }
 
@@ -5367,13 +5556,13 @@ function Write-ExternalSkillMeta {
     )
 
     $meta = [ordered]@{
-        name = $Entry.Name
-        registry_entry_name = $Entry.Name
-        source_type = if ([string]::IsNullOrWhiteSpace($Entry.SourceType)) { 'external' } else { $Entry.SourceType }
-        source_ref = Get-ExternalSkillSourceLabel -Entry $Entry
-        source_subpath = $Entry.Subpath
-        source_branch = $Entry.Branch
-        source_revision = $Revision
+        name                 = $Entry.Name
+        registry_entry_name  = $Entry.Name
+        source_type          = if ([string]::IsNullOrWhiteSpace($Entry.SourceType)) { 'external' } else { $Entry.SourceType }
+        source_ref           = Get-ExternalSkillSourceLabel -Entry $Entry
+        source_subpath       = $Entry.Subpath
+        source_branch        = $Entry.Branch
+        source_revision      = $Revision
         registry_source_type = 'external'
     }
     $json = ($meta | ConvertTo-Json -Depth 5)
@@ -5448,9 +5637,9 @@ function Import-ExternalSkillsFromSelection {
 
         $sourceLabel = Get-ExternalSkillSourceLabel -Entry $entry
         $hasAutoSource = (-not [string]::IsNullOrWhiteSpace($entry.Repo)) -or
-            (-not [string]::IsNullOrWhiteSpace($entry.ArchiveUrl)) -or
-            (-not [string]::IsNullOrWhiteSpace($entry.DownloadUrl)) -or
-            (-not [string]::IsNullOrWhiteSpace($entry.LocalPath))
+        (-not [string]::IsNullOrWhiteSpace($entry.ArchiveUrl)) -or
+        (-not [string]::IsNullOrWhiteSpace($entry.DownloadUrl)) -or
+        (-not [string]::IsNullOrWhiteSpace($entry.LocalPath))
 
         if (-not $hasAutoSource) {
             Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'ZXh0ZXJuYWwgc2tpbGwg57y65bCRIHJlcG/vvIzml6Dms5Xoh6rliqjlronoo4XvvJp7MH0=') -f $entry.Name)
@@ -5557,10 +5746,10 @@ function Import-ExternalSkillsFromSelection {
     $requiredPrereqItems = @($requiredPrereqs.ToArray() | Sort-Object -Unique)
 
     return [pscustomobject]@{
-        ImportedSkills = $importedSkillItems
-        CopiedCount = $copiedCount
-        PlannedCount = $externalEntries.Count
-        FailedCount = $failedCount
+        ImportedSkills  = $importedSkillItems
+        CopiedCount     = $copiedCount
+        PlannedCount    = $externalEntries.Count
+        FailedCount     = $failedCount
         RequiredPrereqs = $requiredPrereqItems
     }
 }
@@ -5712,8 +5901,8 @@ function Install-SkillBundle {
         }
 
         return [pscustomobject]@{
-            Name = 'skills.zip'
-            Key = 'skills-bundle'
+            Name   = 'skills.zip'
+            Key    = 'skills-bundle'
             Status = 'ok'
             Source = 'local-zip'
             Detail = $detail
