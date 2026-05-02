@@ -1198,7 +1198,11 @@ function Show-TuiSkillProfileSelection {
         [int]$BundleSkillCount = 0,
         [int]$RegistrySkillCount = 0,
         [int]$InstalledSkillCount = 0,
-        [int]$NewSkillCount = 0
+        [int]$NewSkillCount = 0,
+        [int]$McpCount = 0,
+        [int]$ConfiguredMcpCount = 0,
+        [int]$PrereqCount = 0,
+        [int]$InstalledPrereqCount = 0
     )
 
     function Format-TuiListPreview {
@@ -1399,6 +1403,7 @@ function Show-TuiSkillProfileSelection {
             (ConvertFrom-BootstrapUtf8Base64String -Value '5Y+v6YCJIFNraWxs'), $RegistrySkillCount, `
             (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5py65bey5a6J6KOF'), $InstalledSkillCount, `
             (ConvertFrom-BootstrapUtf8Base64String -Value '5Y+v6IO95paw5aKe'), $NewSkillCount) -ForegroundColor DarkGray
+        Write-Host ('总览: Skill {0}/{1} 已安装; MCP {2}/{3} 已配置; CLI {4}/{5} 已安装' -f $InstalledSkillCount, $allSkillCount, $ConfiguredMcpCount, $McpCount, $InstalledPrereqCount, $PrereqCount) -ForegroundColor DarkGray
         $selectedCount = @($options | Where-Object { $_.Enabled }).Count
         Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YCJIHswfSDkuKrvvJvlvZPliY0gezF9L3syfQ==') -f $selectedCount, ($index + 1), $options.Count) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YCJ'), (Format-TuiSkillProfileSelectionPreview -Options $options)) -ForegroundColor DarkGray
@@ -2175,6 +2180,74 @@ function Get-BootstrapTuiSkillOnlySummary {
     }
 }
 
+function Get-BootstrapTuiMcpOnlySummary {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Repo,
+        [Parameter(Mandatory)]
+        [string]$Tag,
+        [Parameter(Mandatory)]
+        [string]$DestinationRoot,
+        [Parameter(Mandatory)]
+        [bool]$Refresh
+    )
+
+    $skillBundlePath = Join-Path $DestinationRoot 'downloads\skills.zip'
+    Sync-BootstrapSkillBundleAsset `
+        -Repo $Repo `
+        -Tag $Tag `
+        -DestinationRoot $DestinationRoot `
+        -Refresh:$Refresh
+
+    $componentStatus = Get-SkillBundleComponentStatus -ZipPath $skillBundlePath -IncludeMcp
+    return [pscustomobject]@{
+        Profiles        = @($componentStatus.Profiles)
+        BundleSkills    = @($componentStatus.BundleSkills)
+        InstalledSkills = @()
+        NewSkills       = @()
+        RegistrySkills  = @($componentStatus.RegistrySkills)
+        SkillStatus     = @()
+        McpStatus       = @($componentStatus.Mcp)
+        PrereqStatus    = @()
+        ZipPath         = $skillBundlePath
+        LocalSkillRoot  = ''
+    }
+}
+
+function Get-BootstrapTuiCliOnlySummary {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Repo,
+        [Parameter(Mandatory)]
+        [string]$Tag,
+        [Parameter(Mandatory)]
+        [string]$DestinationRoot,
+        [Parameter(Mandatory)]
+        [bool]$Refresh
+    )
+
+    $skillBundlePath = Join-Path $DestinationRoot 'downloads\skills.zip'
+    Sync-BootstrapSkillBundleAsset `
+        -Repo $Repo `
+        -Tag $Tag `
+        -DestinationRoot $DestinationRoot `
+        -Refresh:$Refresh
+
+    $componentStatus = Get-SkillBundleComponentStatus -ZipPath $skillBundlePath -IncludePrereqs
+    return [pscustomobject]@{
+        Profiles        = @($componentStatus.Profiles)
+        BundleSkills    = @($componentStatus.BundleSkills)
+        InstalledSkills = @()
+        NewSkills       = @()
+        RegistrySkills  = @($componentStatus.RegistrySkills)
+        SkillStatus     = @()
+        McpStatus       = @()
+        PrereqStatus    = @($componentStatus.Prereqs)
+        ZipPath         = $skillBundlePath
+        LocalSkillRoot  = ''
+    }
+}
+
 function Show-TuiSkillStatus {
     param(
         [Parameter(Mandatory)]
@@ -2241,10 +2314,14 @@ function Show-TuiSuiteStatus {
     $summary = Get-BootstrapTuiSkillBundleSummary -Repo $Repo -Tag $Tag -DestinationRoot $DestinationRoot -Refresh $Refresh
     while ($true) {
         Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5omA5pyJ5aWX5Lu254q25oCB')
+        $installedSkillCount = @($summary.SkillStatus | Where-Object { $_.Installed }).Count
+        $configuredMcpCount = @($summary.McpStatus | Where-Object { $_.Configured }).Count
+        $installedCliCount = @($summary.PrereqStatus | Where-Object { $_.Installed }).Count
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'UHJvZmlsZSDmlbDph48='), $summary.Profiles.Count) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'QnVuZGxlIFNraWxs'), $summary.BundleSkills.Count) -ForegroundColor Gray
-        Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value 'TUNQ77yaezB977yb5bey6YWN572u77yaezF9') -f $summary.McpStatus.Count, @($summary.McpStatus | Where-Object { $_.Configured }).Count) -ForegroundColor Gray
-        Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q0xJ77yaezB977yb5bey5a6J6KOF77yaezF9') -f $summary.PrereqStatus.Count, @($summary.PrereqStatus | Where-Object { $_.Installed }).Count) -ForegroundColor Gray
+        Write-Host ('总览: Skill {0}/{1} 已安装; MCP {2}/{3} 已配置; CLI {4}/{5} 已安装' -f $installedSkillCount, $summary.SkillStatus.Count, $configuredMcpCount, $summary.McpStatus.Count, $installedCliCount, $summary.PrereqStatus.Count) -ForegroundColor Gray
+        Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value 'TUNQ77yaezB977yb5bey6YWN572u77yaezF9') -f $summary.McpStatus.Count, $configuredMcpCount) -ForegroundColor Gray
+        Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q0xJ77yaezB977yb5bey5a6J6KOF77yaezF9') -f $summary.PrereqStatus.Count, $installedCliCount) -ForegroundColor Gray
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '6L+Z6YeM5bGV56S655qE5piv5aWX5Lu2IFByb2ZpbGXjgIFNQ1Ag6YWN572u5ZKMIENMSSDmo4DmtYvnirbmgIHjgII=') -ForegroundColor DarkGray
         Write-Host ''
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5aWX5Lu25riF5Y2V') -ForegroundColor Yellow
@@ -2461,6 +2538,8 @@ function Invoke-BootstrapTuiWorkbench {
         RegistryPrereqEntries     = @()
         AvailableSkillProfiles    = @($availableSkillProfiles)
         SkillRegistryLoaded       = $false
+        McpRegistryLoaded         = $false
+        PrereqRegistryLoaded      = $false
         ComponentRegistryLoaded   = $false
         SkillsManagerScenarioMode = if ([string]::IsNullOrWhiteSpace($InitialSkillsManagerScenarioMode) -or $InitialSkillsManagerScenarioMode -eq 'prompt') { 'skip' } else { $InitialSkillsManagerScenarioMode }
         SkillsManagerScenarioName = $InitialSkillsManagerScenarioName
@@ -2471,24 +2550,38 @@ function Invoke-BootstrapTuiWorkbench {
         param(
             [Parameter(Mandatory)]
             [object]$Summary,
+            [switch]$UpdateSkills,
+            [switch]$UpdateMcp,
+            [switch]$UpdatePrereqs,
             [switch]$ComponentStatus
         )
 
         $state.AvailableSkillProfiles = @($Summary.Profiles)
         $state.BundleSkillCount = @($Summary.BundleSkills).Count
-        $state.SkillStatus = @($Summary.SkillStatus)
-        if ($state.SkillStatus.Count -gt 0) {
-            $state.RegistrySkillEntries = @($state.SkillStatus | ForEach-Object { [pscustomobject]@{ Name = $_.Name; Section = $_.Kind } })
+        if ($UpdateSkills -or $ComponentStatus) {
+            $state.SkillStatus = @($Summary.SkillStatus)
+            if ($state.SkillStatus.Count -gt 0) {
+                $state.RegistrySkillEntries = @($state.SkillStatus | ForEach-Object { [pscustomobject]@{ Name = $_.Name; Section = $_.Kind } })
+            }
+            else {
+                $state.RegistrySkillEntries = @($Summary.RegistrySkills)
+            }
+            $state.SkillRegistryLoaded = $true
         }
-        else {
+        elseif (@($state.RegistrySkillEntries).Count -eq 0) {
             $state.RegistrySkillEntries = @($Summary.RegistrySkills)
         }
-        if ($ComponentStatus) {
+        if ($UpdateMcp -or $ComponentStatus) {
             $state.RegistryMcpEntries = @($Summary.McpStatus)
+            $state.McpRegistryLoaded = $true
+        }
+        if ($UpdatePrereqs -or $ComponentStatus) {
             $state.RegistryPrereqEntries = @($Summary.PrereqStatus)
+            $state.PrereqRegistryLoaded = $true
+        }
+        if ($ComponentStatus) {
             $state.ComponentRegistryLoaded = $true
         }
-        $state.SkillRegistryLoaded = $true
     }
 
     function Ensure-TuiSkillRegistry {
@@ -2501,10 +2594,10 @@ function Invoke-BootstrapTuiWorkbench {
             -Message (ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo6K+75Y+WIFNraWxsIGJ1bmRsZSDlkozmnKzmnLogU2tpbGwg54q25oCB77yM6K+356iN5YCZLi4u') `
             -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5Y+q6Kej5p6QIFNraWxsIOa4heWNleS4juacrOacuuWuieijheeKtuaAge+8jOS4jeajgOa1i+Wll+S7tuOAgU1DUCDmiJYgQ0xJ44CC')
         $skillSummary = Get-BootstrapTuiSkillOnlySummary -Repo $BootstrapAssetsRepo -Tag $BootstrapAssetsTag -DestinationRoot $DestinationRoot -Refresh $RefreshSkillBundle
-        Update-TuiSkillStateFromSummary -Summary $skillSummary
+        Update-TuiSkillStateFromSummary -Summary $skillSummary -UpdateSkills
     }
 
-    function Ensure-TuiComponentRegistry {
+    function Ensure-TuiSuiteRegistry {
         if ($state.ComponentRegistryLoaded) {
             return
         }
@@ -2515,6 +2608,32 @@ function Invoke-BootstrapTuiWorkbench {
             -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6K+75Y+W54q25oCB5Y+v6IO96ZyA6KaB5LiL6L295bm26Kej5p6QIHNraWxscy56aXDvvJvmnKzova7oh6rlrprkuYnmqKHlvI/kvJrlpI3nlKjor6Xnu5PmnpzjgII=')
         $skillSummary = Get-BootstrapTuiSkillBundleSummary -Repo $BootstrapAssetsRepo -Tag $BootstrapAssetsTag -DestinationRoot $DestinationRoot -Refresh $RefreshSkillBundle
         Update-TuiSkillStateFromSummary -Summary $skillSummary -ComponentStatus
+    }
+
+    function Ensure-TuiMcpRegistry {
+        if ($state.McpRegistryLoaded) {
+            return
+        }
+
+        Write-TuiLoading `
+            -Title (ConvertFrom-BootstrapUtf8Base64String -Value 'TUNQIOeKtuaAgQ==') `
+            -Message (ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo6K+75Y+WIE1DUCDnirbmgIHvvIzor7fnqI3lgJnjgII=') `
+            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5Y+q5qOA5p+lIE1DUCDphY3nva7nirbmgIHvvIzkuI3mo4DmtYsgU2tpbGwg5oiWIENMSeOAgg==')
+        $mcpSummary = Get-BootstrapTuiMcpOnlySummary -Repo $BootstrapAssetsRepo -Tag $BootstrapAssetsTag -DestinationRoot $DestinationRoot -Refresh $RefreshSkillBundle
+        Update-TuiSkillStateFromSummary -Summary $mcpSummary -UpdateMcp
+    }
+
+    function Ensure-TuiPrereqRegistry {
+        if ($state.PrereqRegistryLoaded) {
+            return
+        }
+
+        Write-TuiLoading `
+            -Title (ConvertFrom-BootstrapUtf8Base64String -Value 'Q0xJIOeKtuaAgQ==') `
+            -Message (ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo6K+75Y+WIENMSSDnirbmgIHvvIzor7fnqI3lgJnjgII=') `
+            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5Y+q5qOA5p+lIENMSSDliY3nva7kvp3otZbnirbmgIHvvIzkuI3mo4DmtYsgU2tpbGwg5oiWIE1DUOOAgg==')
+        $cliSummary = Get-BootstrapTuiCliOnlySummary -Repo $BootstrapAssetsRepo -Tag $BootstrapAssetsTag -DestinationRoot $DestinationRoot -Refresh $RefreshSkillBundle
+        Update-TuiSkillStateFromSummary -Summary $cliSummary -UpdatePrereqs
     }
 
     while ($true) {
@@ -2530,8 +2649,8 @@ function Invoke-BootstrapTuiWorkbench {
                 }
             }
             'skill-install' {
-                Ensure-TuiSkillRegistry
-                $skillSelection = Show-TuiSkillProfileSelection -Profiles @($state.AvailableSkillProfiles) -BundleSkillCount $state.BundleSkillCount -RegistrySkillCount (@($state.RegistrySkillEntries).Count) -InstalledSkillCount (@($state.SkillStatus | Where-Object { $_.Installed }).Count) -NewSkillCount (@($state.SkillStatus | Where-Object { -not $_.Installed }).Count)
+                Ensure-TuiSuiteRegistry
+                $skillSelection = Show-TuiSkillProfileSelection -Profiles @($state.AvailableSkillProfiles) -BundleSkillCount $state.BundleSkillCount -RegistrySkillCount (@($state.RegistrySkillEntries).Count) -InstalledSkillCount (@($state.SkillStatus | Where-Object { $_.Installed }).Count) -NewSkillCount (@($state.SkillStatus | Where-Object { -not $_.Installed }).Count) -McpCount (@($state.RegistryMcpEntries).Count) -ConfiguredMcpCount (@($state.RegistryMcpEntries | Where-Object { $_.Configured }).Count) -PrereqCount (@($state.RegistryPrereqEntries).Count) -InstalledPrereqCount (@($state.RegistryPrereqEntries | Where-Object { $_.Installed }).Count)
                 if ($skillSelection -eq 'quit') { return $null }
                 if ($null -ne $skillSelection) {
                     if ($skillSelection.SkipSkills) {
@@ -2597,7 +2716,7 @@ function Invoke-BootstrapTuiWorkbench {
             }
             'mcp-component-install' {
                 try {
-                    Ensure-TuiComponentRegistry
+                    Ensure-TuiMcpRegistry
                     $configuredMcpCount = @($state.RegistryMcpEntries | Where-Object { $_.Configured }).Count
                     $missingMcpCount = @($state.RegistryMcpEntries | Where-Object { -not $_.Configured }).Count
                     $mcpSummaryLines = @(
@@ -2627,8 +2746,6 @@ function Invoke-BootstrapTuiWorkbench {
                         $state.AllSuites = $false
                         $state.SkillProfiles = @()
                         $state.McpNames = @($selection)
-                        $state.SkillNames = @()
-                        $state.CliNames = @()
                         $state.SkillsManagerScenarioMode = 'skip'
                         $state.SkillsManagerScenarioName = ''
                     }
@@ -2642,7 +2759,7 @@ function Invoke-BootstrapTuiWorkbench {
                 }
             }
             'cli-component-install' {
-                Ensure-TuiComponentRegistry
+                Ensure-TuiPrereqRegistry
                 $installedCliCount = @($state.RegistryPrereqEntries | Where-Object { $_.Installed }).Count
                 $missingCliCount = @($state.RegistryPrereqEntries | Where-Object { -not $_.Installed }).Count
                 $cliSummaryLines = @(
@@ -2666,8 +2783,6 @@ function Invoke-BootstrapTuiWorkbench {
                     $state.AllSuites = $false
                     $state.SkillProfiles = @()
                     $state.CliNames = @($selection)
-                    $state.SkillNames = @()
-                    $state.McpNames = @()
                     $state.SkillsManagerScenarioMode = 'skip'
                     $state.SkillsManagerScenarioName = ''
                 }

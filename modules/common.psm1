@@ -4217,13 +4217,19 @@ function Get-ClaudeCodeMcpServerNames {
 function Get-SkillBundleComponentStatus {
     param(
         [Parameter(Mandatory)]
-        [string]$ZipPath
+        [string]$ZipPath,
+        [switch]$IncludeSkills,
+        [switch]$IncludeMcp,
+        [switch]$IncludePrereqs
     )
 
     $inventory = Get-SkillBundleInventory -ZipPath $ZipPath
     $homeDir = Get-UserHomeDirectory
     $roamingDir = Get-UserRoamingAppDataDirectory
-    $centralRoot = Join-Path $homeDir '.skills-manager\skills'
+    $scanAll = -not ($IncludeSkills -or $IncludeMcp -or $IncludePrereqs)
+    $scanSkills = $scanAll -or $IncludeSkills
+    $scanMcp = $scanAll -or $IncludeMcp
+    $scanPrereqs = $scanAll -or $IncludePrereqs
     $bundleSkillSet = @{}
     foreach ($name in @($inventory.BundleSkills)) {
         $bundleSkillSet[$name.ToLowerInvariant()] = $true
@@ -4234,78 +4240,88 @@ function Get-SkillBundleComponentStatus {
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
         Sort-Object -Unique
     )
-    $skillStatus = @(
-        foreach ($name in $skillNames) {
-            $path = Join-Path $centralRoot $name
-            $installed = Test-Path -LiteralPath (Join-Path $path 'SKILL.md')
-            [pscustomobject]@{
-                Name      = $name
-                Kind      = if ($bundleSkillSet.ContainsKey($name.ToLowerInvariant())) { 'bundle' } else { 'external' }
-                Installed = $installed
-                Path      = $path
-            }
-        }
-    )
-
-    $codexConfigPath = Join-Path (Join-Path $homeDir '.codex') 'config.toml'
-    $jsonTargets = @()
-    if (-not [string]::IsNullOrWhiteSpace($roamingDir)) {
-        $jsonTargets += [pscustomobject]@{ Name = 'Claude Desktop'; Path = Join-Path $roamingDir 'Claude\claude_desktop_config.json' }
-    }
-    $jsonTargets += @(
-        [pscustomobject]@{ Name = 'Cursor'; Path = Join-Path $homeDir '.cursor\mcp.json' },
-        [pscustomobject]@{ Name = 'Gemini CLI'; Path = Join-Path $homeDir '.gemini\settings.json' },
-        [pscustomobject]@{ Name = 'Antigravity'; Path = Join-Path $homeDir '.gemini\antigravity\mcp_config.json' }
-    )
-    $claudeCodeServers = @{}
-    foreach ($serverName in @(Get-ClaudeCodeMcpServerNames)) {
-        $claudeCodeServers[$serverName] = $true
-    }
-    $mcpEntries = @($inventory.Mcp)
-    $mcpStatus = @(
-        for ($i = 0; $i -lt $mcpEntries.Count; $i++) {
-            $entry = $mcpEntries[$i]
-            $mcpProgressPercent = if ($mcpEntries.Count -gt 0) { [int]((($i + 1) * 100) / $mcpEntries.Count) } else { 100 }
-            $mcpProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogTUNQIOW3suWujOaIkA==') -f ($i + 1), $mcpEntries.Count
-            Write-OperationProgress -Label 'MCP' -Percent $mcpProgressPercent -Detail $mcpProgressDetail -Completed:(($i + 1) -ge $mcpEntries.Count)
-            $targets = New-Object System.Collections.Generic.List[string]
-            if (Test-CodexMcpConfigHasServer -ConfigPath $codexConfigPath -Name $entry.Name) {
-                $targets.Add('Codex')
-            }
-            foreach ($target in $jsonTargets) {
-                if (Test-JsonMcpConfigHasServer -ConfigPath $target.Path -Name $entry.Name) {
-                    $targets.Add($target.Name)
+    $skillStatus = @()
+    if ($scanSkills) {
+        $centralRoot = Join-Path $homeDir '.skills-manager\skills'
+        $skillStatus = @(
+            foreach ($name in $skillNames) {
+                $path = Join-Path $centralRoot $name
+                $installed = Test-Path -LiteralPath (Join-Path $path 'SKILL.md')
+                [pscustomobject]@{
+                    Name      = $name
+                    Kind      = if ($bundleSkillSet.ContainsKey($name.ToLowerInvariant())) { 'bundle' } else { 'external' }
+                    Installed = $installed
+                    Path      = $path
                 }
             }
-            if ($claudeCodeServers.ContainsKey($entry.Name)) {
-                $targets.Add('Claude Code')
-            }
-            [pscustomobject]@{
-                Name       = $entry.Name
-                Configured = $targets.Count -gt 0
-                Targets    = $targets.ToArray()
-            }
+        )
+    }
+
+    $mcpEntries = @($inventory.Mcp)
+    $mcpStatus = @()
+    if ($scanMcp) {
+        $codexConfigPath = Join-Path (Join-Path $homeDir '.codex') 'config.toml'
+        $jsonTargets = @()
+        if (-not [string]::IsNullOrWhiteSpace($roamingDir)) {
+            $jsonTargets += [pscustomobject]@{ Name = 'Claude Desktop'; Path = Join-Path $roamingDir 'Claude\claude_desktop_config.json' }
         }
-    )
+        $jsonTargets += @(
+            [pscustomobject]@{ Name = 'Cursor'; Path = Join-Path $homeDir '.cursor\mcp.json' },
+            [pscustomobject]@{ Name = 'Gemini CLI'; Path = Join-Path $homeDir '.gemini\settings.json' },
+            [pscustomobject]@{ Name = 'Antigravity'; Path = Join-Path $homeDir '.gemini\antigravity\mcp_config.json' }
+        )
+        $claudeCodeServers = @{}
+        foreach ($serverName in @(Get-ClaudeCodeMcpServerNames)) {
+            $claudeCodeServers[$serverName] = $true
+        }
+        $mcpStatus = @(
+            for ($i = 0; $i -lt $mcpEntries.Count; $i++) {
+                $entry = $mcpEntries[$i]
+                $mcpProgressPercent = if ($mcpEntries.Count -gt 0) { [int]((($i + 1) * 100) / $mcpEntries.Count) } else { 100 }
+                $mcpProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogTUNQIOW3suWujOaIkA==') -f ($i + 1), $mcpEntries.Count
+                Write-OperationProgress -Label 'MCP' -Percent $mcpProgressPercent -Detail $mcpProgressDetail -Completed:(($i + 1) -ge $mcpEntries.Count)
+                $targets = New-Object System.Collections.Generic.List[string]
+                if (Test-CodexMcpConfigHasServer -ConfigPath $codexConfigPath -Name $entry.Name) {
+                    $targets.Add('Codex')
+                }
+                foreach ($target in $jsonTargets) {
+                    if (Test-JsonMcpConfigHasServer -ConfigPath $target.Path -Name $entry.Name) {
+                        $targets.Add($target.Name)
+                    }
+                }
+                if ($claudeCodeServers.ContainsKey($entry.Name)) {
+                    $targets.Add('Claude Code')
+                }
+                [pscustomobject]@{
+                    Name       = $entry.Name
+                    Configured = $targets.Count -gt 0
+                    Targets    = $targets.ToArray()
+                }
+            }
+        )
+    }
 
     $prereqEntries = @($inventory.Prereqs)
-    $prereqStatus = @(
-        for ($i = 0; $i -lt $prereqEntries.Count; $i++) {
-            $entry = $prereqEntries[$i]
-            $cliProgressPercent = if ($prereqEntries.Count -gt 0) { [int]((($i + 1) * 100) / $prereqEntries.Count) } else { 100 }
-            $cliProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogQ0xJIOW3suWujOaIkA==') -f ($i + 1), $prereqEntries.Count
-            Write-OperationProgress -Label 'CLI' -Percent $cliProgressPercent -Detail $cliProgressDetail -Completed:(($i + 1) -ge $prereqEntries.Count)
-            $installed = Test-RegistryCommandSucceeded -CommandText $entry.Check
-            if ((-not $installed) -and $entry.Name -eq 'lark' -and (Get-Command lark-cli -ErrorAction SilentlyContinue)) {
-                $installed = $true
+    $prereqStatus = @()
+    if ($scanPrereqs) {
+        $prereqStatus = @(
+            for ($i = 0; $i -lt $prereqEntries.Count; $i++) {
+                $entry = $prereqEntries[$i]
+                $cliProgressPercent = if ($prereqEntries.Count -gt 0) { [int]((($i + 1) * 100) / $prereqEntries.Count) } else { 100 }
+                $cliProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogQ0xJIOW3suWujOaIkA==') -f ($i + 1), $prereqEntries.Count
+                Write-OperationProgress -Label 'CLI' -Percent $cliProgressPercent -Detail $cliProgressDetail -Completed:(($i + 1) -ge $prereqEntries.Count)
+                $installed = Test-RegistryCommandSucceeded -CommandText $entry.Check
+                if ((-not $installed) -and $entry.Name -eq 'lark' -and (Get-Command lark-cli -ErrorAction SilentlyContinue)) {
+                    $installed = $true
+                }
+                [pscustomobject]@{
+                    Name      = $entry.Name
+                    Kind      = $entry.Kind
+                    Installed = $installed
+                }
             }
-            [pscustomobject]@{
-                Name      = $entry.Name
-                Kind      = $entry.Kind
-                Installed = $installed
-            }
-        }
-    )
+        )
+    }
 
     return [pscustomobject]@{
         Profiles       = @($inventory.Profiles)
