@@ -220,3 +220,9 @@
 - 核对 Profile 套件排序链路：安装器按 `skills.zip` 内 `registry.tar.gz/profiles.yaml` 原顺序展示，不在本仓库硬编码排序；真实顺序由 `00000-model` registry 和下游资产刷新 Action 决定。
 - 默认模式插件安装输入区补充明确提示：`不填直接回车则跳过插件安装。`
 - 验证通过：`modules/common.psm1` PowerShell 解析、`git diff --check`、本地重建 bundle 后 `Get-SkillBundleProfiles` 读取顺序为 AI 调用基础、飞书办公、中文办公自动化、演示文稿与文档、媒体创作、GitHub 工作流、前端开发、Tauri 桌面开发。
+
+## 2026-05-02
+
+- 调整非管理员启动后的 UAC 提权交互：在“需要管理员权限，正在请求 UAC 提权...”前增加空行，避免紧贴 TUI 底部快捷键提示。
+- 管理员窗口成功打开后，原窗口提示改为“当前窗口将在 3 秒后自动关闭...”，不再要求用户按任意键。
+- 验证通过：`bootstrap.ps1` PowerShell 语法解析、`git diff --check -- bootstrap.ps1`。

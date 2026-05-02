@@ -542,3 +542,20 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 - `python 00-编程配置/registry/scripts/build-bundle.py --dry-run` 通过。
 - 本地重建 ignored bundle 后，`Get-SkillBundleProfiles` 读取顺序为用户要求的 8 项顺序。
 - `gh run list` / `gh release view` 只读确认当前线上旧 `skills.zip` 仍为旧 digest，需要本轮 push 后由 Actions 刷新。
+
+## 2026-05-02 — UAC 提权提示换行与原窗口自动关闭
+
+### 核心议题背景
+
+用户在默认安装入口触发 UAC 提权时发现“需要管理员权限，正在请求 UAC 提权...”紧贴 TUI 底部提示，希望这里先换行；同时管理员窗口已经打开后，当前非管理员窗口不应继续要求按任意键关闭，而应短暂提示后自动关闭。
+
+### 当前结论
+
+- `bootstrap.ps1` 在请求 UAC 前先输出空行，再输出提权提示。
+- `Invoke-BootstrapExit` 在 `BootstrapAdminHandoffStarted` 且 `PauseOnExit` 时，显示 3 秒自动关闭提示，执行 `Start-Sleep -Seconds 3` 后直接退出。
+- 该改动只影响提权 handoff 后的原窗口，不改变管理员窗口内的安装流程。
+
+### 验证闭环
+
+- `bootstrap.ps1` PowerShell 语法解析通过。
+- `git diff --check -- bootstrap.ps1` 通过。

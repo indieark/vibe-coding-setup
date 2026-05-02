@@ -327,7 +327,9 @@ function Invoke-BootstrapExit {
     if ($PauseOnExit) {
         Write-Host ''
         if ($script:BootstrapAdminHandoffStarted) {
-            Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5omT5byA566h55CG5ZGY56qX5Y+j57un57ut5a6J6KOF44CC5oyJ5Lu75oSP6ZSu5YWz6Zet5b2T5YmN56qX5Y+jLi4u')
+            Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5omT5byA566h55CG5ZGY56qX5Y+j57un57ut5a6J6KOF44CC5b2T5YmN56qX5Y+j5bCG5ZyoIDMg56eS5ZCO6Ieq5Yqo5YWz6ZetLi4u')
+            Start-Sleep -Seconds 3
+            exit $Code
         }
         elseif ($script:BootstrapUserCancelled) {
             Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5Y+W5raI44CC5oyJ5Lu75oSP6ZSu5YWz6Zet56qX5Y+jLi4u')
@@ -2833,6 +2835,7 @@ if (-not $DryRun -and -not (Test-IsAdministrator)) {
         $argumentList.Add([string]$token)
     }
 
+    Write-Host ''
     Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '6ZyA6KaB566h55CG5ZGY5p2D6ZmQ77yM5q2j5Zyo6K+35rGCIFVBQyDmj5DmnYMuLi4=')
     Start-BootstrapElevatedShell -PowerShellArguments $argumentList.ToArray()
     $script:BootstrapAdminHandoffStarted = $true
