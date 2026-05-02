@@ -601,49 +601,10 @@ $script:TuiFrameInitialized = $false
 $script:TuiFrameLastLineCount = 0
 
 function Start-TuiFrame {
-    if ([Console]::IsOutputRedirected) {
-        Clear-Host
-        return
-    }
-
-    try {
-        if (-not $script:TuiFrameInitialized) {
-            Clear-Host
-            $script:TuiFrameInitialized = $true
-        }
-        [Console]::CursorVisible = $false
-        [Console]::SetCursorPosition(0, 0)
-    }
-    catch {
-        Clear-Host
-    }
+    Clear-Host
 }
 
 function Complete-TuiFrame {
-    if ([Console]::IsOutputRedirected) {
-        return
-    }
-
-    try {
-        $currentTop = [Console]::CursorTop
-        $previousTop = [int]$script:TuiFrameLastLineCount
-        if ($previousTop -gt $currentTop) {
-            $width = [Math]::Max(1, [Console]::BufferWidth - 1)
-            $blank = ' ' * $width
-            for ($line = $currentTop; $line -lt $previousTop; $line++) {
-                if ($line -ge [Console]::BufferHeight) {
-                    break
-                }
-                [Console]::SetCursorPosition(0, $line)
-                [Console]::Write($blank)
-            }
-        }
-        $script:TuiFrameLastLineCount = $currentTop
-        [Console]::SetCursorPosition(0, [Math]::Min($currentTop, [Console]::BufferHeight - 1))
-        [Console]::CursorVisible = $true
-    }
-    catch {
-    }
 }
 
 function Write-TuiHeader {

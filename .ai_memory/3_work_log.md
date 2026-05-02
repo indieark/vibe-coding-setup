@@ -258,3 +258,9 @@
 - 任选 Skill 显示 `已安装 / 未安装`；任选 MCP 显示 `已配置: 目标列表 / 未配置`；任选 CLI 显示 `已安装 / 未检测到`。
 - 修复 MCP 选择路径潜在闪退：MCP 状态转换改用显式 `$entry`，避免嵌套表达式里 `$_` 作用域异常。
 - 验证通过：`bootstrap.ps1` parser、`git diff --check`、本地 `Get-SkillBundleComponentStatus` 读取 `Skills=105 MCP=10 CLI=12`。
+
+## 2026-05-02
+
+- 回滚上一版 TUI 帧复用覆盖重绘方案：该方案只移动光标回左上覆盖写，未逐行清到行尾，导致旧帧长文本残留并出现重复字符。
+- `Start-TuiFrame` 恢复为可靠 `Clear-Host`，`Complete-TuiFrame` 恢复为空操作，先保证 TUI 不再叠字。
+- 保留通用组件选择页 `Status` 列、任选 Skill/MCP/CLI 状态展示，以及 MCP 选择路径显式 `$entry` 的闪退修复。
