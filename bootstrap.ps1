@@ -273,7 +273,7 @@ function Start-BootstrapElevatedShell {
             return
         }
         catch {
-            Write-BootstrapMessage ((ConvertFrom-BootstrapUtf8Base64String -Value 'V2luZG93cyBUZXJtaW5hbCDmj5DmnYMg5ZCv5Yqo5aSx6LSl77yM5Zue6YCA5Yiw57uP5YW4IFBvd2VyU2hlbGw77yaezB9') -f $_.Exception.Message)
+            Write-BootstrapMessage ((ConvertFrom-BootstrapUtf8Base64String -Value 'V2luZG93cyBUZXJtaW5hbCDmj5DmnYPlkK/liqjlpLHotKXvvIzlm57pgIDliLDnu4/lhbggUG93ZXJTaGVsbO+8m3swfQ==') -f $_.Exception.Message)
         }
     }
 
@@ -2510,7 +2510,7 @@ function Invoke-BootstrapTuiWorkbench {
         }
 
         Write-TuiLoading `
-            -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5aWX5Lu244CBTUNQgLyBDTEkg54q25oCB') `
+            -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5aWX5Lu244CBTUNQIC8gQ0xJIOeKtuaAgQ==') `
             -Message (ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo6K+75Y+W5aWX5Lu244CBTUNQIOWSjCBDTEkg54q25oCB77yM6K+356iN5YCZLi4u') `
             -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6K+75Y+W54q25oCB5Y+v6IO96ZyA6KaB5LiL6L295bm26Kej5p6QIHNraWxscy56aXDvvJvmnKzova7oh6rlrprkuYnmqKHlvI/kvJrlpI3nlKjor6Xnu5PmnpzjgII=')
         $skillSummary = Get-BootstrapTuiSkillBundleSummary -Repo $BootstrapAssetsRepo -Tag $BootstrapAssetsTag -DestinationRoot $DestinationRoot -Refresh $RefreshSkillBundle
