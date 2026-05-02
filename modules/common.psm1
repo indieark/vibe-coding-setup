@@ -4655,7 +4655,7 @@ function Select-SkillDirectoriesForProfiles {
         $tokens = @($tokens | Where-Object { $_ -ne '__ALL_SUITES__' })
     }
     if ($tokens.Count -eq 0 -and -not $AllSuites -and -not (Test-InteractiveConsole)) {
-        Write-Log -Message (ConvertFrom-Utf8Base64String -Value '5pyq5qOA5rWL5Yiw5Lqk5LqS5byP57uI56uv77yM5a6J6KOFIGJ1bmRsZSDkuK3nmoTlhajpg6ggc2tpbGw=')
+        Write-Log -Message (ConvertFrom-Utf8Base64String -Value '5pyq5qOA5rWL5Yiw5Lqk5LqS5byP57uI56uv77yM5a6J6KOFIHJlZ2lzdHJ5IOWFqOmDqCBTa2lsbA==')
         return @(Resolve-AllSkillSelection -SkillDirectories $SkillDirectories -RegistryRoot $RegistryRoot)
     }
 
