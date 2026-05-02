@@ -596,3 +596,39 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 - 如果用户反馈“全部 Skill”数量不对，优先检查 `skills.zip` 是否为最新 registry bundle，以及 TUI 是否传入 `RegistrySkillCount`。
 - 如果 external Skill 未安装，先看 `skills.yaml.external.source` 是否有 `repo` / `archive_url` / `download_url` / `local_path`，homepage-only 不能自动安装。
 - 不要把 MCP / CLI 合并进 `AllSkills`；需要完整套件能力时使用 `AllSuites` 或 Profile。
+
+## 2026-05-02 — TUI 执行确认与状态计数口径归档
+
+### 核心议题背景
+
+用户持续检查自定义模式工作台的交互语义：默认模式是否应该按步骤显示、自定义模式里的“执行摘要/执行确认”是否有意义，以及“检查并安装/更新”是否真的检查本机状态并正确展示数量。
+
+### Cognitive Evolution Path
+
+1. 先将默认安装从普通分区标题升级为 `步骤一：获取依赖`、`步骤二：应用安装`、`步骤三：配置导入`、`步骤四：插件安装`，最终完成提示采用用户指定的 `恭喜：安装流程完成`。
+2. 对自定义工作台的“执行摘要”重新定性：它作为菜单项没有意义，真正有意义的是最终确认页；因此工作台入口改为 `开始执行`，最终页面保留 `执行确认`。
+3. 进一步检查发现 `开始执行` 初始就显示会像空按钮，于是改为只有当 `$state` 中已有软件或 Skill/MCP/CLI 可执行选择时才出现。
+4. 用户要求所有入口统一命名后，工作台入口统一为 `检查并安装/更新软件 / 套件 / Skill / MCP / CLI`，避免“检查并任选安装”等混杂措辞。
+5. 用户质疑“真的检查本地安装状态吗”后，回读 `Get-BootstrapTuiSkillOnlySummary`、`Get-BootstrapTuiSkillBundleSummary` 和 `Get-SkillBundleComponentStatus`，确认检查逻辑存在但展示不足。
+6. 发现 Skill 单项选择只用 `RegistrySkills`，导致 UI 显示 60 多，而本地 `skills.zip` 实际 `BundleSkills=72`、`RegistrySkills=63`。因此将单项 Skill 选择改为合并 `BundleSkills + RegistrySkills` 后去重，并在页面显示本机安装状态。
+
+### 关键决策
+
+- 工作台菜单里的提交动作叫 `开始执行`，最终页面叫 `执行确认`；不要把菜单项命名为“执行摘要”。
+- `开始执行` 只在已有可执行选择后显示，避免空状态误导用户。
+- 自定义模式入口统一使用 `检查并安装/更新 ...`，并要求选择页实际展示检查结果。
+- Skill 单项选择的可选集合应覆盖 bundle 离线 Skill 与 registry Skill 的并集，不能只显示 registry 条目。
+- 套件/Profile 页显示汇总状态；Skill/MCP/CLI 页显示每项本地安装、配置或检测状态。
+
+### 当前结论
+
+- 默认安装输出已按步骤化标题展示，完成提示为 `恭喜：安装流程完成`。
+- 自定义工作台的入口文案、提交入口显示条件和最终确认语义已经收敛。
+- 本地缓存 `downloads/skills.zip` 的计数验证为 `BundleSkills=72`、`RegistrySkills=63`、`Profiles=8`、`Mcp=10`；此前显示 60 多是 registry-only 口径造成的。
+- 文档和 `.ai_memory` 已同步记录新语义。
+
+### 后续行动指引
+
+1. 如果用户继续反馈 Skill 数量不是预期的 80 多，优先检查 `00000-model` 私库 bundle 是否已构建，再检查本仓库 `Refresh bootstrap release assets` 是否已把公开 `bootstrap-assets/skills.zip` 刷新，最后检查本地 `downloads/skills.zip` 缓存。
+2. 后续修改自定义工作台入口时，保持“检查并安装/更新 ...”统一命名，并确保检查结果在选择页可见。
+3. 后续新增组件类型时，需要同时补状态检测、选择页详情、执行确认参数和 `docs/skill-import.md`。

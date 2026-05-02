@@ -17,17 +17,17 @@
 
 `Install-SkillBundle` 解压 `skills.zip` 后，会读取 bundle 内置的 `registry/profiles.yaml`：
 
-- 自定义模式的“检查并安装套件”动作会先读取 `skills.zip` 中的 Profile 和 registry，并以复选项展示；默认选择“全部 Skill”，也可以选择“所有套件”或“跳过 Skill 导入”。
-- 自定义模式的“检查并任选安装 Skill / MCP / CLI”动作读取 registry 或状态后进入分页复选列表，并分别写回等价的 `-SkillName`、`-McpName`、`-CliName` 参数；读取和状态扫描期间会同一行刷新完成数量，结束时只保留完成行。
+- 自定义模式的“检查并安装/更新套件”动作会先读取 `skills.zip` 中的 Profile 和 registry，并以复选项展示；默认选择“全部 Skill”，也可以选择“所有套件”或“跳过 Skill 导入”。页面顶部会展示 Bundle Skill、可选 Skill、本机已安装和可能新增数量。
+- 自定义模式的“检查并安装/更新 Skill / MCP / CLI”动作读取 registry 或状态后进入分页复选列表，并分别写回等价的 `-SkillName`、`-McpName`、`-CliName` 参数；读取和状态扫描期间会同一行刷新完成数量，结束时只保留完成行。
 - Skill / 套件入口使用轻量 Skill registry 读取路径，不检测 MCP / CLI；MCP / CLI 入口才读取 MCP 配置状态和 CLI 检测状态。
-- “全部 Skill”导入 registry 中的全部 Skill：bundle 内已有的 custom / vendored 直接导入，不在 bundle 内的 external 按来源自动拉取或复制；它不会自动写入所有 MCP 或安装所有 CLI。
+- “全部 Skill”导入可选 Skill 集合：TUI 展示时会合并 `BundleSkills + RegistrySkills` 后去重，bundle 内已有的 custom / vendored 直接导入，不在 bundle 内的 external 按来源自动拉取或复制；它不会自动写入所有 MCP 或安装所有 CLI。
 - “所有套件”按全部 Profile 的并集合并 Skill / MCP / CLI 前置依赖，并在终端显示套件数、Skill 数、MCP 数和 CLI 数。
 - TUI 中选择任意 Profile 后，会取消“全部 Skill”，并在确认页生成等价 `-SkillProfile` 命令。
 - 传 `-SkillProfile "名称"`：只导入指定 Profile 引用的 skill。
 - 多个 Profile 可用英文逗号、中文逗号或顿号分隔。
-- 传 `-AllSkills`：显式导入 registry 中全部 Skill；bundled 直接导入，external 按 `source` 自动拉取或复制。
+- 传 `-AllSkills`：显式导入可选 Skill 集合；bundled 直接导入，external 按 `source` 自动拉取或复制。
 - 传 `-AllSuites`：显式按所有 Profile 的并集导入 Skill、external Skill、MCP 和前置依赖。
-- 传 `-SkillName "名称"`：显式导入一个或多个 registry skill；如果它是 bundled skill，则从离线 bundle 导入；如果它是 external skill，则按 `source` 自动拉取或复制。
+- 传 `-SkillName "名称"`：显式导入一个或多个可选 Skill；如果它是 bundled skill，则从离线 bundle 导入；如果它是 external skill，则按 `source` 自动拉取或复制。
 - 传 `-McpName "名称"`：显式写入一个或多个 registry MCP，并自动安装这些 MCP 的前置 CLI / runtime。
 - 传 `-CliName "名称"`：显式安装一个或多个 `prereqs.yaml` 前置依赖；这适合只安装 GitHub CLI、飞书 CLI、uv 等命令行工具。
 - 传 `-SkipSkills`：完全跳过 `skills.zip` 下载和 Skill 导入。
@@ -39,7 +39,7 @@ Profile 交互菜单会把 `0`、`00` 和每个套件展示为两行：第一行
 
 当前 registry 中 `Tauri 桌面开发套件` 的 MCP 数应为 0。若显示非 0，优先怀疑正在读取旧 `skills.zip` 或旧脚本，而不是修改 Tauri Profile。
 
-单项安装与套件安装共用同一条执行路径：先解析 registry，汇总 Skill / MCP / CLI 数量，再安装前置依赖、导入 Skill、写入 MCP 配置。单项 MCP 或单项 CLI 即使不导入任何 Skill，执行摘要也会显示已处理的 MCP / CLI 数量。
+单项安装与套件安装共用同一条执行路径：先解析 registry 和 bundle，汇总 Skill / MCP / CLI 数量，再安装前置依赖、导入 Skill、写入 MCP 配置。单项 Skill 选择页会合并 bundle 离线 Skill 与 registry Skill，并显示 bundle / external 与已安装状态；单项 MCP 会显示已配置目标或未配置；单项 CLI 会显示检测状态。单项 MCP 或单项 CLI 即使不导入任何 Skill，执行摘要也会显示已处理的 MCP / CLI 数量。
 
 全部 Skill、单项 Skill 和 Profile 可以同时覆盖 bundled skill、external skill、MCP 和前置依赖：
 

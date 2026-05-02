@@ -9,7 +9,7 @@
 你只想安装或验证本机行为：
 
 1. 先看 [运行命令](operations.md)。
-2. 如果要交互选择应用、Skill Profile 或 Skills Manager 场景，使用默认 TUI 入口。
+2. 如果要交互选择应用、套件、Skill、MCP、CLI 或 Skills Manager 场景，使用默认 TUI 入口。
 3. 如果只想预览 Skill 导入风险，直接跑安全演练命令。
 4. 如果看到 Skill 被跳过或备份，再看 [Skill 导入契约](skill-import.md)。
 
@@ -36,7 +36,7 @@
 
 | 文档                              | 适合什么时候读                                                                                                                                  | 不维护什么                       |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
-| [运行命令](operations.md)         | 要本地运行、远程自举、TUI、dry-run 或按 Profile 导入 Skill                                                                                      | 不解释内部状态机                 |
+| [运行命令](operations.md)         | 要本地运行、远程自举、TUI、dry-run 或按 Profile / Skill / MCP / CLI 导入                                                                        | 不解释内部状态机                 |
 | [安装执行顺序](installer-flow.md) | 要理解 bootstrap、TUI 入口、precheck、fallback、进度和退出码                                                                                    | 不列应用版本和 fallback 文件名   |
 | [Skill 导入契约](skill-import.md) | 要理解 TUI 复选、全部 Skill、命令 Profile、bundled / external Skill、MCP 写入、前置依赖、`.skill-meta.json`、三态去重和 Skills Manager 场景注册 | 不维护 Skill / MCP / prereq 清单 |
 | [资产刷新链路](asset-refresh.md)  | 要维护 `bootstrap-assets`、私库镜像、workflow，或排查 `skills.zip` 旧缓存                                                                       | 不维护 PAT 最小权限表            |

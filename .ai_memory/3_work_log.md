@@ -241,3 +241,12 @@
 - 修正“全部 Skill”显示数量：至少覆盖 registry 条目数、bundle 离线目录数和所有套件展开后的 Skill 并集，避免出现 `全部 Skill < 所有套件 Skill`。
 - 配合 `00000-model` 约定：自创 `pro-*` / `use-*` Skill 统一归入 `AI 调用基础套件`，其它业务套件不重复挂通用自创能力。
 - 保留 MCP / CLI 边界：`AllSkills` 仍不自动写入 MCP 或安装 CLI，`AllSuites` / Profile / 单项选择才处理 MCP / CLI。
+
+## 2026-05-02
+
+- 统一自定义工作台入口文案为“检查并安装/更新软件 / 套件 / Skill / MCP / CLI”。
+- `开始执行` 只在已有可执行选择后显示，并进入最终 `执行确认` 页。
+- 默认安装阶段标题改为 `步骤一：获取依赖`、`步骤二：应用安装`、`步骤三：配置导入`、`步骤四：插件安装`，完成提示为 `恭喜：安装流程完成`。
+- 修正 Skill 单项选择计数口径：合并 `BundleSkills + RegistrySkills` 后去重，并在选择页展示已安装状态。
+- 套件/Profile、Skill、MCP、CLI 选择页补充本机安装 / 配置 / 检测状态展示。
+- 同步 `docs/README.md`、`docs/installer-flow.md`、`docs/operations.md`、`docs/roadmap.md`、`docs/skill-import.md` 和 `.ai_memory`。
