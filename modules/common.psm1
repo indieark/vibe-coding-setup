@@ -2407,13 +2407,6 @@ function Read-CodexProviderInput {
     }
 
     Write-CodexProviderInputSection `
-        -Title 'CC Switch Provider' `
-        -Detail (ConvertFrom-Utf8Base64String -Value '6L+Z5LiA5q616K+05piO5pys5qyhIENDIFN3aXRjaCBQcm92aWRlciDphY3nva7nmoTnlKjpgJTlkozmlY/mhJ/kv6Hmga/mmL7npLrop4TliJnjgII=')
-    Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value '55So6YCU') -Value (ConvertFrom-Utf8Base64String -Value '5bCG5a+85YWl5YiwIENDIFN3aXRjaCDnmoQgQ29kZXggcHJvdmlkZXLjgII=')
-    Write-CodexProviderInputLine -Label 'API Key' -Value (ConvertFrom-Utf8Base64String -Value '6L6T5YWl5pe25Lya6ZqQ6JeP77yb5pGY6KaB5Y+q5pi+56S65piv5ZCm5bey5aGr5YaZ77yM5LiN5pi+56S65a+G6ZKl44CC')
-    Write-CodexProviderInputLine -Label (ConvertFrom-Utf8Base64String -Value '5o+Q56S6') -Value (ConvertFrom-Utf8Base64String -Value '5Y+z5L6n54Gw6Imy6buY6K6k5YC85Y+v55u05o6l5Zue6L2m5L+d55WZ77yb6L6T5YWl5Lya6KaG55uW44CC55WZ56m6IEFQSSBLZXkg5Lya5YaZ5YWl5Y2g5L2N5YC8IHNrLeOAgg==')
-
-    Write-CodexProviderInputSection `
         -Title (ConvertFrom-Utf8Base64String -Value '6L6T5YWl5Yy6') `
         -Detail (ConvertFrom-Utf8Base64String -Value '5Y+z5L6n54Gw6Imy5paH5a2X5piv5b2T5YmN6buY6K6k5YC877yb55u05o6l5Zue6L2m5L+d55WZ77yM6L6T5YWl5paw5YC85Lya6KaG55uW44CCQVBJIEtleSDovpPlhaXml7bpmpDol4/vvIznlZnnqbrkvJrlhpnlhaXljaDkvY3lgLwgc2st44CC')
     $name = Read-HostWithDefaultValue -Prompt (ConvertFrom-Utf8Base64String -Value 'UHJvdmlkZXIg5ZCN56ew') -DefaultValue $name
@@ -2533,7 +2526,7 @@ function Import-CcSwitchCodexProvider {
 
         Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5bCG6YCa6L+HIGNjc3dpdGNoOi8vIGRlZXAgbGluayDlr7zlhaUgcHJvdmlkZXLvvJp7MH0gLT4gezF9') -f $ProviderInfo.Name, $ProviderInfo.BaseUrl)
         return [pscustomobject]@{
-            Name = 'CC Switch Provider Import'
+            Name = (ConvertFrom-Utf8Base64String -Value '6YWN572u5a+85YWl')
             Key = 'cc-switch-provider'
             Status = 'ok'
             Source = 'ccswitch-deeplink'
@@ -2575,7 +2568,7 @@ function Import-CcSwitchCodexProvider {
     }
 
     return [pscustomobject]@{
-        Name = 'CC Switch Provider Import'
+        Name = (ConvertFrom-Utf8Base64String -Value '6YWN572u5a+85YWl')
         Key = 'cc-switch-provider'
         Status = 'ok'
         Source = 'ccswitch-deeplink'
@@ -4413,8 +4406,9 @@ function Select-SkillDirectoriesForProfiles {
     }
 
     if ($tokens.Count -eq 0) {
-        Write-Host ''
-        Write-Host (ConvertFrom-Utf8Base64String -Value '6K+36YCJ5oup6KaB5a6J6KOF55qEIEluZGllQXJrIFByb2ZpbGXvvIjlj6/ovpPlhaXluo/lj7cv5ZCN56ew77yM5aSa5Liq5Y+v55So6Iux5paH6YCX5Y+344CB5Lit5paH6YCX5Y+35oiW6aG/5Y+35YiG6ZqU77yb6L6T5YWlIDAg5a6J6KOF5YWo6YOoIFNraWxs77yb6L6T5YWlIDAwIOWuieijheaJgOacieWll+S7tu+8ie+8mg==')
+        Write-CodexProviderInputSection `
+            -Title (ConvertFrom-Utf8Base64String -Value '6L6T5YWl5Yy6') `
+            -Detail (ConvertFrom-Utf8Base64String -Value '6K+36YCJ5oup6KaB5a6J6KOF55qE5o+S5Lu25aWX5Lu244CC5Y+v6L6T5YWl5bqP5Y+35oiW5ZCN56ew77yM5aSa5Liq55So6Iux5paH6YCX5Y+344CB5Lit5paH6YCX5Y+35oiW6aG/5Y+35YiG6ZqU77yb6L6T5YWlIDAg5a6J6KOF5YWo6YOoIFNraWxs77yb6L6T5YWlIDAwIOWuieijheaJgOacieWll+S7tuOAgg==')
         Write-SkillProfilePromptOption `
             -Index '0' `
             -Name (ConvertFrom-Utf8Base64String -Value '5YWo6YOoIFNraWxs') `

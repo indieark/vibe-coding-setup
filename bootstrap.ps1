@@ -117,6 +117,22 @@ function Write-BootstrapMessage {
     Write-Host ('[bootstrap] {0}' -f $Message)
 }
 
+function Write-BootstrapSection {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Title,
+        [string]$Detail
+    )
+
+    Write-Host ''
+    Write-Host ('== {0} ==' -f $Title) -ForegroundColor Cyan
+    Write-Host ('-' * 64) -ForegroundColor DarkGray
+    if (-not [string]::IsNullOrWhiteSpace($Detail)) {
+        Write-Host ('  {0}' -f $Detail) -ForegroundColor DarkGray
+        Write-Host ''
+    }
+}
+
 function Test-BootstrapProgressRendering {
     try {
         return ([Environment]::UserInteractive -and -not [Console]::IsOutputRedirected)
@@ -2648,6 +2664,9 @@ $bootstrapDependencies = @(
     'manifest/apps.json'
 )
 
+Write-BootstrapSection `
+    -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6I635Y+W5L6d6LWW') `
+    -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5ZCM5q2l5ZCv5Yqo6ISa5pys44CB5qih5Z2X44CB5bqU55So5riF5Y2V5ZKM5pys5Zyw6LWE5Lqn44CC')
 Sync-BootstrapDependencies `
     -SourceRoot $BootstrapSourceRoot `
     -DestinationRoot $root `
@@ -2810,6 +2829,9 @@ if (-not $DryRun -and -not (Test-IsAdministrator)) {
 
 $selectedApps = @()
 if (-not $SkipApps) {
+    Write-BootstrapSection `
+        -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5bqU55So5a6J6KOF') `
+        -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l5bm25a6J6KOFIC8g5pu05paw5pys5py65bqU55So44CC')
     $selectedApps = @(Get-SelectedApps -Apps $manifest.apps -Only $Only)
 }
 
@@ -2821,15 +2843,6 @@ if (-not $SkipApps -and $selectedApps.Count -gt 0) {
     Write-BootstrapAppPlan -Apps $selectedApps -PrecheckByKey $appPrecheckByKey
 }
 
-if (-not $SkipSkills) {
-    $shouldRefreshSkillBundle = $RefreshBootstrapDependencies.IsPresent -or (Test-HttpSourceRoot -SourceRoot $BootstrapSourceRoot)
-    Sync-BootstrapSkillBundleAsset `
-        -Repo $BootstrapAssetsRepo `
-        -Tag $BootstrapAssetsTag `
-        -DestinationRoot $root `
-        -Refresh:$shouldRefreshSkillBundle
-}
-
 Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '5bel5L2c5Yy677yaezB9') -f $root)
 Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '5qih5byP77yaezB9') -f ($(if ($DryRun) { ConvertFrom-BootstrapUtf8Base64String -Value '5ryU57uD' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF' })))
 if ($SkipApps) {
@@ -2837,48 +2850,8 @@ if ($SkipApps) {
     Write-Log -Message (ConvertFrom-BootstrapUtf8Base64String -Value 'ICAtIOi3s+i/h+i9r+S7tuWuieijhQ==')
 }
 
-$providerInfo = $null
-$providerPrecheckResult = $null
-if (-not $SkipCcSwitch -and ($selectedApps | Where-Object { $_.key -eq 'cc-switch' })) {
-    $providerNameToCheck = $CcSwitchProviderName
-    if ([string]::IsNullOrWhiteSpace($providerNameToCheck)) {
-        $providerNameToCheck = $env:VIBE_CODING_PROVIDER_NAME
-    }
-    if ([string]::IsNullOrWhiteSpace($providerNameToCheck)) {
-        $providerNameToCheck = 'IndieArk API 2'
-    }
-
-    $existingProvider = $null
-    try {
-        $existingProvider = Get-CcSwitchProviderByName -ProviderName $providerNameToCheck
-    }
-    catch {
-        Write-Log -Level 'WARN' -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIHByb3ZpZGVyIOmihOajgOafpeWksei0pe+8jOaUueS4uuS6pOS6kuW8j+i+k+WFpe+8mnswfQ==') -f $_.Exception.Message)
-    }
-
-    if ($existingProvider) {
-        Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIOW3suWtmOWcqCBjb2RleCBwcm92aWRlciDigJx7MH3igJ3vvIzot7Pov4cgcHJvdmlkZXIg6L6T5YWl5ZKM5a+85YWl') -f $providerNameToCheck)
-        $providerPrecheckResult = [pscustomobject]@{
-            Name = 'CC Switch Provider Import'
-            Key = 'cc-switch-provider'
-            Status = 'ok'
-            Source = 'precheck-skip'
-            Detail = ((ConvertFrom-BootstrapUtf8Base64String -Value '5bey5om+5Yiw546w5pyJIHByb3ZpZGVy77yaezB9') -f $providerNameToCheck)
-        }
-    }
-    else {
-        $providerInfo = Read-CodexProviderInput `
-            -PresetName $CcSwitchProviderName `
-            -PresetBaseUrl $CcSwitchBaseUrl `
-            -PresetModel $CcSwitchModel `
-            -PresetApiKey $CcSwitchApiKey
-    }
-}
-
+$shouldRunCcSwitchConfig = (-not $SkipCcSwitch -and ($selectedApps | Where-Object { $_.key -eq 'cc-switch' }))
 $results = New-Object System.Collections.Generic.List[object]
-if ($providerPrecheckResult) {
-    $results.Add($providerPrecheckResult)
-}
 
 $appsToRun = New-Object System.Collections.Generic.List[object]
 foreach ($app in ($selectedApps | Sort-Object order)) {
@@ -2902,7 +2875,7 @@ $progressTotalSteps = 1 + $appsToRun.Count
 if (-not $SkipSkills) {
     $progressTotalSteps++
 }
-if (-not $SkipCcSwitch -and $providerInfo -and ($selectedApps | Where-Object { $_.key -eq 'cc-switch' })) {
+if ($shouldRunCcSwitchConfig) {
     $progressTotalSteps++
 }
 $progressCompletedSteps = 0
@@ -2961,8 +2934,85 @@ foreach ($app in $appsToRun) {
     }
 }
 
-if (-not $SkipSkills) {
+if ($shouldRunCcSwitchConfig) {
+    Write-BootstrapSection `
+        -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6YWN572u5a+85YWl') `
+        -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5a+85YWlIENDIFN3aXRjaCBQcm92aWRlciDnrYnpu5jorqTphY3nva7jgII=')
     try {
+        $ccSwitchProgressStatus = ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo5aSE55CG6YWN572u5a+85YWl'
+        Write-BootstrapProgress -CompletedSteps $progressCompletedSteps -TotalSteps $progressTotalSteps -Status $ccSwitchProgressStatus
+        $providerNameToCheck = $CcSwitchProviderName
+        if ([string]::IsNullOrWhiteSpace($providerNameToCheck)) {
+            $providerNameToCheck = $env:VIBE_CODING_PROVIDER_NAME
+        }
+        if ([string]::IsNullOrWhiteSpace($providerNameToCheck)) {
+            $providerNameToCheck = 'IndieArk API 2'
+        }
+
+        $existingProvider = $null
+        try {
+            $existingProvider = Get-CcSwitchProviderByName -ProviderName $providerNameToCheck
+        }
+        catch {
+            Write-Log -Level 'WARN' -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIHByb3ZpZGVyIOmihOajgOafpeWksei0pe+8jOaUueS4uuS6pOS6kuW8j+i+k+WFpe+8mnswfQ==') -f $_.Exception.Message)
+        }
+
+        if ($existingProvider) {
+            Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIOW3suWtmOWcqCBjb2RleCBwcm92aWRlciDigJx7MH3igJ3vvIzot7Pov4cgcHJvdmlkZXIg6L6T5YWl5ZKM5a+85YWl') -f $providerNameToCheck)
+            $results.Add([pscustomobject]@{
+                    Name = (ConvertFrom-BootstrapUtf8Base64String -Value '6YWN572u5a+85YWl')
+                    Key = 'cc-switch-provider'
+                    Status = 'ok'
+                    Source = 'precheck-skip'
+                    Detail = ((ConvertFrom-BootstrapUtf8Base64String -Value '5bey5om+5Yiw546w5pyJIHByb3ZpZGVy77yaezB9') -f $providerNameToCheck)
+                })
+        }
+        else {
+            $providerInfo = Read-CodexProviderInput `
+                -PresetName $CcSwitchProviderName `
+                -PresetBaseUrl $CcSwitchBaseUrl `
+                -PresetModel $CcSwitchModel `
+                -PresetApiKey $CcSwitchApiKey
+            $ccSwitchInstallResult = @($results | Where-Object { $_.Key -eq 'cc-switch' } | Select-Object -Last 1)
+            $ccSwitchInstalledThisRun = $false
+            if ($ccSwitchInstallResult.Count -gt 0) {
+                $ccSwitchInstalledThisRun = ($ccSwitchInstallResult[0].Status -eq 'ok' -and $ccSwitchInstallResult[0].Source -ne 'precheck-skip')
+            }
+
+            $ccResult = Import-CcSwitchCodexProvider `
+                -ProviderInfo $providerInfo `
+                -ForceWarmup:$ccSwitchInstalledThisRun `
+                -DryRun:$DryRun
+            $results.Add($ccResult)
+            Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6M5oiQIENDIFN3aXRjaCBQcm92aWRlciDlr7zlhaXvvJvnirbmgIE9ezB9') -f (ConvertTo-BootstrapDisplayStatus -Status $ccResult.Status))
+        }
+        $progressCompletedSteps++
+    }
+    catch {
+        $results.Add([pscustomobject]@{
+                Name = (ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIFByb3ZpZGVyIOWvvOWFpQ==')
+                Key = 'cc-switch-provider'
+                Status = 'failed'
+                Source = 'ccswitch-deeplink'
+                Detail = $_.Exception.Message
+            })
+        Write-Log -Level 'ERROR' -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIFByb3ZpZGVyIOWvvOWFpeWksei0pe+8mnswfQ==') -f $_.Exception.Message)
+        $progressCompletedSteps++
+        Write-Log -Level 'ERROR' -Message (ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIFByb3ZpZGVyIOWvvOWFpeWksei0pe+8m+eKtuaAgT3lpLHotKU=')
+    }
+}
+
+if (-not $SkipSkills) {
+    Write-BootstrapSection `
+        -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5o+S5Lu25a6J6KOF') `
+        -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOFIFNraWxs44CB5aWX5Lu244CBTUNQIOWSjCBDTEkg5YmN572u5L6d6LWW44CC')
+    try {
+        $shouldRefreshSkillBundle = $RefreshBootstrapDependencies.IsPresent -or (Test-HttpSourceRoot -SourceRoot $BootstrapSourceRoot)
+        Sync-BootstrapSkillBundleAsset `
+            -Repo $BootstrapAssetsRepo `
+            -Tag $BootstrapAssetsTag `
+            -DestinationRoot $root `
+            -Refresh:$shouldRefreshSkillBundle
         $skillProgressStatus = ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo5a+85YWlIFNraWxs'
         Write-BootstrapProgress -CompletedSteps $progressCompletedSteps -TotalSteps $progressTotalSteps -Status $skillProgressStatus
         $skillResult = Install-SkillBundle `
@@ -2994,38 +3044,6 @@ if (-not $SkipSkills) {
             })
         Write-Log -Level 'ERROR' -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'c2tpbGxzLnppcCDlr7zlhaXlpLHotKXvvJp7MH0=') -f $_.Exception.Message)
         $progressCompletedSteps++
-    }
-}
-
-if (-not $SkipCcSwitch -and $providerInfo -and ($selectedApps | Where-Object { $_.key -eq 'cc-switch' })) {
-    try {
-        $ccSwitchProgressStatus = ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo5a+85YWlIENDIFN3aXRjaCBQcm92aWRlcg=='
-        Write-BootstrapProgress -CompletedSteps $progressCompletedSteps -TotalSteps $progressTotalSteps -Status $ccSwitchProgressStatus
-        $ccSwitchInstallResult = @($results | Where-Object { $_.Key -eq 'cc-switch' } | Select-Object -Last 1)
-        $ccSwitchInstalledThisRun = $false
-        if ($ccSwitchInstallResult.Count -gt 0) {
-            $ccSwitchInstalledThisRun = ($ccSwitchInstallResult[0].Status -eq 'ok' -and $ccSwitchInstallResult[0].Source -ne 'precheck-skip')
-        }
-
-        $ccResult = Import-CcSwitchCodexProvider `
-            -ProviderInfo $providerInfo `
-            -ForceWarmup:$ccSwitchInstalledThisRun `
-            -DryRun:$DryRun
-        $results.Add($ccResult)
-        $progressCompletedSteps++
-        Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6M5oiQIENDIFN3aXRjaCBQcm92aWRlciDlr7zlhaXvvJvnirbmgIE9ezB9') -f (ConvertTo-BootstrapDisplayStatus -Status $ccResult.Status))
-    }
-    catch {
-        $results.Add([pscustomobject]@{
-                Name = (ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIFByb3ZpZGVyIOWvvOWFpQ==')
-                Key = 'cc-switch-provider'
-                Status = 'failed'
-                Source = 'ccswitch-deeplink'
-                Detail = $_.Exception.Message
-            })
-        Write-Log -Level 'ERROR' -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIHByb3ZpZGVyIOWvvOWFpeWksei0pe+8mnswfQ==') -f $_.Exception.Message)
-        $progressCompletedSteps++
-        Write-Log -Level 'ERROR' -Message (ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIFByb3ZpZGVyIOWvvOWFpeWksei0pe+8m+eKtuaAgT3lpLHotKU=')
     }
 }
 

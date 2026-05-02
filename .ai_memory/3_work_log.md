@@ -206,3 +206,9 @@
 - 完成时刷新为 `检查 ... 100% N/M 个应用已完成`，随后再输出原有 `预检查完成` 汇总。
 - 验证通过：`bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only git,nodejs` 只保留最终完成进度行。
 - 继续统一所有检查进度：Skill-only 状态扫描、MCP 状态扫描、CLI 状态扫描也改为同一行刷新，真实终端动态覆盖，捕获输出只保留完成行。
+
+## 2026-05-02
+
+- 默认安装输出重排为四段：获取依赖、应用安装、配置导入、插件安装。
+- CC Switch Provider 导入从 Skill 后移到 Skill 前，归入“配置导入”段；执行摘要名称从 `CC Switch Provider Import` 收敛为“配置导入”。
+- 插件安装段内再获取 / 复用 `skills.zip`，套件输入区新增统一分块标题，下面继续展示全部 Skill、所有套件和各套件的 Skill / MCP / CLI 数量。
