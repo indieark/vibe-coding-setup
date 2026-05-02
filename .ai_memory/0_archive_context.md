@@ -305,6 +305,7 @@ TUI 自定义流程新增 Skill Profile 复选页，运行时从 `downloads/skil
 为了让“只安装 Skill”成为真实路径，而不是被迫携带一个软件项，本次新增 `-SkipApps`。命令模式和 TUI 工作台都可以用它跳过应用安装阶段，只保留工作区准备、Skill 导入和其它被选中的阶段。
 
 验证覆盖脚本解析、模块导入、`-SkipApps` Skill dry-run、TUI 工作台 Skill 复选到执行摘要 dry-run、TUI 软件状态页展示和 `git diff --check`。
+
 ## 2026-04-30 — winget 输出收敛与 Skills Manager 场景注册修复
 
 用户在真实安装截图中指出 winget 原始英文输出太多，下载进度会连续刷多行；随后进一步指出 Skill 不应默认写入 Skills Manager 的默认场景，否则所有 Skill 都会堆在一起，同时怀疑已有 Skill 场景下可能误装全部。
@@ -559,3 +560,39 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 
 - `bootstrap.ps1` PowerShell 语法解析通过。
 - `git diff --check -- bootstrap.ps1` 通过。
+
+## 2026-05-02 — registry 全部 Skill 安装语义归档
+
+### 核心议题背景
+
+用户明确指出“全部 skill 就是所有 skill 就行”。这推翻了安装器此前的旧语义：`AllSkills` 只导入 bundle 内离线 Skill，而 external Skill 需要通过 Profile、`AllSuites` 或单项安装触发。新目标是让“全部 Skill”代表 registry 中所有 Skill，但仍不混入 MCP / CLI，因为 MCP 与前置 CLI 是独立组件。
+
+### Cognitive Evolution Path
+
+1. 先追踪 `Install-SkillBundle` 参数流，确认 `AllSkills`、`AllSuites`、`SkillName`、`McpName`、`CliName` 最终都进入 registry 解析路径。
+2. 发现 `AllSkills` 旧逻辑只枚举 bundle 内 `skills/` 目录，因此 external Skill 被排除；TUI 显示数量也只基于 bundle 离线目录。
+3. 修改 `Select-SkillDirectoriesForProfiles`：`AllSkills` 时优先读取 `registry/skills.yaml` 全部 Skill name；bundle 内能匹配的直接返回目录，无法匹配的记录到 `MissingSkills`，交由后续 external 安装路径处理。
+4. 为兼容 vendored / custom 的实际目录名与 registry entry name，匹配时同时读取 `.skill-meta.json.registry_entry_name`。
+5. 修改 TUI `Show-TuiSkillProfileSelection`：新增 `RegistrySkillCount`，`全部 Skill` 选项优先显示 registry 总数，MCP / CLI 数量保持 0。
+6. 文档同步：README、`docs/skill-import.md`、`docs/operations.md`、`docs/asset-refresh.md`、`docs/README.md` 都改为 registry 全量 Skill 语义。
+
+### 当前结论
+
+- `AllSkills` / “全部 Skill” = registry 全部 Skill。
+- bundled custom / vendored 直接从 bundle 导入。
+- external Skill 按 registry `source` 自动拉取或复制；只有 homepage 的条目只提示人工处理。
+- `AllSkills` 不安装所有 MCP / CLI；MCP / CLI 仍由 `AllSuites`、Profile 或单项 `-McpName` / `-CliName` 触发。
+- 相关实现已提交推送：`b355455 feat(skills): install all registry skills`。
+
+### 验证闭环
+
+- `modules/common.psm1` PowerShell parser 通过。
+- `bootstrap.ps1` PowerShell parser 通过。
+- `git diff --check` 通过。
+- 文档残留检查确认旧“bundle 内全部离线 Skill”说法只剩历史 `.ai_memory` 旧块，不再出现在用户手册正文。
+
+### 下次行动指引
+
+- 如果用户反馈“全部 Skill”数量不对，优先检查 `skills.zip` 是否为最新 registry bundle，以及 TUI 是否传入 `RegistrySkillCount`。
+- 如果 external Skill 未安装，先看 `skills.yaml.external.source` 是否有 `repo` / `archive_url` / `download_url` / `local_path`，homepage-only 不能自动安装。
+- 不要把 MCP / CLI 合并进 `AllSkills`；需要完整套件能力时使用 `AllSuites` 或 Profile。

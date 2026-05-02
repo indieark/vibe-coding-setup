@@ -226,3 +226,11 @@
 - 调整非管理员启动后的 UAC 提权交互：在“需要管理员权限，正在请求 UAC 提权...”前增加空行，避免紧贴 TUI 底部快捷键提示。
 - 管理员窗口成功打开后，原窗口提示改为“当前窗口将在 3 秒后自动关闭...”，不再要求用户按任意键。
 - 验证通过：`bootstrap.ps1` PowerShell 语法解析、`git diff --check -- bootstrap.ps1`。
+
+## 2026-05-02
+
+- 将 `AllSkills` / TUI “全部 Skill”语义改为 registry 全部 Skill：bundle 内 custom / vendored 直接导入，external 按 `source` 自动拉取或复制。
+- 明确 `AllSkills` 不安装所有 MCP / CLI；MCP / CLI 仍由 `AllSuites`、Profile 或单项 `-McpName` / `-CliName` 触发。
+- TUI “全部 Skill”显示数量改为优先使用 registry Skill 总数，而不是 bundle 离线目录数。
+- 更新 README、`docs/README.md`、`docs/skill-import.md`、`docs/operations.md`、`docs/asset-refresh.md`。
+- 验证通过：PowerShell parser、`git diff --check`；已提交并推送 `b355455 feat(skills): install all registry skills`。
