@@ -30,7 +30,7 @@
 18. 如果没有 `-SkipSkills`，再执行插件安装：获取 `skills.zip`，导入 Skill / 套件 / MCP / CLI 前置依赖。
 19. 输出 Summary；任一项失败则退出码为 `1`，否则为 `0`。
 
-安装阶段总进度输出简洁文字，例如 `[当前/总数] 当前步骤`；应用内部可量化进度才输出脚本自绘进度条，例如下载、winget 下载 / 安装和 Skill bundle 解压。不再调用 `Write-Progress` 绘制宿主进度条，也不使用会触发宿主进度区域的 `Expand-Archive`。自举依赖和 Release 资产下载同样使用脚本自绘进度条；如果服务器没有返回文件大小，则只显示完成状态。
+默认安装用四段标题承载阶段语义；工作区准备、配置导入和插件安装不再额外输出 `[当前/总数] 当前步骤` 阶段提示。应用内部可量化进度才输出脚本自绘进度条，例如下载、winget 下载 / 安装和 Skill bundle 解压。不再调用 `Write-Progress` 绘制宿主进度条，也不使用会触发宿主进度区域的 `Expand-Archive`。自举依赖和 Release 资产下载同样使用脚本自绘进度条；如果服务器没有返回文件大小，则只显示完成状态。
 
 `PauseOnExit`、`KeepShellOpen`、`UserHomeOverride`、`BootstrapSourceRoot`、`BootstrapAssetsRepo`、`BootstrapAssetsTag`、`RefreshBootstrapDependencies` 属于启动或自举参数，不会单独触发命令模式。
 
@@ -73,14 +73,7 @@ fallback 安装包统一下载到仓库内 `downloads/`，再根据 `installerTy
 
 ## 进度展示
 
-执行阶段会计算总步骤，并显示 `[当前/总数] 当前步骤` 文本进度，便于复制、截图和远程排障。应用内部下载、winget 下载 / 安装和 Skill bundle 解压会显示脚本自绘进度条；静默 MSI/EXE 无法读取真实百分比时显示运行中和耗时。脚本不调用 PowerShell 原生 `Write-Progress`，Skill bundle 解压也不再调用 `Expand-Archive`，避免不同宿主额外绘制独立进度区域。winget 原始输出会先过滤许可证、免责声明和重复进度行，再把常见状态翻译为中文；真实终端中下载进度通过回车覆盖保持单行刷新。若输出被 Codex、CI 或日志重定向捕获，脚本会跳过中间百分比，只输出完成行，避免捕获器把回车覆盖展开成多行。
-
-计入总步骤的项目包括：
-
-- Codex 工作区准备。
-- 每个选中的应用。
-- Skill bundle 导入，除非传了 `-SkipSkills`。
-- 配置导入，前提是本次选择了 `cc-switch` 且没有 `-SkipCcSwitch`；若现有 provider 已存在，只写入跳过摘要。
+应用内部下载、winget 下载 / 安装和 Skill bundle 解压会显示脚本自绘进度条；静默 MSI/EXE 无法读取真实百分比时显示运行中和耗时。脚本不调用 PowerShell 原生 `Write-Progress`，Skill bundle 解压也不再调用 `Expand-Archive`，避免不同宿主额外绘制独立进度区域。winget 原始输出会先过滤许可证、免责声明和重复进度行，再把常见状态翻译为中文；真实终端中下载进度通过回车覆盖保持单行刷新。若输出被 Codex、CI 或日志重定向捕获，脚本会跳过中间百分比，只输出完成行，避免捕获器把回车覆盖展开成多行。
 
 默认安装的终端输出按四段展示：`获取依赖`、`应用安装`、`配置导入`、`插件安装`。应用阶段开始前只在存在安装 / 更新项时输出“准备安装或更新的应用清单”，逐行列出应用名称和 key。配置导入阶段先处理 CC Switch Provider，并在执行摘要中显示为“配置导入”；插件安装阶段再下载 / 复用 `skills.zip`，并按 skill 聚合展示进度和结果，不再默认输出每个目标目录的长路径复制明细；被跳过、警告或失败的情况仍保留原因。
 

@@ -2881,8 +2881,6 @@ if ($shouldRunCcSwitchConfig) {
 $progressCompletedSteps = 0
 
 try {
-    $workspaceProgressStatus = ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo5YeG5aSHIENvZGV4IOW3peS9nOWMug=='
-    Write-BootstrapProgress -CompletedSteps $progressCompletedSteps -TotalSteps $progressTotalSteps -Status $workspaceProgressStatus
     $workspaceResult = Initialize-CodexWorkspaceDirectory -DryRun:$DryRun
     $results.Add($workspaceResult)
     $progressCompletedSteps++
@@ -2939,8 +2937,6 @@ if ($shouldRunCcSwitchConfig) {
         -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6YWN572u5a+85YWl') `
         -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5a+85YWlIENDIFN3aXRjaCBQcm92aWRlciDnrYnpu5jorqTphY3nva7jgII=')
     try {
-        $ccSwitchProgressStatus = ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo5aSE55CG6YWN572u5a+85YWl'
-        Write-BootstrapProgress -CompletedSteps $progressCompletedSteps -TotalSteps $progressTotalSteps -Status $ccSwitchProgressStatus
         $providerNameToCheck = $CcSwitchProviderName
         if ([string]::IsNullOrWhiteSpace($providerNameToCheck)) {
             $providerNameToCheck = $env:VIBE_CODING_PROVIDER_NAME
@@ -3013,8 +3009,6 @@ if (-not $SkipSkills) {
             -Tag $BootstrapAssetsTag `
             -DestinationRoot $root `
             -Refresh:$shouldRefreshSkillBundle
-        $skillProgressStatus = ConvertFrom-BootstrapUtf8Base64String -Value '5q2j5Zyo5a+85YWlIFNraWxs'
-        Write-BootstrapProgress -CompletedSteps $progressCompletedSteps -TotalSteps $progressTotalSteps -Status $skillProgressStatus
         $skillResult = Install-SkillBundle `
             -ZipPath $skillBundlePath `
             -SkillProfiles $SkillProfile `

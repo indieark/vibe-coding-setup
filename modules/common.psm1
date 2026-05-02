@@ -4319,16 +4319,13 @@ function Write-SkillProfilePromptOption {
         [int]$CliCount = 0
     )
 
-    Write-Host (' {0,2}. {1}' -f $Index, $Name)
-    if ($SuiteCount -gt 0) {
-        Write-Host ((ConvertFrom-Utf8Base64String -Value 'ICAgICDlpZfku7YgezB9IOS4qu+8m1NraWxsIHsxfe+8m01DUCB7Mn3vvJtDTEkgezN9') -f $SuiteCount, $SkillCount, $McpCount, $CliCount) -ForegroundColor Gray
-    }
-    else {
-        Write-Host ((ConvertFrom-Utf8Base64String -Value 'ICAgICBTa2lsbCB7MH3vvJtNQ1AgezF977ybQ0xJIHsyfQ==') -f $SkillCount, $McpCount, $CliCount) -ForegroundColor Gray
-    }
+    $displayName = $Name
     if (-not [string]::IsNullOrWhiteSpace($Description)) {
-        Write-Host ('     {0}' -f $Description) -ForegroundColor DarkGray
+        $displayName = '{0}{1}{2}{3}' -f $Name, [char]0xFF08, $Description, [char]0xFF09
     }
+
+    Write-Host (' {0,2}. {1}' -f $Index, $displayName)
+    Write-Host ((ConvertFrom-Utf8Base64String -Value 'ICAgICBTa2lsbCB7MH3vvJtNQ1AgezF977ybQ0xJIHsyfQ==') -f $SkillCount, $McpCount, $CliCount) -ForegroundColor Gray
 }
 
 function Format-RegistryComponentPreview {
@@ -4407,8 +4404,11 @@ function Select-SkillDirectoriesForProfiles {
 
     if ($tokens.Count -eq 0) {
         Write-CodexProviderInputSection `
-            -Title (ConvertFrom-Utf8Base64String -Value '6L6T5YWl5Yy6') `
-            -Detail (ConvertFrom-Utf8Base64String -Value '6K+36YCJ5oup6KaB5a6J6KOF55qE5o+S5Lu25aWX5Lu244CC5Y+v6L6T5YWl5bqP5Y+35oiW5ZCN56ew77yM5aSa5Liq55So6Iux5paH6YCX5Y+344CB5Lit5paH6YCX5Y+35oiW6aG/5Y+35YiG6ZqU77yb6L6T5YWlIDAg5a6J6KOF5YWo6YOoIFNraWxs77yb6L6T5YWlIDAwIOWuieijheaJgOacieWll+S7tuOAgg==')
+            -Title (ConvertFrom-Utf8Base64String -Value '6L6T5YWl5Yy6')
+        Write-Host ('  {0}' -f (ConvertFrom-Utf8Base64String -Value '6K+36YCJ5oup6KaB5a6J6KOF55qE5o+S5Lu25aWX5Lu244CC')) -ForegroundColor DarkGray
+        Write-Host ('  {0}' -f (ConvertFrom-Utf8Base64String -Value '5Y+v6L6T5YWl5bqP5Y+35oiW5ZCN56ew77yM5aSa5Liq55So6Iux5paH6YCX5Y+344CB5Lit5paH6YCX5Y+35oiW6aG/5Y+35YiG6ZqU77yb')) -ForegroundColor DarkGray
+        Write-Host ('  {0}' -f (ConvertFrom-Utf8Base64String -Value '6L6T5YWlIDAg5a6J6KOF5YWo6YOoIFNraWxs77yb6L6T5YWlIDAwIOWuieijheaJgOacieWll+S7tuOAgg==')) -ForegroundColor DarkGray
+        Write-Host ''
         Write-SkillProfilePromptOption `
             -Index '0' `
             -Name (ConvertFrom-Utf8Base64String -Value '5YWo6YOoIFNraWxs') `

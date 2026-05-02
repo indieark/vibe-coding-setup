@@ -4,7 +4,7 @@
 
 ## P0：可观测
 
-- 已完成：执行阶段显示 `[当前/总数]` 进度，应用内部下载、winget 下载 / 安装和 Skill bundle 解压使用脚本自绘单行进度，并聚合 Skill 导入日志，降低正常安装刷屏。
+- 已完成：默认安装按四段显示；应用内部下载、winget 下载 / 安装和 Skill bundle 解压使用脚本自绘单行进度，并聚合 Skill 导入日志，降低正常安装刷屏。
 - 增加日志落盘，保留关键步骤、版本门禁、fallback 决策和失败原因。
 - 增加安装结果 JSON 报告，便于远程排障和批量装机留痕。
 - 把 Skill 导入 summary 拆成 `Imported / Skipped / BackedUp / Foreign` 计数。
