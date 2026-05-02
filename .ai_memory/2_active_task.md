@@ -9,6 +9,7 @@
 - 自定义模式内会复用本轮已读取的 Skill registry / MCP / CLI 状态，减少反复进入不同入口时的等待。
 - 默认模式和自定义模式的软件预检查都会输出已完成数量；Skill / MCP / CLI 状态扫描会输出逐项进度。
 - winget 成功输出后如果外层进程不退出，会自动收尾并继续后续检测，避免停在“winget install ... 仍在运行”。
+- 本轮 debug 继续修复两个状态检查问题：Claude Code MCP 列表改为一次读取复用；飞书 CLI 兼容 `lark --version` registry 旧检测命令与实际 `lark-cli` 可执行名。
 - 文档入口已同步到 README、`docs/installer-flow.md`、`docs/operations.md`、`docs/skill-import.md`、`docs/roadmap.md`。
 
 ## 当前未完成项

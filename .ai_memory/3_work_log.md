@@ -192,3 +192,10 @@
 - 默认模式和自定义模式的软件 precheck 增加完成数量进度；Skill / MCP / CLI 状态扫描增加逐项进度；generic prereq 命令也显示执行中提示。
 - 修复 winget 成功后不退出的卡住体验：已看到成功输出后短暂等待，如果外层 winget 仍不退出则自动收尾并继续后续检测。
 - 验证通过：脚本解析、模块导入、`git diff --check`、`-DryRun -SkipSkills -SkipCcSwitch -Only git,nodejs`、`-DryRun -SkipApps -SkipCcSwitch -SkipSkillsManagerLaunch -SkillsManagerScenarioMode skip -AllSuites`。
+
+## 2026-05-02
+
+- 继续 debug 自定义模式慢的问题：确认 MCP 状态检查原先每个条目都会调用一次 `claude mcp list`，10 个 MCP 会被 Claude Code CLI 拖到几十秒。
+- 将 Claude Code MCP 列表改为一次读取并缓存到哈希表，MCP 状态循环只做本地匹配；本机验证 10 个 MCP 进度在同一秒内完成。
+- 修复飞书 CLI 状态误判：当前 registry 仍写 `lark --version`，但 `@larksuite/cli` 实际安装 `lark-cli`；安装器兼容该别名后，lark 状态可识别为已安装。
+- 实测 `npm i -g @larksuite/cli --loglevel=error` 成功，`lark-cli --version` 为 `1.0.23`；`yt-dlp --version` 为 `2026.03.17`。

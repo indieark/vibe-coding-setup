@@ -3538,7 +3538,19 @@ function Test-RegistryCommandSucceeded {
 
     try {
         & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command $CommandText *> $null
-        return $LASTEXITCODE -eq 0
+        if ($LASTEXITCODE -eq 0) {
+            return $true
+        }
+
+        if ($CommandText -match '^\s*lark\s+--version\s*$') {
+            $larkCli = Get-Command lark-cli -ErrorAction SilentlyContinue
+            if ($null -ne $larkCli) {
+                return $true
+            }
+            return $false
+        }
+
+        return $false
     }
     catch {
         return $false
@@ -3726,7 +3738,11 @@ function Install-RegistryPrereqs {
             continue
         }
 
-        if ((-not $DryRun) -and (Test-RegistryCommandSucceeded -CommandText $entry.Check)) {
+        $alreadyInstalled = Test-RegistryCommandSucceeded -CommandText $entry.Check
+        if ((-not $alreadyInstalled) -and $name -eq 'lark' -and (Get-Command lark-cli -ErrorAction SilentlyContinue)) {
+            $alreadyInstalled = $true
+        }
+        if ((-not $DryRun) -and $alreadyInstalled) {
             Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5YmN572u5L6d6LWW5bey5a6J6KOF77yaezB9') -f $name)
             $result.Already += $name
             continue
@@ -4144,6 +4160,30 @@ function Test-ClaudeCodeMcpHasServer {
     }
 }
 
+function Get-ClaudeCodeMcpServerNames {
+    $claude = Get-Command claude -ErrorAction SilentlyContinue
+    if (-not $claude) {
+        return @()
+    }
+
+    try {
+        $output = & $claude.Source mcp list 2>$null | Out-String
+        return @(
+            $output -split "`r?`n" |
+            ForEach-Object {
+                if ($_ -match '^\s*(?<name>\S+)') {
+                    $Matches['name']
+                }
+            } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            Sort-Object -Unique
+        )
+    }
+    catch {
+        return @()
+    }
+}
+
 function Get-SkillBundleComponentStatus {
     param(
         [Parameter(Mandatory)]
@@ -4187,6 +4227,10 @@ function Get-SkillBundleComponentStatus {
         [pscustomobject]@{ Name = 'Gemini CLI'; Path = Join-Path $homeDir '.gemini\settings.json' },
         [pscustomobject]@{ Name = 'Antigravity'; Path = Join-Path $homeDir '.gemini\antigravity\mcp_config.json' }
     )
+    $claudeCodeServers = @{}
+    foreach ($serverName in @(Get-ClaudeCodeMcpServerNames)) {
+        $claudeCodeServers[$serverName] = $true
+    }
     $mcpEntries = @($inventory.Mcp)
     $mcpStatus = @(
         for ($i = 0; $i -lt $mcpEntries.Count; $i++) {
@@ -4201,7 +4245,7 @@ function Get-SkillBundleComponentStatus {
                     $targets.Add($target.Name)
                 }
             }
-            if (Test-ClaudeCodeMcpHasServer -Name $entry.Name) {
+            if ($claudeCodeServers.ContainsKey($entry.Name)) {
                 $targets.Add('Claude Code')
             }
             [pscustomobject]@{
@@ -4217,10 +4261,14 @@ function Get-SkillBundleComponentStatus {
         for ($i = 0; $i -lt $prereqEntries.Count; $i++) {
             $entry = $prereqEntries[$i]
             Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5qOA5p+lIENMSSDkvp3otZbnirbmgIHvvJp7MH0vezF9') -f ($i + 1), $prereqEntries.Count)
+            $installed = Test-RegistryCommandSucceeded -CommandText $entry.Check
+            if ((-not $installed) -and $entry.Name -eq 'lark' -and (Get-Command lark-cli -ErrorAction SilentlyContinue)) {
+                $installed = $true
+            }
             [pscustomobject]@{
                 Name = $entry.Name
                 Kind = $entry.Kind
-                Installed = (Test-RegistryCommandSucceeded -CommandText $entry.Check)
+                Installed = $installed
             }
         }
     )

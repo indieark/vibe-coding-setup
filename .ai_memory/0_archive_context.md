@@ -482,3 +482,34 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 - `bootstrap.ps1 -DryRun -SkipApps -SkipCcSwitch -SkipSkillsManagerLaunch -SkillsManagerScenarioMode skip -AllSuites` 通过，并完整输出所有套件、Skill、MCP、CLI 数量与 dry-run 计划。
 - `npm view @larksuite/cli version --json` 返回 `1.0.23`；`npm i -g @larksuite/cli --dry-run --loglevel=error` 通过。
 - `yt-dlp --version` 返回 `2026.03.17`。
+
+## 2026-05-02 — MCP 状态检查与飞书 CLI 检测修复
+
+### 核心议题背景
+
+用户要求继续 debug。实时排查发现仓库已在 `fecb5fd` 且已推送，但本机仍有多个旧的 `vibe-bootstrap.ps1 -PauseOnExit` / `bootstrap.ps1 -Tui -DryRun` 窗口进程，容易让人误以为新逻辑仍卡住。进一步运行组件状态检查时，MCP 进度从 1/10 到 10/10 原先每项约 5 秒，飞书 CLI 虽然 `lark-cli --version` 可运行，但状态页仍显示 lark 未安装。
+
+### Cognitive Evolution Path
+
+1. 先确认没有残留 `winget` 进程，截图中的 `winget ... 仍在运行` 不是当前新逻辑进程。
+2. 确认 `yt-dlp` 已在 PATH 中，版本为 `2026.03.17`；`winget list yt-dlp.yt-dlp` 查不到是因为当前机器的 yt-dlp 来自 Python Scripts，而不是 winget 包。
+3. 实际执行 `npm i -g @larksuite/cli --loglevel=error`，飞书 CLI 更新到 `1.0.23`。
+4. 发现 registry 中 lark 的 check 仍是 `lark --version`，但 npm 包实际暴露的是 `lark-cli`；因此状态页误判。
+5. 发现 MCP 状态检查在每个 MCP 条目里调用 `claude mcp list`，这是自定义模式组件状态慢的主要来源。
+6. 修改为一次性读取 Claude Code MCP server 名称并在循环中复用；同时兼容 lark 的 `lark-cli` 可执行名。
+
+### 当前结论
+
+- 当前机器没有正在运行的 winget 卡住进程。
+- 旧的 PauseOnExit / TUI dry-run 进程可以手动关闭；它们不代表新提交逻辑仍在执行安装。
+- MCP 状态检查已经从多次 Claude Code CLI 调用改为一次读取复用。
+- lark 状态误判已修复；如果 `lark-cli` 在 PATH 中，旧 registry 的 `lark --version` 检查也会视为已安装。
+
+### 验证闭环
+
+- `modules/common.psm1` 语法解析通过。
+- `git diff --check` 通过。
+- `Get-SkillBundleComponentStatus -ZipPath .\downloads\skills.zip` 验证 MCP 10 项状态检查同秒完成。
+- `Get-SkillBundleComponentStatus` 验证 lark 状态为已安装。
+- `lark-cli --version` 返回 `1.0.23`。
+- `yt-dlp --version` 返回 `2026.03.17`。
