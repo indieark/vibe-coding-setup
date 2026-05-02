@@ -4306,6 +4306,71 @@ function Get-SkillProfileComponentSummary {
     }
 }
 
+function Get-ConsoleDisplayWidth {
+    param(
+        [AllowNull()]
+        [string]$Text
+    )
+
+    if ([string]::IsNullOrEmpty($Text)) {
+        return 0
+    }
+
+    $width = 0
+    foreach ($character in $Text.ToCharArray()) {
+        if ([int][char]$character -gt 127) {
+            $width += 2
+        }
+        else {
+            $width += 1
+        }
+    }
+    return $width
+}
+
+function ConvertTo-TruncatedConsoleText {
+    param(
+        [AllowNull()]
+        [string]$Text,
+        [int]$MaxWidth = 80
+    )
+
+    if ([string]::IsNullOrEmpty($Text) -or $MaxWidth -le 0) {
+        return ''
+    }
+    if ((Get-ConsoleDisplayWidth -Text $Text) -le $MaxWidth) {
+        return $Text
+    }
+    if ($MaxWidth -le 3) {
+        return '...'.Substring(0, [Math]::Max(0, $MaxWidth))
+    }
+
+    $builder = New-Object System.Text.StringBuilder
+    $currentWidth = 0
+    $targetWidth = $MaxWidth - 3
+    foreach ($character in $Text.ToCharArray()) {
+        $characterWidth = if ([int][char]$character -gt 127) { 2 } else { 1 }
+        if (($currentWidth + $characterWidth) -gt $targetWidth) {
+            break
+        }
+        [void]$builder.Append($character)
+        $currentWidth += $characterWidth
+    }
+    return ('{0}...' -f $builder.ToString())
+}
+
+function Get-SkillProfilePromptLineWidth {
+    try {
+        $width = [int]$Host.UI.RawUI.WindowSize.Width
+        if ($width -ge 60) {
+            return $width
+        }
+    }
+    catch {
+    }
+    return 120
+}
+
 function Write-SkillProfilePromptOption {
     param(
         [Parameter(Mandatory)]
@@ -4319,13 +4384,25 @@ function Write-SkillProfilePromptOption {
         [int]$CliCount = 0
     )
 
-    $displayName = $Name
+    $prefix = ' {0,2}. ' -f $Index
+    Write-Host ('{0}{1}' -f $prefix, $Name) -NoNewline
     if (-not [string]::IsNullOrWhiteSpace($Description)) {
-        $displayName = '{0}{1}{2}{3}' -f $Name, [char]0xFF08, $Description, [char]0xFF09
+        $lineWidth = Get-SkillProfilePromptLineWidth
+        $usedWidth = (Get-ConsoleDisplayWidth -Text ('{0}{1}' -f $prefix, $Name)) + 4
+        $descriptionWidth = [Math]::Max(12, $lineWidth - $usedWidth)
+        $displayDescription = ConvertTo-TruncatedConsoleText -Text $Description -MaxWidth $descriptionWidth
+        Write-Host ('{0}{1}{2}' -f [char]0xFF08, $displayDescription, [char]0xFF09) -ForegroundColor DarkGray
+    }
+    else {
+        Write-Host ''
     }
 
-    Write-Host (' {0,2}. {1}' -f $Index, $displayName)
-    Write-Host ((ConvertFrom-Utf8Base64String -Value 'ICAgICBTa2lsbCB7MH3vvJtNQ1AgezF977ybQ0xJIHsyfQ==') -f $SkillCount, $McpCount, $CliCount) -ForegroundColor Gray
+    Write-Host '     ' -NoNewline
+    Write-Host ('Skill {0}' -f $SkillCount) -ForegroundColor Green -NoNewline
+    Write-Host ([string][char]0xFF1B) -ForegroundColor DarkGray -NoNewline
+    Write-Host ('MCP {0}' -f $McpCount) -ForegroundColor Cyan -NoNewline
+    Write-Host ([string][char]0xFF1B) -ForegroundColor DarkGray -NoNewline
+    Write-Host ('CLI {0}' -f $CliCount) -ForegroundColor Yellow
 }
 
 function Format-RegistryComponentPreview {
