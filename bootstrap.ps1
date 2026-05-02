@@ -3041,7 +3041,7 @@ if (-not $SkipSkills) {
     }
 }
 
-Write-BootstrapProgress -CompletedSteps $progressTotalSteps -TotalSteps $progressTotalSteps -Status (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6M5oiQ5a6J6KOF5rWB56iL') -Completed
+Write-BootstrapSection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5rWB56iL5a6M5oiQ')
 
 Write-Host ''
 Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5omn6KGM5pGY6KaB')
