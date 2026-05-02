@@ -2385,13 +2385,6 @@ function Show-TuiWorkbenchMenu {
         Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6Ieq5a6a5LmJ5bel5L2c5Y+w')
 
         Write-TuiSection `
-            -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5b2T5YmN6YCJ5oup') `
-            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6L+Z6YeM5pi+56S65bey6YCJ5oup55qE6L2v5Lu244CBU2tpbGwg5ZKM5Zy65pmv44CC')
-        Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '6L2v5Lu2'), $summary.Software) -ForegroundColor DarkGray
-        Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGw='), $summary.Skill) -ForegroundColor DarkGray
-        Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5Zy65pmv5rOo5YaM'), $summary.Scenario) -ForegroundColor DarkGray
-
-        Write-TuiSection `
             -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5Y+v5omn6KGM5Yqo5L2c') `
             -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6YCJ5oup5LiL5LiA5q2l6KaB5qOA5p+l44CB6YCJ5oup5oiW5omn6KGM55qE5pON5L2c44CC')
         for ($i = 0; $i -lt $actions.Count; $i++) {
@@ -2401,8 +2394,17 @@ function Show-TuiWorkbenchMenu {
             Write-Host ('{0} {1}' -f $cursor, $action.Label) -ForegroundColor $color
         }
 
+        if ($hasRunnableSelection) {
+            Write-TuiSection `
+                -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5b2T5YmN6YCJ5oup') `
+                -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6L+Z6YeM5pi+56S65bey6YCJ5oup55qE6L2v5Lu244CBU2tpbGwg5ZKM5Zy65pmv44CC')
+            Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '6L2v5Lu2'), $summary.Software) -ForegroundColor DarkGray
+            Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGw='), $summary.Skill) -ForegroundColor DarkGray
+            Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5Zy65pmv5rOo5YaM'), $summary.Scenario) -ForegroundColor DarkGray
+        }
+
         Write-Host ''
-        Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value '5b2T5YmN6aG977yaezB9') -f $actions[$index].Label) -ForegroundColor DarkCyan
+        Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value '5b2T5YmN6aG577yaezB9') -f $actions[$index].Label) -ForegroundColor DarkCyan
         Write-Host ('  {0}' -f $actions[$index].Detail) -ForegroundColor DarkGray
 
         Write-TuiSection `

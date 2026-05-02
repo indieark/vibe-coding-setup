@@ -272,3 +272,8 @@
 - 自定义工作台显示优化：菜单项改为一行列表，当前项详情统一显示在底部，减少长描述换行导致的视觉混乱。
 - 清屏策略回退为 Windows 控制台 API：移除不兼容的 ANSI 清屏序列，使用 `[Console]::Clear()` + 光标归零，并以 `Clear-Host` 兜底。
 - 验证通过：`bootstrap.ps1` parser、`git diff --check`、本地组件状态读取 `Skill total=105 installed=74 missing=31`、`MCP total=10 configured=4 missing=6`、`CLI total=12 installed=8 missing=4`。
+
+## 2026-05-02
+
+- 修正自定义工作台底部文案：`当前顽` 改为 `当前项`。
+- 调整自定义工作台布局：先显示 `[可执行动作]`，只有已有软件或 Skill/MCP/CLI 可执行选择时才显示 `[当前选择]`，再显示当前项详情和操作提示。
