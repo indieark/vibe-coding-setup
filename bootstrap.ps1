@@ -1403,7 +1403,7 @@ function Show-TuiSkillProfileSelection {
             (ConvertFrom-BootstrapUtf8Base64String -Value '5Y+v6YCJIFNraWxs'), $RegistrySkillCount, `
             (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5py65bey5a6J6KOF'), $InstalledSkillCount, `
             (ConvertFrom-BootstrapUtf8Base64String -Value '5Y+v6IO95paw5aKe'), $NewSkillCount) -ForegroundColor DarkGray
-        Write-Host ('总览: Skill {0}/{1} 已安装; MCP {2}/{3} 已配置; CLI {4}/{5} 已安装' -f $InstalledSkillCount, $allSkillCount, $ConfiguredMcpCount, $McpCount, $InstalledPrereqCount, $PrereqCount) -ForegroundColor DarkGray
+        Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value '5oC76KeIOiBTa2lsbCB7MH0vezF9IOW3suWuieijhTsgTUNQIHsyfS97M30g5bey6YWN572uOyBDTEkgezR9L3s1fSDlt7Llronoo4U=') -f $InstalledSkillCount, $allSkillCount, $ConfiguredMcpCount, $McpCount, $InstalledPrereqCount, $PrereqCount) -ForegroundColor DarkGray
         $selectedCount = @($options | Where-Object { $_.Enabled }).Count
         Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YCJIHswfSDkuKrvvJvlvZPliY0gezF9L3syfQ==') -f $selectedCount, ($index + 1), $options.Count) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YCJ'), (Format-TuiSkillProfileSelectionPreview -Options $options)) -ForegroundColor DarkGray
@@ -2319,7 +2319,7 @@ function Show-TuiSuiteStatus {
         $installedCliCount = @($summary.PrereqStatus | Where-Object { $_.Installed }).Count
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'UHJvZmlsZSDmlbDph48='), $summary.Profiles.Count) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'QnVuZGxlIFNraWxs'), $summary.BundleSkills.Count) -ForegroundColor Gray
-        Write-Host ('总览: Skill {0}/{1} 已安装; MCP {2}/{3} 已配置; CLI {4}/{5} 已安装' -f $installedSkillCount, $summary.SkillStatus.Count, $configuredMcpCount, $summary.McpStatus.Count, $installedCliCount, $summary.PrereqStatus.Count) -ForegroundColor Gray
+        Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value '5oC76KeIOiBTa2lsbCB7MH0vezF9IOW3suWuieijhTsgTUNQIHsyfS97M30g5bey6YWN572uOyBDTEkgezR9L3s1fSDlt7Llronoo4U=') -f $installedSkillCount, $summary.SkillStatus.Count, $configuredMcpCount, $summary.McpStatus.Count, $installedCliCount, $summary.PrereqStatus.Count) -ForegroundColor Gray
         Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value 'TUNQ77yaezB977yb5bey6YWN572u77yaezF9') -f $summary.McpStatus.Count, $configuredMcpCount) -ForegroundColor Gray
         Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q0xJ77yaezB977yb5bey5a6J6KOF77yaezF9') -f $summary.PrereqStatus.Count, $installedCliCount) -ForegroundColor Gray
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '6L+Z6YeM5bGV56S655qE5piv5aWX5Lu2IFByb2ZpbGXjgIFNQ1Ag6YWN572u5ZKMIENMSSDmo4DmtYvnirbmgIHjgII=') -ForegroundColor DarkGray
