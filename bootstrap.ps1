@@ -605,8 +605,9 @@ function Write-TuiHeader {
     Write-Host ('+ {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'VmliZSBDb2RpbmcgU2V0dXA=')) -ForegroundColor Cyan
     Write-Host ('  {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '546w5Luj5YyW5o6n5Yi25Y+w5a6J6KOF5ZCR5a+8')) -ForegroundColor DarkGray
     if ($ShowIntro) {
-        Write-Host ('  {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5LiA6ZSu5YeG5aSHIFZpYmUgQ29kaW5nIOeOr+Wig++8muWuieijheW6lOeUqOOAgeWvvOWFpSBTa2lsbCDlpZfku7bjgIHphY3nva4gTUNQIC8gQ0xJIOS4jiBDQyBTd2l0Y2jjgII=')) -ForegroundColor DarkGray
-        Write-Host ('  {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5LuT5bqT77yaaHR0cHM6Ly9naXRodWIuY29tL2luZGllYXJrL3ZpYmUtY29kaW5nLXNldHVw')) -ForegroundColor DarkGray
+        Write-Host ('  {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5qC45b+D5Yqf6IO977ya5LiA6ZSu5a6J6KOF57u05oqkIFZpYmUgQ29kaW5nIOeOr+Wigw==')) -ForegroundColor DarkGray
+        Write-Host ('  {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5YW35L2T6IO95Yqb77ya5qOA5p+l5a6J6KOF5LiO5pu05paw5bqU55So44CB5a+85YWlIENDIFN3aXRjaOOAgemFjee9riBTa2lsbCDlpZfku7bjgIFNQ1Ag5LiOIENMSeOAgg==')) -ForegroundColor DarkGray
+        Write-Host ('  {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5LuT5bqT5Zyw5Z2A77yaaHR0cHM6Ly9naXRodWIuY29tL2luZGllYXJrL3ZpYmUtY29kaW5nLXNldHVw')) -ForegroundColor DarkGray
     }
     Write-Host ''
     Write-Host $Title -ForegroundColor Yellow
