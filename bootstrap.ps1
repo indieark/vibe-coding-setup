@@ -594,12 +594,18 @@ function Sync-BootstrapDependencies {
     )
 
     $shouldRefresh = $Refresh.IsPresent
+    $dependencyCount = @($Dependencies).Count
+    $completedCount = 0
     foreach ($relativePath in $Dependencies) {
         Copy-BootstrapDependency `
             -SourceRoot $SourceRoot `
             -DestinationRoot $DestinationRoot `
             -RelativePath $relativePath `
             -Refresh:$shouldRefresh
+        $completedCount++
+        $progressPercent = if ($dependencyCount -gt 0) { [int](($completedCount * 100) / $dependencyCount) } else { 100 }
+        $progressDetail = (ConvertFrom-BootstrapUtf8Base64String -Value 'ezB9L3sxfSDkuKrkvp3otZblt7LlrozmiJA=') -f $completedCount, $dependencyCount
+        Write-BootstrapDownloadProgress -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5ZCM5q2l') -Percent $progressPercent -Detail $progressDetail -Completed:($completedCount -ge $dependencyCount)
     }
 }
 
@@ -2060,8 +2066,8 @@ function Get-TuiBootstrapArgumentTokens {
     }
     if ($SkillProfiles -and $SkillProfiles.Count -gt 0) {
         $tokens.Add('-SkillProfile')
-        foreach ($profile in $SkillProfiles) {
-            $tokens.Add($profile)
+        foreach ($profileEntry in $SkillProfiles) {
+            $tokens.Add($profileEntry)
         }
     }
     if ($SkillNames -and @($SkillNames).Count -gt 0) {
@@ -2703,8 +2709,8 @@ function Show-TuiSuiteStatus {
             Write-Host ('  {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5Y+R546wIFByb2ZpbGXvvIzku43lj6/lronoo4Xlhajpg6ggU2tpbGzjgII=')) -ForegroundColor DarkGray
         }
         else {
-            foreach ($profile in $summary.Profiles | Select-Object -First 12) {
-                Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value 'ICAtIHswfe+8iFNraWxsIHsxfe+8m01DUCB7Mn3vvJtDTEkgezN977yJ') -f $profile.Name, @($profile.Skills).Count, @($profile.Mcp).Count, @($profile.Prereqs).Count) -ForegroundColor Gray
+            foreach ($profileEntry in $summary.Profiles | Select-Object -First 12) {
+                Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value 'ICAtIHswfe+8iFNraWxsIHsxfe+8m01DUCB7Mn3vvJtDTEkgezN977yJ') -f $profileEntry.Name, @($profileEntry.Skills).Count, @($profileEntry.Mcp).Count, @($profileEntry.Prereqs).Count) -ForegroundColor Gray
             }
         }
 
@@ -3481,8 +3487,16 @@ if ((-not $bootstrapDependenciesRefresh) -and (-not (Test-BootstrapCommonModuleT
     $bootstrapDependenciesRefresh = $true
 }
 
+$shouldUseTui = Test-BootstrapShouldUseTui -BoundParameters $PSBoundParameters -TuiSwitch:$Tui
+$bootstrapDependencyTitle = if ($shouldUseTui) {
+    ConvertFrom-BootstrapUtf8Base64String -Value '6I635Y+W5L6d6LWW'
+}
+else {
+    ConvertFrom-BootstrapUtf8Base64String -Value '5q2l6aqk5LiA77ya6I635Y+W5L6d6LWW'
+}
+
 Write-BootstrapSection `
-    -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6I635Y+W5L6d6LWW') `
+    -Title $bootstrapDependencyTitle `
     -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5ZCM5q2l5ZCv5Yqo6ISa5pys44CB5qih5Z2X44CB5bqU55So5riF5Y2V5ZKM5pys5Zyw6LWE5Lqn44CC')
 Sync-BootstrapDependencies `
     -SourceRoot $BootstrapSourceRoot `
@@ -3499,7 +3513,6 @@ if (-not [string]::IsNullOrWhiteSpace($effectiveUserHome)) {
 
 $manifestPath = Join-Path $root 'manifest\apps.json'
 $manifest = Get-AppManifest -ManifestPath $manifestPath
-$shouldUseTui = Test-BootstrapShouldUseTui -BoundParameters $PSBoundParameters -TuiSwitch:$Tui
 $skillBundlePath = Join-Path $root 'downloads\skills.zip'
 
 if ($shouldUseTui) {
@@ -3533,6 +3546,17 @@ if ($shouldUseTui) {
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5Y+W5raI44CC')
         $script:BootstrapUserCancelled = $true
         Invoke-BootstrapExit -Code 0
+    }
+
+    if ($tuiResult.UseDefaultInstall) {
+        Write-BootstrapSection `
+            -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5q2l6aqk5LiA77ya6I635Y+W5L6d6LWW') `
+            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5ZCM5q2l5ZCv5Yqo6ISa5pys44CB5qih5Z2X44CB5bqU55So5riF5Y2V5ZKM5pys5Zyw6LWE5Lqn44CC')
+        Sync-BootstrapDependencies `
+            -SourceRoot $BootstrapSourceRoot `
+            -DestinationRoot $root `
+            -Dependencies $bootstrapDependencies `
+            -Refresh:$false
     }
 
     $Only = $tuiResult.Only

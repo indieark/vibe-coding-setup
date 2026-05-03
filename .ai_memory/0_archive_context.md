@@ -719,7 +719,7 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 ### 后续行动指引
 
 1. 若需要强制拉取最新 `modules/common.psm1` 或 `manifest/apps.json`，使用 `-RefreshBootstrapDependencies`。
-2. 前置自举阶段不要再加默认安装专用编号；默认安装专属阶段从应用安装开始编号。
+2. 历史结论曾认为前置自举阶段不要再加默认安装专用编号、默认安装专属阶段从应用安装开始编号；该规则已被 2026-05-04 新规则取代：只有进入 TUI 首屏前显示无编号 `获取依赖`，默认 / 命令主流程显示 `步骤一：获取依赖`。
 3. `skills.zip` 仍是独立缓存链路，排查 Skill / MCP / CLI 数量时继续优先检查公开 release asset 与本地 `downloads/skills.zip`。
 
 ## 2026-05-03 — Skill / MCP 进度显示统一归档
@@ -794,3 +794,47 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 1. 若用户仍看到旧风格 `MCP` / `CLI`，优先确认运行的是最新 `bootstrap.ps1`，再确认本地 `modules/common.psm1` 是否被刷新。
 2. 若数量不一致，优先怀疑公开 `skills.zip` 或本地 `downloads/skills.zip` 缓存，而不是 TUI 渲染。
 3. 后续新增组件类型时，必须同步 `Get-SkillBundleComponentStatus`、bootstrap wrapper、TUI 单项页和文档进度说明。
+
+## 2026-05-04 — 默认模式套件状态与获取依赖阶段修正归档
+
+### 核心议题背景
+
+用户在确认自定义模式“检查并安装/更新”状态能力后，追问默认模式的套件环节是否也能显示检查进度和状态标记。随后又指出前置“获取依赖”阶段在缓存命中时缺少进度反馈，并要求默认模式下仍显示 `步骤一：获取依赖`，只有进入 TUI 首屏前才使用无编号 `获取依赖`。
+
+### Cognitive Evolution Path
+
+1. 先确认自定义模式已经通过 `Get-SkillBundleComponentStatus` 获得 Skill / MCP / CLI 状态和 `[检查]` 进度，但默认模式的 `Select-SkillDirectoriesForProfiles` 只展示 Profile 数量，不读取状态。
+2. 将默认模式的交互式 Profile 菜单接入同一组组件状态数据：`Install-SkillBundle` 在进入菜单前调用 `Get-SkillBundleComponentStatus`，并把 Skill / MCP / CLI 状态传入 `Select-SkillDirectoriesForProfiles`。
+3. 为默认菜单增加轻量状态聚合 helper，按 Profile 的 Skill / MCP / CLI 并集计算 ready / total、需更新和更新未知，最终在 `全部 Skill`、`所有套件` 与各 Profile 行显示状态文本。
+4. 继续核对更新检查语义，确认它仍是节能版本地对比：Skill 比较 bundle meta 与本机 meta，MCP 比较 registry 期望配置与本机配置，CLI 只做本地 check 并显示更新未知。
+5. 处理获取依赖进度时发现，`Copy-BootstrapDependency` 在本地文件已存在且无需刷新时直接返回，因此缓存命中路径没有下载进度，也没有同步完成进度。
+6. 将 `Sync-BootstrapDependencies` 改为无论下载还是复用缓存，都按依赖数量输出同步完成进度，避免“只有标题没有动静”。
+7. 进一步区分入口语义：进入 TUI 首屏前是共同自举，标题保留 `获取依赖`；命令模式、默认安装、TUI 首屏选择默认安装后或 UAC 续跑后属于默认主流程，显示 `步骤一：获取依赖`。
+8. 顺手清理 PSScriptAnalyzer 自动变量 warning：`$args` 改为 `$wingetArgs` / `$msiArgs` / `$commandArgs`，`$profile` 改为 `$profileEntry`；未扩大处理 `Ensure-*` unapproved verb 风格 warning。
+
+### 关键决策
+
+- 默认模式不改成完整 TUI，而是在原有交互输入菜单上追加状态标记，保留输入序号 / 名称的简洁体验。
+- 默认模式和自定义模式共享同一套本地状态检查语义，避免出现两个不同的“更新检查”口径。
+- `获取依赖` 是否带 `步骤一` 由入口语义决定：TUI 首屏前不编号，默认主流程编号。
+- 缓存命中也要显示完成进度；进度不等于下载，`同步` 可以表达本地复用完成。
+### 当前结论
+
+- 默认模式套件输入区现在会先显示 `[检查] Skill`、`[检查] MCP`、`[检查] CLI`，再在菜单行上显示安装 / 更新状态。
+- 命令模式和默认主流程会显示 `== 步骤一：获取依赖 ==`，并显示 `[bootstrap] 同步 ... 100% 2/2 个依赖已完成`。
+- 只有真正进入 TUI 首屏前的共同自举显示无编号 `== 获取依赖 ==`。
+- README、`docs/operations.md`、`docs/installer-flow.md`、`docs/skill-import.md` 与 `.ai_memory` 已同步当前规则。
+
+### 验证闭环
+
+- PowerShell parser 检查通过：`bootstrap.ps1`、`modules/common.psm1`。
+- `Import-Module modules/common.psm1` 通过。
+- `git diff --check` 通过。
+- 默认 / 命令模式 smoke 输出 `步骤一：获取依赖` 与同步完成进度。
+- 组件状态 smoke 输出 Skill 105、MCP 10、CLI 12 的 `[检查]` 完成进度。
+
+### 后续行动指引
+
+1. 若用户反馈默认模式套件菜单没有状态，先确认运行的是最新 `modules/common.psm1`，并确认是否进入交互式 Profile 菜单。
+2. 若用户反馈 `获取依赖` 标题不符合预期，先判断当前是否还在 TUI 首屏前共同自举，还是已经进入默认主流程。
+3. 若用户要求彻底清理 PSScriptAnalyzer warning，再单独评估 `Ensure-*` 函数重命名范围，避免破坏内部调用。

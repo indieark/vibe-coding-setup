@@ -23,7 +23,7 @@
 - TUI 会尽量切换英文输入布局，Profile / 应用多选支持英文逗号、中文逗号和顿号。
 - `skills.zip` 不在 TUI 首屏预取；只有进入套件、Skill、MCP、CLI 相关入口或实际导入组件时才按需获取。
 - 应用安装前会并行检查本机是否已安装，并持续显示已完成检查数量；只有已安装项才查目标版本并判断是否需要更新。
-- Skill / MCP / CLI 状态读取会分别显示统一 `[检查] Skill`、`[检查] MCP`、`[检查] CLI` 逐项完成进度；winget 已报告安装完成但进程未退出时会自动收尾，避免终端停在“仍在运行”。
+- Skill / MCP / CLI 状态读取会分别显示统一 `[检查] Skill`、`[检查] MCP`、`[检查] CLI` 逐项完成进度；其中“检查更新”采用低开销本地对比：Skill 对比当前 `skills.zip` 与本机 `.skill-meta.json`，MCP 对比 registry 期望配置与本机配置，CLI 只检测是否存在并显示更新未知；winget 已报告安装完成但进程未退出时会自动收尾，避免终端停在“仍在运行”。
 
 - 使用 `.skill-meta.json` 识别 Skill 来源，并由用户选择是否写入 Skills Manager 默认场景或自定义场景。
 - 对同名 Skill 做安全三态判定：已跟踪、旧孤儿、第三方同名。
@@ -66,7 +66,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 | 输入兼容         | TUI 进入前 best-effort 切英文输入布局；多选分隔支持 `,`、`，`、`、`                                                                                                                                                                                    |
 | 去重安全         | `Tracked / Orphan / Foreign` 三态判定，默认备份不删除                                                                                                                                                                                                  |
 | 进度展示         | 应用 precheck、Skill / MCP / CLI 状态扫描、下载、winget 下载 / 安装和 Skill bundle 解压使用脚本自绘同一行进度；组件扫描统一显示 `[检查] Skill` / `[检查] MCP` / `[检查] CLI` 标签，旧模块进度会被刷新或静默兜底，winget 输出会过滤噪音并中文化常见状态 |
-| 可追更           | `.skill-meta.json` 字段透传到 Skills Manager DB                                                                                                                                                                                                        |
+| 可追更           | `.skill-meta.json` 字段透传到 Skills Manager DB；TUI 中的 Skill 更新状态基于当前 `skills.zip` 的 `source_revision` 与本机 meta 对比，不做远程实时查询                                                                                                  |
 
 ## 安全边界
 

@@ -757,7 +757,7 @@ function Invoke-WingetAction {
         throw (ConvertFrom-Utf8Base64String -Value 'd2luZ2V0IOS4jeWPr+eUqA==')
     }
 
-    $args = @(
+    $wingetArgs = @(
         $Action,
         '--id', $PackageId,
         '--exact',
@@ -768,7 +768,7 @@ function Invoke-WingetAction {
     )
 
     if (-not [string]::IsNullOrWhiteSpace($Source)) {
-        $args += @('--source', $Source)
+        $wingetArgs += @('--source', $Source)
     }
 
     if ($DryRun) {
@@ -797,7 +797,7 @@ function Invoke-WingetAction {
     $exitCode = $null
 
     try {
-        $process = Start-Process -FilePath 'winget.exe' -ArgumentList $args -PassThru -NoNewWindow `
+        $process = Start-Process -FilePath 'winget.exe' -ArgumentList $wingetArgs -PassThru -NoNewWindow `
             -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
 
         do {
@@ -887,12 +887,12 @@ function Test-WingetPackageInstalled {
         return $false
     }
 
-    $args = @('list', '--id', $PackageId, '--exact', '--accept-source-agreements', '--disable-interactivity')
+    $wingetArgs = @('list', '--id', $PackageId, '--exact', '--accept-source-agreements', '--disable-interactivity')
     if (-not [string]::IsNullOrWhiteSpace($Source)) {
-        $args += @('--source', $Source)
+        $wingetArgs += @('--source', $Source)
     }
 
-    $output = & winget @args 2>$null | Out-String
+    $output = & winget @wingetArgs 2>$null | Out-String
     if ($LASTEXITCODE -ne 0) {
         return $false
     }
@@ -1279,12 +1279,12 @@ function Get-WingetPackageLatestVersion {
         return $script:WingetShowCache[$cacheKey]
     }
 
-    $args = @('show', '--id', $PackageId, '--exact', '--accept-source-agreements')
+    $wingetArgs = @('show', '--id', $PackageId, '--exact', '--accept-source-agreements')
     if (-not [string]::IsNullOrWhiteSpace($Source)) {
-        $args += @('--source', $Source)
+        $wingetArgs += @('--source', $Source)
     }
 
-    $output = (& winget @args 2>$null | Out-String)
+    $output = (& winget @wingetArgs 2>$null | Out-String)
     if ($LASTEXITCODE -ne 0) {
         $script:WingetShowCache[$cacheKey] = $null
         return $null
@@ -1702,8 +1702,8 @@ function Install-DownloadedPackage {
 
     switch ($InstallerType) {
         'msi' {
-            $args = @('/i', $PackagePath, '/qn', '/norestart') + $SilentArgs
-            $argumentLine = (($args | ForEach-Object { ConvertTo-WindowsProcessArgument -Value ([string]$_) }) -join ' ')
+            $msiArgs = @('/i', $PackagePath, '/qn', '/norestart') + $SilentArgs
+            $argumentLine = (($msiArgs | ForEach-Object { ConvertTo-WindowsProcessArgument -Value ([string]$_) }) -join ' ')
             if ($DryRun) {
                 Write-Log -Message ('[DryRun] msiexec.exe {0}' -f $argumentLine)
                 return
@@ -3223,11 +3223,11 @@ function Get-SkillBundleProfiles {
         if ($registryRoot) {
             $skillDirs = @(Get-SkillDirectoriesFromExtractedRoot -RootPath $tempRoot)
             $profiles = @(Read-SkillProfilesFromRegistry -RegistryRoot $registryRoot)
-            foreach ($profile in $profiles) {
-                $prereqs = @(Get-ProfilePrereqNames -RegistryRoot $registryRoot -SkillNames @($profile.Skills) -McpNames @($profile.Mcp))
-                $profile | Add-Member -MemberType NoteProperty -Name Prereqs -Value $prereqs -Force
-                $expandedSkills = @(Expand-ProfileSkillReferences -SkillNames @($profile.Skills) -SkillDirectories $skillDirs)
-                $profile | Add-Member -MemberType NoteProperty -Name ExpandedSkills -Value $expandedSkills -Force
+            foreach ($profileEntry in $profileEntrys) {
+                $prereqs = @(Get-ProfilePrereqNames -RegistryRoot $registryRoot -SkillNames @($profileEntry.Skills) -McpNames @($profileEntry.Mcp))
+                $profileEntry | Add-Member -MemberType NoteProperty -Name Prereqs -Value $prereqs -Force
+                $expandedSkills = @(Expand-ProfileSkillReferences -SkillNames @($profileEntry.Skills) -SkillDirectories $skillDirs)
+                $profileEntry | Add-Member -MemberType NoteProperty -Name ExpandedSkills -Value $expandedSkills -Force
             }
             return @($profiles)
         }
@@ -3643,9 +3643,9 @@ function Invoke-PrereqInstallCommand {
     }
 
     $command = $tokens[0]
-    $args = @($tokens | Select-Object -Skip 1)
+    $commandArgs = @($tokens | Select-Object -Skip 1)
     Write-OperationProgress -Label 'prereq' -Percent $null -Detail ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5omn6KGM5YmN572u5L6d6LWW5ZG95Luk77yaezB9') -f $CommandText)
-    & $command @args
+    & $command @commandArgs
     if ($LASTEXITCODE -ne 0) {
         throw ('Prereq install command failed: {0}' -f $CommandText)
     }
@@ -3708,11 +3708,11 @@ function Get-SkillBundleInventory {
         )
         if ($registryRoot) {
             $profiles = @(Read-SkillProfilesFromRegistry -RegistryRoot $registryRoot)
-            foreach ($profile in $profiles) {
-                $prereqs = @(Get-ProfilePrereqNames -RegistryRoot $registryRoot -SkillNames @($profile.Skills) -McpNames @($profile.Mcp))
-                $profile | Add-Member -MemberType NoteProperty -Name Prereqs -Value $prereqs -Force
-                $expandedSkills = @(Expand-ProfileSkillReferences -SkillNames @($profile.Skills) -SkillDirectories $skillDirs)
-                $profile | Add-Member -MemberType NoteProperty -Name ExpandedSkills -Value $expandedSkills -Force
+            foreach ($profileEntry in $profileEntrys) {
+                $prereqs = @(Get-ProfilePrereqNames -RegistryRoot $registryRoot -SkillNames @($profileEntry.Skills) -McpNames @($profileEntry.Mcp))
+                $profileEntry | Add-Member -MemberType NoteProperty -Name Prereqs -Value $prereqs -Force
+                $expandedSkills = @(Expand-ProfileSkillReferences -SkillNames @($profileEntry.Skills) -SkillDirectories $skillDirs)
+                $profileEntry | Add-Member -MemberType NoteProperty -Name ExpandedSkills -Value $expandedSkills -Force
             }
             $registrySkills = @(Read-RegistrySkillEntries -RegistryRoot $registryRoot)
             $mcpEntries = @(Read-RegistryMcpEntries -RegistryRoot $registryRoot)
@@ -4692,7 +4692,116 @@ function Get-SkillProfileComponentSummary {
         SkillCount = $skills.Count
         McpCount   = $mcp.Count
         CliCount   = $prereqs.Count
+        SkillNames = @($skills)
+        McpNames   = @($mcp)
+        CliNames   = @($prereqs)
     }
+}
+
+function New-ComponentStatusByName {
+    param(
+        [object[]]$Items = @()
+    )
+
+    $map = @{}
+    foreach ($item in @($Items)) {
+        if ($null -eq $item -or -not $item.PSObject.Properties['Name']) {
+            continue
+        }
+        $name = [string]$item.Name
+        if ([string]::IsNullOrWhiteSpace($name)) {
+            continue
+        }
+        $map[$name.ToLowerInvariant()] = $item
+    }
+    return $map
+}
+
+function Test-ComponentStatusFlag {
+    param(
+        [AllowNull()]
+        [object]$Entry,
+        [Parameter(Mandatory)]
+        [string]$PropertyName
+    )
+
+    if ($null -eq $Entry -or -not $Entry.PSObject.Properties[$PropertyName]) {
+        return $false
+    }
+    return [bool]$Entry.$PropertyName
+}
+
+function Get-ComponentStatusCounts {
+    param(
+        [string[]]$Names = @(),
+        [hashtable]$StatusByName = @{},
+        [Parameter(Mandatory)]
+        [string]$ReadyProperty
+    )
+
+    $uniqueNames = @($Names | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    $ready = 0
+    $updates = 0
+    $unknown = 0
+    foreach ($name in $uniqueNames) {
+        $key = $name.ToLowerInvariant()
+        $status = if ($StatusByName.ContainsKey($key)) { $StatusByName[$key] } else { $null }
+        if (Test-ComponentStatusFlag -Entry $status -PropertyName $ReadyProperty) {
+            $ready++
+            if (Test-ComponentStatusFlag -Entry $status -PropertyName 'UpdateAvailable') {
+                $updates++
+            }
+            elseif ($status -and $status.PSObject.Properties['UpdateKnown'] -and -not (Test-ComponentStatusFlag -Entry $status -PropertyName 'UpdateKnown')) {
+                $unknown++
+            }
+        }
+    }
+
+    return [pscustomobject]@{
+        Total   = $uniqueNames.Count
+        Ready   = $ready
+        Updates = $updates
+        Unknown = $unknown
+    }
+}
+
+function Get-SkillProfilePromptStatusText {
+    param(
+        [string[]]$Skills = @(),
+        [string[]]$Mcp = @(),
+        [string[]]$Prereqs = @(),
+        [hashtable]$SkillStatusByName = @{},
+        [hashtable]$McpStatusByName = @{},
+        [hashtable]$PrereqStatusByName = @{}
+    )
+
+    $skillCounts = Get-ComponentStatusCounts -Names $Skills -StatusByName $SkillStatusByName -ReadyProperty 'Installed'
+    $mcpCounts = Get-ComponentStatusCounts -Names $Mcp -StatusByName $McpStatusByName -ReadyProperty 'Configured'
+    $prereqCounts = Get-ComponentStatusCounts -Names $Prereqs -StatusByName $PrereqStatusByName -ReadyProperty 'Installed'
+    $total = [int]$skillCounts.Total + [int]$mcpCounts.Total + [int]$prereqCounts.Total
+    if ($total -le 0) {
+        return ''
+    }
+
+    $ready = [int]$skillCounts.Ready + [int]$mcpCounts.Ready + [int]$prereqCounts.Ready
+    $updates = [int]$skillCounts.Updates + [int]$mcpCounts.Updates + [int]$prereqCounts.Updates
+    $unknown = [int]$skillCounts.Unknown + [int]$mcpCounts.Unknown + [int]$prereqCounts.Unknown
+    if ($ready -eq 0) {
+        return ('{0} ({1}/{2})' -f (ConvertFrom-Utf8Base64String -Value '5pyq5a6J6KOF'), $ready, $total)
+    }
+    if ($ready -lt $total -and $updates -gt 0) {
+        return ('{0} ({1}/{2})' -f (ConvertFrom-Utf8Base64String -Value '6YOo5YiG5a6J6KOF77yb6ZyA5pu05paw'), $ready, $total)
+    }
+    if ($ready -lt $total) {
+        return ('{0} ({1}/{2})' -f (ConvertFrom-Utf8Base64String -Value '6YOo5YiG5a6J6KOF'), $ready, $total)
+    }
+    if ($updates -gt 0) {
+        return ('{0} ({1}/{2})' -f (ConvertFrom-Utf8Base64String -Value '6ZyA5pu05paw'), $ready, $total)
+    }
+    if ($unknown -gt 0) {
+        return ('{0} ({1}/{2})' -f (ConvertFrom-Utf8Base64String -Value '5pu05paw5pyq55+l'), $ready, $total)
+    }
+    return ('{0} ({1}/{2})' -f (ConvertFrom-Utf8Base64String -Value '5bey5a6J6KOF'), $ready, $total)
 }
 
 function Get-ConsoleDisplayWidth {
@@ -4767,6 +4876,7 @@ function Write-SkillProfilePromptOption {
         [Parameter(Mandatory)]
         [string]$Name,
         [string]$Description,
+        [string]$StatusText,
         [int]$SuiteCount = 0,
         [int]$SkillCount = 0,
         [int]$McpCount = 0,
@@ -4775,9 +4885,13 @@ function Write-SkillProfilePromptOption {
 
     $prefix = ' {0,2}. ' -f $Index
     Write-Host ('{0}{1}' -f $prefix, $Name) -NoNewline
+    if (-not [string]::IsNullOrWhiteSpace($StatusText)) {
+        Write-Host (' [{0}]' -f $StatusText) -ForegroundColor Cyan -NoNewline
+    }
     if (-not [string]::IsNullOrWhiteSpace($Description)) {
         $lineWidth = Get-SkillProfilePromptLineWidth
-        $usedWidth = (Get-ConsoleDisplayWidth -Text ('{0}{1}' -f $prefix, $Name)) + 4
+        $statusDisplayText = if ([string]::IsNullOrWhiteSpace($StatusText)) { '' } else { ' [{0}]' -f $StatusText }
+        $usedWidth = (Get-ConsoleDisplayWidth -Text ('{0}{1}{2}' -f $prefix, $Name, $statusDisplayText)) + 4
         $descriptionWidth = [Math]::Max(12, $lineWidth - $usedWidth)
         $displayDescription = ConvertTo-TruncatedConsoleText -Text $Description -MaxWidth $descriptionWidth
         Write-Host ('{0}{1}{2}' -f [char]0xFF08, $displayDescription, [char]0xFF09) -ForegroundColor DarkGray
@@ -4915,7 +5029,10 @@ function Select-SkillDirectoriesForProfiles {
         [string[]]$RequestedProfiles,
         [string]$RegistryRoot,
         [switch]$AllSkills,
-        [switch]$AllSuites
+        [switch]$AllSuites,
+        [object[]]$SkillStatus = @(),
+        [object[]]$McpStatus = @(),
+        [object[]]$PrereqStatus = @()
     )
 
     if ($AllSkills) {
@@ -4945,12 +5062,24 @@ function Select-SkillDirectoriesForProfiles {
         Write-Host ('  {0}' -f (ConvertFrom-Utf8Base64String -Value '5LiN5aGr55u05o6l5Zue6L2m5YiZ6Lez6L+H5o+S5Lu25a6J6KOF44CC')) -ForegroundColor DarkGray
         Write-Host ''
         $allSuitesSummary = Get-SkillProfileComponentSummary -Profiles $Profiles -RegistryRoot $RegistryRoot -SkillDirectories $SkillDirectories
+        $skillStatusByName = New-ComponentStatusByName -Items $SkillStatus
+        $mcpStatusByName = New-ComponentStatusByName -Items $McpStatus
+        $prereqStatusByName = New-ComponentStatusByName -Items $PrereqStatus
+        $hasComponentStatus = ($skillStatusByName.Count + $mcpStatusByName.Count + $prereqStatusByName.Count) -gt 0
+        $allSkillStatusText = ''
+        $allSuitesStatusText = ''
+        if ($hasComponentStatus) {
+            $allSkillNames = @($SkillStatus | ForEach-Object { $_.Name } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+            $allSkillStatusText = Get-SkillProfilePromptStatusText -Skills $allSkillNames -SkillStatusByName $skillStatusByName -McpStatusByName $mcpStatusByName -PrereqStatusByName $prereqStatusByName
+            $allSuitesStatusText = Get-SkillProfilePromptStatusText -Skills @($allSuitesSummary.SkillNames) -Mcp @($allSuitesSummary.McpNames) -Prereqs @($allSuitesSummary.CliNames) -SkillStatusByName $skillStatusByName -McpStatusByName $mcpStatusByName -PrereqStatusByName $prereqStatusByName
+        }
         $registrySkillCount = if (-not [string]::IsNullOrWhiteSpace($RegistryRoot)) { (@(Read-RegistrySkillEntries -RegistryRoot $RegistryRoot)).Count } else { 0 }
         $allSkillPromptCount = @($SkillDirectories.Count, $registrySkillCount, $allSuitesSummary.SkillCount) | Measure-Object -Maximum | ForEach-Object { [int]$_.Maximum }
         Write-SkillProfilePromptOption `
             -Index '0' `
             -Name (ConvertFrom-Utf8Base64String -Value '5YWo6YOoIFNraWxs') `
             -Description (ConvertFrom-Utf8Base64String -Value '5a6J6KOFIHJlZ2lzdHJ5IOWFqOmDqCBTa2lsbO+8jOS4jeWuieijhSBNQ1AgLyBDTEnjgII=') `
+            -StatusText $allSkillStatusText `
             -SkillCount $allSkillPromptCount `
             -McpCount 0 `
             -CliCount 0
@@ -4958,17 +5087,20 @@ function Select-SkillDirectoriesForProfiles {
             -Index '00' `
             -Name (ConvertFrom-Utf8Base64String -Value '5omA5pyJ5aWX5Lu2') `
             -Description (ConvertFrom-Utf8Base64String -Value 'UHJvZmlsZSDlubbpm4bvvJrlronoo4XmiYDmnInlpZfku7blvJXnlKjnmoQgU2tpbGzjgIFNQ1Ag5ZKMIENMSSDliY3nva7kvp3otZY=') `
+            -StatusText $allSuitesStatusText `
             -SuiteCount $allSuitesSummary.SuiteCount `
             -SkillCount $allSuitesSummary.SkillCount `
             -McpCount $allSuitesSummary.McpCount `
             -CliCount $allSuitesSummary.CliCount
         for ($index = 0; $index -lt $Profiles.Count; $index++) {
-            $profile = $Profiles[$index]
-            $profileSummary = Get-SkillProfileComponentSummary -Profiles @($profile) -RegistryRoot $RegistryRoot -SkillDirectories $SkillDirectories
+            $profileEntry = $Profiles[$index]
+            $profileSummary = Get-SkillProfileComponentSummary -Profiles @($profileEntry) -RegistryRoot $RegistryRoot -SkillDirectories $SkillDirectories
+            $profileStatusText = if ($hasComponentStatus) { Get-SkillProfilePromptStatusText -Skills @($profileSummary.SkillNames) -Mcp @($profileSummary.McpNames) -Prereqs @($profileSummary.CliNames) -SkillStatusByName $skillStatusByName -McpStatusByName $mcpStatusByName -PrereqStatusByName $prereqStatusByName } else { '' }
             Write-SkillProfilePromptOption `
                 -Index ([string]($index + 1)) `
-                -Name $profile.Name `
-                -Description $profile.Description `
+                -Name $profileEntry.Name `
+                -Description $profileEntry.Description `
+                -StatusText $profileStatusText `
                 -SkillCount $profileSummary.SkillCount `
                 -McpCount $profileSummary.McpCount `
                 -CliCount $profileSummary.CliCount
@@ -4999,8 +5131,8 @@ function Select-SkillDirectoriesForProfiles {
 
     $selectedProfiles = New-Object System.Collections.Generic.List[object]
     if ($AllSuites) {
-        foreach ($profile in @($Profiles)) {
-            $selectedProfiles.Add($profile)
+        foreach ($profileEntry in @($Profiles)) {
+            $selectedProfiles.Add($profileEntry)
         }
     }
     else {
@@ -6060,7 +6192,16 @@ function Install-SkillBundle {
         }
         else {
             $requestedProfiles = if ($AllSuites) { @($profiles | ForEach-Object { $_.Name }) } else { @($SkillProfiles) }
-            @(Select-SkillDirectoriesForProfiles -SkillDirectories $allSkillDirs -Profiles $profiles -RequestedProfiles $requestedProfiles -RegistryRoot $registryRoot -AllSkills:$AllSkills -AllSuites:$AllSuites)
+            $componentStatus = $null
+            if (@($requestedProfiles).Count -eq 0 -and -not $AllSkills -and -not $AllSuites -and (Test-InteractiveConsole)) {
+                try {
+                    $componentStatus = Get-SkillBundleComponentStatus -ZipPath $ZipPath
+                }
+                catch {
+                    Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '6K+75Y+W57uE5Lu254q25oCB5aSx6LSl77yM57un57ut5pi+56S65peg54q25oCB5aWX5Lu26I+c5Y2V77yaezB9') -f $_.Exception.Message)
+                }
+            }
+            @(Select-SkillDirectoriesForProfiles -SkillDirectories $allSkillDirs -Profiles $profiles -RequestedProfiles $requestedProfiles -RegistryRoot $registryRoot -AllSkills:$AllSkills -AllSuites:$AllSuites -SkillStatus @($componentStatus.Skills) -McpStatus @($componentStatus.Mcp) -PrereqStatus @($componentStatus.Prereqs))
         }
 
         $selection = $script:LastSkillSelection
