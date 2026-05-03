@@ -2801,8 +2801,10 @@ function Invoke-BootstrapTuiWorkbench {
     }
 
     function Ensure-TuiSkillRegistry {
+        param([switch]$Force)
+
         $hasSkillStatus = @($state.SkillStatus).Count -gt 0 -and (Test-TuiStatusCacheReady -Entries @($state.SkillStatus) -StateProperty 'Installed')
-        if ($state.SkillRegistryLoaded -and $hasSkillStatus) {
+        if ((-not $Force) -and $state.SkillRegistryLoaded -and $hasSkillStatus) {
             return
         }
 
@@ -2815,10 +2817,12 @@ function Invoke-BootstrapTuiWorkbench {
     }
 
     function Ensure-TuiSuiteRegistry {
+        param([switch]$Force)
+
         $hasSkillStatus = @($state.SkillStatus).Count -gt 0 -and (Test-TuiStatusCacheReady -Entries @($state.SkillStatus) -StateProperty 'Installed')
         $hasMcpStatus = Test-TuiStatusCacheReady -Entries @($state.RegistryMcpEntries) -StateProperty 'Configured'
         $hasPrereqStatus = Test-TuiStatusCacheReady -Entries @($state.RegistryPrereqEntries) -StateProperty 'Installed'
-        if ($state.ComponentRegistryLoaded -and $hasSkillStatus -and $hasMcpStatus -and $hasPrereqStatus) {
+        if ((-not $Force) -and $state.ComponentRegistryLoaded -and $hasSkillStatus -and $hasMcpStatus -and $hasPrereqStatus) {
             return
         }
 
@@ -2831,8 +2835,10 @@ function Invoke-BootstrapTuiWorkbench {
     }
 
     function Ensure-TuiMcpRegistry {
+        param([switch]$Force)
+
         $hasMcpStatus = Test-TuiStatusCacheReady -Entries @($state.RegistryMcpEntries) -StateProperty 'Configured'
-        if ($state.McpRegistryLoaded -and $hasMcpStatus) {
+        if ((-not $Force) -and $state.McpRegistryLoaded -and $hasMcpStatus) {
             return
         }
 
@@ -2845,8 +2851,10 @@ function Invoke-BootstrapTuiWorkbench {
     }
 
     function Ensure-TuiPrereqRegistry {
+        param([switch]$Force)
+
         $hasPrereqStatus = Test-TuiStatusCacheReady -Entries @($state.RegistryPrereqEntries) -StateProperty 'Installed'
-        if ($state.PrereqRegistryLoaded -and $hasPrereqStatus) {
+        if ((-not $Force) -and $state.PrereqRegistryLoaded -and $hasPrereqStatus) {
             return
         }
 
@@ -2912,7 +2920,7 @@ function Invoke-BootstrapTuiWorkbench {
             }
             'skill-install' {
                 try {
-                    Ensure-TuiSuiteRegistry
+                    Ensure-TuiSuiteRegistry -Force
                     $skillSelection = Show-TuiSkillProfileSelection -Profiles @($state.AvailableSkillProfiles) -BundleSkillCount $state.BundleSkillCount -RegistrySkillCount (@($state.RegistrySkillEntries).Count) -InstalledSkillCount (@($state.SkillStatus | Where-Object { Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed' }).Count) -NewSkillCount (@($state.SkillStatus | Where-Object { -not (Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed') }).Count) -McpCount (@($state.RegistryMcpEntries).Count) -ConfiguredMcpCount (@($state.RegistryMcpEntries | Where-Object { Test-TuiObjectFlag -Entry $_ -PropertyName 'Configured' }).Count) -PrereqCount (@($state.RegistryPrereqEntries).Count) -InstalledPrereqCount (@($state.RegistryPrereqEntries | Where-Object { Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed' }).Count) -SkillStatus @($state.SkillStatus) -McpStatus @($state.RegistryMcpEntries) -PrereqStatus @($state.RegistryPrereqEntries)
                 }
                 catch {
@@ -2952,7 +2960,7 @@ function Invoke-BootstrapTuiWorkbench {
             }
             'skill-component-install' {
                 try {
-                    Ensure-TuiSkillRegistry
+                    Ensure-TuiSkillRegistry -Force
                     $installedSkillCount = @($state.SkillStatus | Where-Object { Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed' }).Count
                     $missingSkillCount = @($state.SkillStatus | Where-Object { -not (Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed') }).Count
                     $updateSkillCount = @($state.SkillStatus | Where-Object { (Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed') -and (Test-TuiObjectFlag -Entry $_ -PropertyName 'UpdateAvailable') }).Count
@@ -3000,7 +3008,7 @@ function Invoke-BootstrapTuiWorkbench {
             }
             'mcp-component-install' {
                 try {
-                    Ensure-TuiMcpRegistry
+                    Ensure-TuiMcpRegistry -Force
                     $configuredMcpCount = @($state.RegistryMcpEntries | Where-Object { Test-TuiObjectFlag -Entry $_ -PropertyName 'Configured' }).Count
                     $missingMcpCount = @($state.RegistryMcpEntries | Where-Object { -not (Test-TuiObjectFlag -Entry $_ -PropertyName 'Configured') }).Count
                     $updateMcpCount = @($state.RegistryMcpEntries | Where-Object { (Test-TuiObjectFlag -Entry $_ -PropertyName 'Configured') -and (Test-TuiObjectFlag -Entry $_ -PropertyName 'UpdateAvailable') }).Count
@@ -3052,7 +3060,7 @@ function Invoke-BootstrapTuiWorkbench {
             }
             'cli-component-install' {
                 try {
-                    Ensure-TuiPrereqRegistry
+                    Ensure-TuiPrereqRegistry -Force
                     $installedCliCount = @($state.RegistryPrereqEntries | Where-Object { Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed' }).Count
                     $missingCliCount = @($state.RegistryPrereqEntries | Where-Object { -not (Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed') }).Count
                     $unknownCliUpdateCount = @($state.RegistryPrereqEntries | Where-Object { (Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed') -and $_.PSObject.Properties['UpdateKnown'] -and -not (Test-TuiObjectFlag -Entry $_ -PropertyName 'UpdateKnown') }).Count

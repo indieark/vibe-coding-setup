@@ -4438,9 +4438,6 @@ function Get-SkillBundleComponentStatus {
             for ($i = 0; $i -lt $skillNames.Count; $i++) {
                 $name = $skillNames[$i]
                 $path = Join-Path $centralRoot $name
-                $skillProgressPercent = if ($skillNames.Count -gt 0) { [int]((($i + 1) * 100) / $skillNames.Count) } else { 100 }
-                $skillProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogU2tpbGwg5bey5a6M5oiQ') -f ($i + 1), $skillNames.Count
-                Write-OperationProgress -Label 'Skill' -Percent $skillProgressPercent -Detail $skillProgressDetail -Completed:(($i + 1) -ge $skillNames.Count)
                 $installed = Test-Path -LiteralPath (Join-Path $path 'SKILL.md')
                 $sourceMeta = $null
                 if ($skillSourceByName.ContainsKey($name.ToLowerInvariant())) {
@@ -4456,6 +4453,9 @@ function Get-SkillBundleComponentStatus {
                     }
                 }
                 $updateStatus = if ($installed) { Get-SkillMetaUpdateStatus -SourceMeta $sourceMeta -DestinationMeta $destinationMeta -SkillName $name } else { [pscustomobject]@{ Known = $true; Available = $false } }
+                $skillProgressPercent = if ($skillNames.Count -gt 0) { [int]((($i + 1) * 100) / $skillNames.Count) } else { 100 }
+                $skillProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogU2tpbGwg5bey5a6M5oiQ') -f ($i + 1), $skillNames.Count
+                Write-OperationProgress -Label 'Skill' -Percent $skillProgressPercent -Detail $skillProgressDetail -Completed:(($i + 1) -ge $skillNames.Count)
                 [pscustomobject]@{
                     Name            = $name
                     Kind            = if ($bundleSkillSet.ContainsKey($name.ToLowerInvariant())) { 'bundle' } else { 'external' }
@@ -4500,9 +4500,6 @@ function Get-SkillBundleComponentStatus {
         $mcpStatus = @(
             for ($i = 0; $i -lt $mcpEntries.Count; $i++) {
                 $entry = $mcpEntries[$i]
-                $mcpProgressPercent = if ($mcpEntries.Count -gt 0) { [int]((($i + 1) * 100) / $mcpEntries.Count) } else { 100 }
-                $mcpProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogTUNQIOW3suWujOaIkA==') -f ($i + 1), $mcpEntries.Count
-                Write-OperationProgress -Label 'MCP' -Percent $mcpProgressPercent -Detail $mcpProgressDetail -Completed:(($i + 1) -ge $mcpEntries.Count)
                 $targets = New-Object System.Collections.Generic.List[string]
                 $updateTargets = New-Object System.Collections.Generic.List[string]
                 $codexBlock = Get-CodexMcpServerBlockText -Content $codexConfigContent -Name $entry.Name
@@ -4524,6 +4521,9 @@ function Get-SkillBundleComponentStatus {
                 if ($claudeCodeServers.ContainsKey($entry.Name)) {
                     $targets.Add('Claude Code')
                 }
+                $mcpProgressPercent = if ($mcpEntries.Count -gt 0) { [int]((($i + 1) * 100) / $mcpEntries.Count) } else { 100 }
+                $mcpProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogTUNQIOW3suWujOaIkA==') -f ($i + 1), $mcpEntries.Count
+                Write-OperationProgress -Label 'MCP' -Percent $mcpProgressPercent -Detail $mcpProgressDetail -Completed:(($i + 1) -ge $mcpEntries.Count)
                 [pscustomobject]@{
                     Name            = $entry.Name
                     Configured      = $targets.Count -gt 0
