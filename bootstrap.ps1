@@ -1244,9 +1244,6 @@ function Show-TuiSkillProfileSelection {
                 elseif ($_.IsAllSuites) {
                     ConvertFrom-BootstrapUtf8Base64String -Value '5omA5pyJ5aWX5Lu2'
                 }
-                elseif ($_.IsSkipSkills) {
-                    ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+HIFNraWxs'
-                }
                 else {
                     [string]$_.ProfileName
                 }
@@ -1368,10 +1365,6 @@ function Show-TuiSkillProfileSelection {
 
         Write-Host ''
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5b2T5YmN6aG56K+m5oOF') -ForegroundColor DarkCyan
-        if ($Option.IsSkipSkills) {
-            Write-Host ('  {0}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5bCG6Lez6L+HIFNraWxsIOWvvOWFpe+8jOS4jeWuieijhSBNQ1AgLyBDTEnjgII=')) -ForegroundColor Gray
-            return
-        }
 
         $summary = if ([int]$Option.SuiteCount -gt 0) {
             (ConvertFrom-BootstrapUtf8Base64String -Value '5aWX5Lu2IHswfSDkuKrvvJtTa2lsbCB7MX3vvJtNQ1AgezJ977ybQ0xJIHszfQ==') -f $Option.SuiteCount, $Option.SkillCount, $Option.McpCount, $Option.CliCount
@@ -1558,7 +1551,6 @@ function Show-TuiSkillProfileSelection {
             Enabled        = $true
             IsAllSkills    = $true
             IsAllSuites    = $false
-            IsSkipSkills   = $false
             SuiteCount     = 0
             SkillCount     = $allSkillCount
             McpCount       = 0
@@ -1581,7 +1573,6 @@ function Show-TuiSkillProfileSelection {
             Enabled        = $false
             IsAllSkills    = $false
             IsAllSuites    = $true
-            IsSkipSkills   = $false
             SuiteCount     = $Profiles.Count
             SkillCount     = $allSuiteSkills.Count
             McpCount       = $allSuiteMcp.Count
@@ -1597,30 +1588,6 @@ function Show-TuiSkillProfileSelection {
             UpdatePrereqs  = @(Get-TuiComponentStateNames -Names $allSuitePrereqs -StatusByName $prereqStatusByName -ReadyProperty 'Installed' -State 'Update')
             Description    = ConvertFrom-BootstrapUtf8Base64String -Value 'UHJvZmlsZSDlubbpm4bvvJrlronoo4XmiYDmnInlpZfku7blvJXnlKjnmoQgU2tpbGzjgIFNQ1Ag5ZKMIENMSSDliY3nva7kvp3otZY='
         })
-    $options.Add([pscustomobject]@{
-            Key            = 'skip'
-            Label          = (ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+HIFNraWxsIOWvvOWFpQ==')
-            ProfileName    = $null
-            Enabled        = $false
-            IsAllSkills    = $false
-            IsAllSuites    = $false
-            IsSkipSkills   = $true
-            SuiteCount     = 0
-            SkillCount     = 0
-            McpCount       = 0
-            CliCount       = 0
-            Mcp            = @()
-            Prereqs        = @()
-            Status         = ''
-            MissingSkills  = @()
-            MissingMcp     = @()
-            MissingPrereqs = @()
-            UpdateSkills   = @()
-            UpdateMcp      = @()
-            UpdatePrereqs  = @()
-            Description    = ''
-        })
-
     foreach ($profileEntry in @($Profiles)) {
         $profileSkills = @(Get-TuiProfileSkillNames -ProfileEntry $profileEntry)
         $profileMcp = @($profileEntry.Mcp | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
@@ -1632,7 +1599,6 @@ function Show-TuiSkillProfileSelection {
                 Enabled        = $false
                 IsAllSkills    = $false
                 IsAllSuites    = $false
-                IsSkipSkills   = $false
                 SuiteCount     = 0
                 SkillCount     = $profileSkills.Count
                 McpCount       = $profileMcp.Count
@@ -1718,23 +1684,16 @@ function Show-TuiSkillProfileSelection {
                         $option.Enabled = $false
                     }
                 }
-                elseif ($options[$index].IsSkipSkills -and $options[$index].Enabled) {
-                    foreach ($option in $options | Where-Object { -not $_.IsSkipSkills }) {
-                        $option.Enabled = $false
-                    }
-                }
                 elseif ((-not $options[$index].IsAllSkills) -and (-not $options[$index].IsAllSuites) -and $options[$index].Enabled) {
                     ($options | Where-Object { $_.IsAllSkills } | Select-Object -First 1).Enabled = $false
                     ($options | Where-Object { $_.IsAllSuites } | Select-Object -First 1).Enabled = $false
-                    ($options | Where-Object { $_.IsSkipSkills } | Select-Object -First 1).Enabled = $false
                 }
             }
             'A' {
                 ($options | Where-Object { $_.IsAllSkills } | Select-Object -First 1).Enabled = $false
                 ($options | Where-Object { $_.IsAllSuites } | Select-Object -First 1).Enabled = $false
-                ($options | Where-Object { $_.IsSkipSkills } | Select-Object -First 1).Enabled = $false
                 foreach ($option in $options | Where-Object { -not $_.IsAllSkills }) {
-                    if ((-not $option.IsAllSuites) -and (-not $option.IsSkipSkills)) {
+                    if (-not $option.IsAllSuites) {
                         $option.Enabled = $true
                     }
                 }
@@ -1747,16 +1706,7 @@ function Show-TuiSkillProfileSelection {
             'Enter' {
                 $allOption = $options | Where-Object { $_.IsAllSkills } | Select-Object -First 1
                 $allSuitesOption = $options | Where-Object { $_.IsAllSuites } | Select-Object -First 1
-                $skipOption = $options | Where-Object { $_.IsSkipSkills } | Select-Object -First 1
-                $selectedProfiles = @($options | Where-Object { $_.Enabled -and -not $_.IsAllSkills -and -not $_.IsAllSuites -and -not $_.IsSkipSkills } | ForEach-Object { $_.ProfileName })
-                if ($skipOption.Enabled) {
-                    return [pscustomobject]@{
-                        SkipSkills    = $true
-                        AllSkills     = $false
-                        AllSuites     = $false
-                        SkillProfiles = @()
-                    }
-                }
+                $selectedProfiles = @($options | Where-Object { $_.Enabled -and -not $_.IsAllSkills -and -not $_.IsAllSuites } | ForEach-Object { $_.ProfileName })
                 if ($allSuitesOption.Enabled) {
                     return [pscustomobject]@{
                         SkipSkills    = $false
@@ -1768,7 +1718,7 @@ function Show-TuiSkillProfileSelection {
                 if ($allOption.Enabled -or $selectedProfiles.Count -eq 0) {
                     if (-not $allOption.Enabled -and $selectedProfiles.Count -eq 0) {
                         Write-Host ''
-                        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6YCJ5oup5Lu75L2VIFByb2ZpbGXjgILor7fpgInkuK3lhajpg6ggU2tpbGzjgIHoh7PlsJHkuIDkuKogUHJvZmlsZe+8jOaIlumAieaLqei3s+i/hyBTa2lsbCDlr7zlhaXjgII=') -ForegroundColor Yellow
+                        Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6YCJ5oup5Lu75L2VIFByb2ZpbGXjgILor7fpgInkuK3lhajpg6ggU2tpbGzjgIHoh7PlsJHkuIDkuKogUHJvZmlsZeOAgg==') -ForegroundColor Yellow
                         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5oyJ5Lu75oSP6ZSu6L+U5ZueLi4u') -ForegroundColor DarkGray
                         [void][Console]::ReadKey($true)
                         continue
