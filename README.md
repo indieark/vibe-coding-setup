@@ -23,7 +23,7 @@
 - TUI 会尽量切换英文输入布局，Profile / 应用多选支持英文逗号、中文逗号和顿号。
 - `skills.zip` 不在 TUI 首屏预取；只有进入套件、Skill、MCP、CLI 相关入口或实际导入组件时才按需获取。
 - 应用安装前会并行检查本机是否已安装，并持续显示已完成检查数量；只有已安装项才查目标版本并判断是否需要更新。
-- Skill / MCP / CLI 状态读取会分别显示以 `Skill`、`MCP`、`CLI` 为标签的逐项完成进度；winget 已报告安装完成但进程未退出时会自动收尾，避免终端停在“仍在运行”。
+- Skill / MCP / CLI 状态读取会分别显示统一 `[检查] Skill`、`[检查] MCP`、`[检查] CLI` 逐项完成进度；winget 已报告安装完成但进程未退出时会自动收尾，避免终端停在“仍在运行”。
 
 - 使用 `.skill-meta.json` 识别 Skill 来源，并由用户选择是否写入 Skills Manager 默认场景或自定义场景。
 - 对同名 Skill 做安全三态判定：已跟踪、旧孤儿、第三方同名。
@@ -56,17 +56,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 
 ## 核心能力
 
-| 能力             | 当前实现                                                                                                                                                                                            |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 应用安装         | `manifest/apps.json` 驱动，先并行 precheck；缺失则安装，已存在才查目标版本并决定更新或跳过                                                                                                          |
-| 失败回退         | 主来源失败后 post-check，仍失败才使用 fallback                                                                                                                                                      |
-| 资产镜像         | 私库资产只在 GitHub Actions 中读取，终端用户只访问公开 `bootstrap-assets`                                                                                                                           |
-| TUI 入口         | 无安装参数默认进入拟似 TUI；显式参数继续支持旧命令模式                                                                                                                                              |
-| Skill / MCP 导入 | `skills.zip` 内置 registry 和 Profile，TUI 与命令模式都支持全部 Skill、按 Profile、按单项导入 bundled / external Skill、前置 CLI 依赖和 MCP 配置，并可选择 Skills Manager 场景注册方式              |
-| 输入兼容         | TUI 进入前 best-effort 切英文输入布局；多选分隔支持 `,`、`，`、`、`                                                                                                                                 |
-| 去重安全         | `Tracked / Orphan / Foreign` 三态判定，默认备份不删除                                                                                                                                               |
-| 进度展示         | 应用 precheck、Skill / MCP / CLI 状态扫描、下载、winget 下载 / 安装和 Skill bundle 解压使用脚本自绘同一行进度；组件扫描分别显示 `Skill` / `MCP` / `CLI` 标签，winget 输出会过滤噪音并中文化常见状态 |
-| 可追更           | `.skill-meta.json` 字段透传到 Skills Manager DB                                                                                                                                                     |
+| 能力             | 当前实现                                                                                                                                                                                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 应用安装         | `manifest/apps.json` 驱动，先并行 precheck；缺失则安装，已存在才查目标版本并决定更新或跳过                                                                                                                                                             |
+| 失败回退         | 主来源失败后 post-check，仍失败才使用 fallback                                                                                                                                                                                                         |
+| 资产镜像         | 私库资产只在 GitHub Actions 中读取，终端用户只访问公开 `bootstrap-assets`                                                                                                                                                                              |
+| TUI 入口         | 无安装参数默认进入拟似 TUI；显式参数继续支持旧命令模式                                                                                                                                                                                                 |
+| Skill / MCP 导入 | `skills.zip` 内置 registry 和 Profile，TUI 与命令模式都支持全部 Skill、按 Profile、按单项导入 bundled / external Skill、前置 CLI 依赖和 MCP 配置，并可选择 Skills Manager 场景注册方式                                                                 |
+| 输入兼容         | TUI 进入前 best-effort 切英文输入布局；多选分隔支持 `,`、`，`、`、`                                                                                                                                                                                    |
+| 去重安全         | `Tracked / Orphan / Foreign` 三态判定，默认备份不删除                                                                                                                                                                                                  |
+| 进度展示         | 应用 precheck、Skill / MCP / CLI 状态扫描、下载、winget 下载 / 安装和 Skill bundle 解压使用脚本自绘同一行进度；组件扫描统一显示 `[检查] Skill` / `[检查] MCP` / `[检查] CLI` 标签，旧模块进度会被刷新或静默兜底，winget 输出会过滤噪音并中文化常见状态 |
+| 可追更           | `.skill-meta.json` 字段透传到 Skills Manager DB                                                                                                                                                                                                        |
 
 ## 安全边界
 
@@ -100,7 +100,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 ## 当前状态
 
 - `main` 已包含按需装机器 Phase 1-4：私库 bundle 镜像、Profile 选择、Skill meta 透传、三态去重，以及 registry 驱动的全部 Skill / external Skill / prereq / MCP 写入。
-- 安装器已包含集成拟似 TUI 自定义模式、运行时套件 / Skill / MCP / CLI 复选、UAC 交接提示和安装进度展示。
+- 安装器已包含集成拟似 TUI 自定义模式、运行时套件 / Skill / MCP / CLI 复选、UAC 交接提示和统一 `[检查]` 组件进度展示。
 - Phase 5 飞书只读镜像在 `indieark/00000-model` 侧按计划推进。
 - 下一步安装器增强应优先围绕可观测、可校验、可回滚，而不是继续堆安装项。
 

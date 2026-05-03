@@ -286,10 +286,19 @@
 - 套件页标题改为“套件复选项”，列表行只显示名称，数量、说明、MCP 和 CLI 依赖放到顶部总览和当前项详情。
 - MCP 状态扫描进度改为与应用和 CLI 一致的同一行逐项完成进度：`检查 ... N/M 个 MCP 已完成`。
 - 同步 README、运行命令、安装流程、Skill 导入契约和 `.ai_memory`，保持当前 TUI 行为说明一致。
-- 后续已统一为组件标签进度：Skill / MCP / CLI 分别显示 `Skill`、`MCP`、`CLI` 标签。
+- 后续已统一为组件标签进度；当前最终格式为 `[检查] Skill`、`[检查] MCP`、`[检查] CLI`。
 
 ## 2026-05-03
 
 - 前置自举依赖开屏标题改为 `获取依赖`，不再显示默认模式专用的 `步骤一：获取依赖`。
 - `Sync-BootstrapDependencies` 默认复用本地 `modules/common.psm1` 与 `manifest/apps.json`，即使源是 HTTP 也不重复下载；只有 `-RefreshBootstrapDependencies` 强制刷新。
 - 同步 `.ai_memory`，记录前置开屏与默认安装阶段编号的边界。
+
+## 2026-05-04
+
+- 统一 TUI 组件检查进度显示：Skill / MCP / CLI 状态扫描统一为 `[检查] Skill`、`[检查] MCP`、`[检查] CLI`。
+- 为 `Write-OperationProgress` 和 `Write-BootstrapDownloadProgress` 增加可选前缀能力；普通下载仍保留 `[bootstrap]`。
+- 修复 Skill 进度不可见、旧模块参数不兼容、bootstrap 预览调用不可见函数等问题。
+- 为 MCP 状态扫描增加 TUI 专用轻量延迟，并取消最后 `100%` 后的额外等待。
+- 修复套件页重复显示 MCP 与 CLI 旧风格进度：bootstrap 检测旧 `common.psm1` 后刷新依赖，兼容兜底时静默旧 Host 进度并输出新版预览。
+- 同步 README、`docs/operations.md`、`docs/installer-flow.md` 和 `.ai_memory`；验证 suite smoke 输出 Skill=105、MCP=10、CLI=12 三行统一 `[检查]` 格式。

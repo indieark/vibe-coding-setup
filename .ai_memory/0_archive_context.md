@@ -740,12 +740,10 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 
 - 组件状态扫描的唯一进度口径是 `Write-OperationProgress`；Skill 不再维护另一套 `Write-BootstrapProgressLine` 进度格式。
 - Skill / MCP / CLI 进度标签必须直观显示组件类型，不再把 MCP 显示为泛化“检查”。
-- MCP 状态扫描在具体配置检测前刷新进度，优先解决“检测耗时时完全无反馈”的体验问题。
-- 文档同步时只描述行为和可见效果，不复制 registry 条目列表或实时数量作为长期事实。
 
 ### 当前结论
 
-- 自定义模式中 Skill、MCP、CLI 状态扫描都能显示同一套自绘进度条，并分别显示 `Skill`、`MCP`、`CLI` 标签。
+- 自定义模式中 Skill、MCP、CLI 状态扫描都能显示同一套自绘进度条；当时先统一为类型标签，当前最终格式已升级为 `[检查] Skill`、`[检查] MCP`、`[检查] CLI`。
 - Skill 导入阶段也改为 `Skill` 标签进度条，不再使用旧的 `Skill 进度：当前/总数 名称` 文本日志。
 - README、`docs/operations.md`、`docs/installer-flow.md`、`docs/skill-import.md` 和 `.ai_memory` 已同步当前行为。
 
@@ -760,3 +758,39 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 1. 如果用户仍反馈看不到 Skill / MCP 进度，先确认运行的是最新脚本，而不是旧的本地 checkout 或旧自举缓存。
 2. 如果显示数量不符合预期，继续按两段链路排查公开 `bootstrap-assets/skills.zip` 和本地 `downloads/skills.zip` 缓存。
 3. 后续新增组件类型时，应先接入 `Get-SkillBundleComponentStatus` 风格的类型化进度，再更新自定义工作台和文档。
+
+## 2026-05-04 — TUI 组件检查进度统一归档
+
+### 核心议题背景
+
+用户连续反馈自定义模式中“检查并安装/更新套件、Skill、MCP、CLI”的进度体验不一致：Skill 起初完全看不到逐项进度；MCP/CLI 能显示但格式与 Skill 不同；后续又发现 MCP 太快瞬间到 100%、100% 后停顿过久，以及套件页出现新版 `[检查] MCP` 与旧风格 `MCP` / `CLI` 重复输出。
+
+### Cognitive Evolution Path
+
+1. 先确认组件状态扫描的唯一核心路径是 `Get-SkillBundleComponentStatus`，它负责读取 `skills.zip` 中的 Skill / MCP / prereq registry，并检查本机状态。
+2. Skill 进度不可见的根因不是没有循环，而是本地检查太快且 TUI 页面重绘会覆盖短暂输出；因此为 TUI 路径引入 `SkillProgressDelayMilliseconds`，并在 bootstrap wrapper 中兼容旧模块。
+3. 用户遇到 `SkillProgressDelayMilliseconds` 参数不存在后，加入 `Get-BootstrapTuiComponentStatus` 包装函数，只在模块支持新参数时传参，否则由 bootstrap 自己输出预览进度。
+4. 用户遇到 `Write-OperationProgress` 不可识别后，确认该函数是 `common.psm1` 内部函数，bootstrap 不能直接调用，于是预览进度改用 `Write-BootstrapDownloadProgress`。
+5. 格式统一阶段为 `Write-OperationProgress` 和 `Write-BootstrapDownloadProgress` 增加 `Prefix`，组件检查使用 `[检查]` 前缀，普通下载保留 `[bootstrap]`。
+6. MCP 瞬间完成的根因是 MCP 只有 10 项，且检查基本是本地 JSON/TOML/CLI 列表读取；增加 TUI 专用 `McpProgressDelayMilliseconds`，但后续根据反馈把延迟缩小，并避免最后一项完成后继续 sleep。
+7. 套件页重复 MCP / CLI 的根因是 bootstrap 新版预览和旧 `common.psm1` 自身旧进度同时输出；最终在 bootstrap 里检测旧模块能力，必要时刷新自举依赖，并在兼容兜底调用旧模块时通过 Host stream 静默旧进度。
+
+### 关键决策
+
+- 组件检查进度的目标格式固定为 `[检查] Skill/MCP/CLI`，而不是普通下载的 `[bootstrap]` 格式。
+- 普通下载进度不改语义，仍保留 `[bootstrap] 下载 [bar] 100% file`。
+- TUI 可见延迟只服务交互体验，不能拖慢非 TUI / 命令模式；默认参数保持 0。
+- MCP 最后一项完成后不再额外等待，避免用户看到 `100%` 后误以为卡住。
+- 旧模块兼容优先保证不报错、不重复输出；bootstrap 可以输出新版预览，但旧模块自身 Host 进度必须静默。
+
+### 当前结论
+
+- 套件页、Skill 单项页、MCP 单项页和 CLI 单项页现在都应只显示统一 `[检查]` 组件进度。
+- 新版 suite smoke 输出三行：Skill 105/105、MCP 10/10、CLI 12/12，均为 `[检查]` 格式。
+- 文档已同步 README、运行命令、安装流程说明和 `.ai_memory`。
+
+### 后续行动指引
+
+1. 若用户仍看到旧风格 `MCP` / `CLI`，优先确认运行的是最新 `bootstrap.ps1`，再确认本地 `modules/common.psm1` 是否被刷新。
+2. 若数量不一致，优先怀疑公开 `skills.zip` 或本地 `downloads/skills.zip` 缓存，而不是 TUI 渲染。
+3. 后续新增组件类型时，必须同步 `Get-SkillBundleComponentStatus`、bootstrap wrapper、TUI 单项页和文档进度说明。
