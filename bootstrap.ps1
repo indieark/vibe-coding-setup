@@ -1318,18 +1318,33 @@ function Show-TuiSkillProfileSelection {
         foreach ($name in @($Names | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)) {
             $key = $name.ToLowerInvariant()
             $status = if ($StatusByName.ContainsKey($key)) { $StatusByName[$key] } else { $null }
-            $isReady = $status -and $status.PSObject.Properties[$ReadyProperty] -and [bool]$status.$ReadyProperty
+            $isReady = Test-TuiSkillProfileObjectFlag -Entry $status -PropertyName $ReadyProperty
             if ($State -eq 'Missing') {
                 if (-not $isReady) {
                     $result.Add($name)
                 }
             }
-            elseif ($isReady -and $status.PSObject.Properties['UpdateAvailable'] -and [bool]$status.UpdateAvailable) {
+            elseif ($isReady -and (Test-TuiSkillProfileObjectFlag -Entry $status -PropertyName 'UpdateAvailable')) {
                 $result.Add($name)
             }
         }
 
         return $result.ToArray()
+    }
+
+    function Test-TuiSkillProfileObjectFlag {
+        param(
+            [AllowNull()]
+            [object]$Entry,
+            [Parameter(Mandatory)]
+            [string]$PropertyName
+        )
+
+        if ($null -eq $Entry -or -not $Entry.PSObject.Properties[$PropertyName]) {
+            return $false
+        }
+
+        return [bool]$Entry.$PropertyName
     }
 
     function Format-TuiComponentStatePreview {
@@ -1467,10 +1482,10 @@ function Show-TuiSkillProfileSelection {
             if ($installedSkillSet.ContainsKey($key)) {
                 $ready++
                 $status = if ($skillStatusByName.ContainsKey($key)) { $skillStatusByName[$key] } else { $null }
-                if ($status -and $status.PSObject.Properties['UpdateAvailable'] -and [bool]$status.UpdateAvailable) {
+                if (Test-TuiSkillProfileObjectFlag -Entry $status -PropertyName 'UpdateAvailable') {
                     $update++
                 }
-                elseif ($status -and $status.PSObject.Properties['UpdateKnown'] -and -not [bool]$status.UpdateKnown) {
+                elseif ($status -and $status.PSObject.Properties['UpdateKnown'] -and -not (Test-TuiSkillProfileObjectFlag -Entry $status -PropertyName 'UpdateKnown')) {
                     $unknown++
                 }
             }
@@ -1481,10 +1496,10 @@ function Show-TuiSkillProfileSelection {
             if ($configuredMcpSet.ContainsKey($key)) {
                 $ready++
                 $status = if ($mcpStatusByName.ContainsKey($key)) { $mcpStatusByName[$key] } else { $null }
-                if ($status -and $status.PSObject.Properties['UpdateAvailable'] -and [bool]$status.UpdateAvailable) {
+                if (Test-TuiSkillProfileObjectFlag -Entry $status -PropertyName 'UpdateAvailable') {
                     $update++
                 }
-                elseif ($status -and $status.PSObject.Properties['UpdateKnown'] -and -not [bool]$status.UpdateKnown) {
+                elseif ($status -and $status.PSObject.Properties['UpdateKnown'] -and -not (Test-TuiSkillProfileObjectFlag -Entry $status -PropertyName 'UpdateKnown')) {
                     $unknown++
                 }
             }
@@ -1495,10 +1510,10 @@ function Show-TuiSkillProfileSelection {
             if ($installedPrereqSet.ContainsKey($key)) {
                 $ready++
                 $status = if ($prereqStatusByName.ContainsKey($key)) { $prereqStatusByName[$key] } else { $null }
-                if ($status -and $status.PSObject.Properties['UpdateAvailable'] -and [bool]$status.UpdateAvailable) {
+                if (Test-TuiSkillProfileObjectFlag -Entry $status -PropertyName 'UpdateAvailable') {
                     $update++
                 }
-                elseif ($status -and $status.PSObject.Properties['UpdateKnown'] -and -not [bool]$status.UpdateKnown) {
+                elseif ($status -and $status.PSObject.Properties['UpdateKnown'] -and -not (Test-TuiSkillProfileObjectFlag -Entry $status -PropertyName 'UpdateKnown')) {
                     $unknown++
                 }
             }
@@ -2419,6 +2434,21 @@ function Get-BootstrapTuiCliOnlySummary {
     }
 }
 
+function Test-TuiStatusObjectFlag {
+    param(
+        [AllowNull()]
+        [object]$Entry,
+        [Parameter(Mandatory)]
+        [string]$PropertyName
+    )
+
+    if ($null -eq $Entry -or -not $Entry.PSObject.Properties[$PropertyName]) {
+        return $false
+    }
+
+    return [bool]$Entry.$PropertyName
+}
+
 function Show-TuiSkillStatus {
     param(
         [Parameter(Mandatory)]
@@ -2449,8 +2479,8 @@ function Show-TuiSkillStatus {
             (ConvertFrom-BootstrapUtf8Base64String -Value '57G75Z6L'), `
             (ConvertFrom-BootstrapUtf8Base64String -Value '54q25oCB')) -ForegroundColor DarkGray
         foreach ($skill in $summary.SkillStatus | Sort-Object Name | Select-Object -First 24) {
-            $statusText = if ($skill.Installed) { ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5a6J6KOF' }
-            $color = if ($skill.Installed) { 'Gray' } else { 'Cyan' }
+            $statusText = if (Test-TuiStatusObjectFlag -Entry $skill -PropertyName 'Installed') { ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5a6J6KOF' }
+            $color = if (Test-TuiStatusObjectFlag -Entry $skill -PropertyName 'Installed') { 'Gray' } else { 'Cyan' }
             Write-Host ('  {0,-34} {1,-12} {2}' -f $skill.Name, $skill.Kind, $statusText) -ForegroundColor $color
         }
 
@@ -2485,9 +2515,9 @@ function Show-TuiSuiteStatus {
     $summary = Get-BootstrapTuiSkillBundleSummary -Repo $Repo -Tag $Tag -DestinationRoot $DestinationRoot -Refresh $Refresh
     while ($true) {
         Write-TuiHeader -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5omA5pyJ5aWX5Lu254q25oCB')
-        $installedSkillCount = @($summary.SkillStatus | Where-Object { $_.Installed }).Count
-        $configuredMcpCount = @($summary.McpStatus | Where-Object { $_.Configured }).Count
-        $installedCliCount = @($summary.PrereqStatus | Where-Object { $_.Installed }).Count
+        $installedSkillCount = @($summary.SkillStatus | Where-Object { Test-TuiStatusObjectFlag -Entry $_ -PropertyName 'Installed' }).Count
+        $configuredMcpCount = @($summary.McpStatus | Where-Object { Test-TuiStatusObjectFlag -Entry $_ -PropertyName 'Configured' }).Count
+        $installedCliCount = @($summary.PrereqStatus | Where-Object { Test-TuiStatusObjectFlag -Entry $_ -PropertyName 'Installed' }).Count
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'UHJvZmlsZSDmlbDph48='), $summary.Profiles.Count) -ForegroundColor Gray
         Write-Host ('{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'QnVuZGxlIFNraWxs'), $summary.BundleSkills.Count) -ForegroundColor Gray
         Write-Host ((ConvertFrom-BootstrapUtf8Base64String -Value '5oC76KeIOiBTa2lsbCB7MH0vezF9IOW3suWuieijhTsgTUNQIHsyfS97M30g5bey6YWN572uOyBDTEkgezR9L3s1fSDlt7Llronoo4U=') -f $installedSkillCount, $summary.SkillStatus.Count, $configuredMcpCount, $summary.McpStatus.Count, $installedCliCount, $summary.PrereqStatus.Count) -ForegroundColor Gray
@@ -2515,7 +2545,7 @@ function Show-TuiSuiteStatus {
         Write-Host ''
         Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value 'Q0xJIOeKtuaAge+8iOWJjSAxMiDkuKrvvIk=') -ForegroundColor Yellow
         foreach ($cli in $summary.PrereqStatus | Select-Object -First 12) {
-            $statusText = if ($cli.Installed) { ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5qOA5rWL5Yiw' }
+            $statusText = if (Test-TuiStatusObjectFlag -Entry $cli -PropertyName 'Installed') { ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5qOA5rWL5Yiw' }
             Write-Host ('  - {0}: {1}' -f $cli.Name, $statusText) -ForegroundColor Gray
         }
 
@@ -2755,8 +2785,24 @@ function Invoke-BootstrapTuiWorkbench {
         }
     }
 
+    function Test-TuiStatusCacheReady {
+        param(
+            [object[]]$Entries = @(),
+            [Parameter(Mandatory)]
+            [string]$StateProperty
+        )
+
+        $items = @($Entries)
+        if ($items.Count -eq 0) {
+            return $true
+        }
+
+        return @($items | Where-Object { $null -ne $_ -and $_.PSObject.Properties[$StateProperty] }).Count -eq $items.Count
+    }
+
     function Ensure-TuiSkillRegistry {
-        if ($state.SkillRegistryLoaded -and @($state.SkillStatus).Count -gt 0) {
+        $hasSkillStatus = @($state.SkillStatus).Count -gt 0 -and (Test-TuiStatusCacheReady -Entries @($state.SkillStatus) -StateProperty 'Installed')
+        if ($state.SkillRegistryLoaded -and $hasSkillStatus) {
             return
         }
 
@@ -2769,7 +2815,10 @@ function Invoke-BootstrapTuiWorkbench {
     }
 
     function Ensure-TuiSuiteRegistry {
-        if ($state.ComponentRegistryLoaded -and @($state.SkillStatus).Count -gt 0 -and @($state.RegistryMcpEntries).Count -gt 0 -and @($state.RegistryPrereqEntries).Count -gt 0) {
+        $hasSkillStatus = @($state.SkillStatus).Count -gt 0 -and (Test-TuiStatusCacheReady -Entries @($state.SkillStatus) -StateProperty 'Installed')
+        $hasMcpStatus = Test-TuiStatusCacheReady -Entries @($state.RegistryMcpEntries) -StateProperty 'Configured'
+        $hasPrereqStatus = Test-TuiStatusCacheReady -Entries @($state.RegistryPrereqEntries) -StateProperty 'Installed'
+        if ($state.ComponentRegistryLoaded -and $hasSkillStatus -and $hasMcpStatus -and $hasPrereqStatus) {
             return
         }
 
@@ -2782,7 +2831,8 @@ function Invoke-BootstrapTuiWorkbench {
     }
 
     function Ensure-TuiMcpRegistry {
-        if ($state.McpRegistryLoaded) {
+        $hasMcpStatus = Test-TuiStatusCacheReady -Entries @($state.RegistryMcpEntries) -StateProperty 'Configured'
+        if ($state.McpRegistryLoaded -and $hasMcpStatus) {
             return
         }
 
@@ -2795,7 +2845,8 @@ function Invoke-BootstrapTuiWorkbench {
     }
 
     function Ensure-TuiPrereqRegistry {
-        if ($state.PrereqRegistryLoaded) {
+        $hasPrereqStatus = Test-TuiStatusCacheReady -Entries @($state.RegistryPrereqEntries) -StateProperty 'Installed'
+        if ($state.PrereqRegistryLoaded -and $hasPrereqStatus) {
             return
         }
 
@@ -2819,14 +2870,14 @@ function Invoke-BootstrapTuiWorkbench {
             [string]$UnknownText
         )
 
-        $isReady = $Entry.PSObject.Properties[$StateProperty] -and [bool]$Entry.$StateProperty
+        $isReady = Test-TuiObjectFlag -Entry $Entry -PropertyName $StateProperty
         if (-not $isReady) {
             return $MissingText
         }
-        if ($Entry.PSObject.Properties['UpdateAvailable'] -and [bool]$Entry.UpdateAvailable) {
+        if (Test-TuiObjectFlag -Entry $Entry -PropertyName 'UpdateAvailable') {
             return ConvertFrom-BootstrapUtf8Base64String -Value '6ZyA5pu05paw'
         }
-        if ($Entry.PSObject.Properties['UpdateKnown'] -and -not [bool]$Entry.UpdateKnown) {
+        if ($Entry.PSObject.Properties['UpdateKnown'] -and -not (Test-TuiObjectFlag -Entry $Entry -PropertyName 'UpdateKnown')) {
             return $UnknownText
         }
         return ConvertFrom-BootstrapUtf8Base64String -Value '5bey5piv5pyA5paw'
@@ -2862,7 +2913,7 @@ function Invoke-BootstrapTuiWorkbench {
             'skill-install' {
                 try {
                     Ensure-TuiSuiteRegistry
-                    $skillSelection = Show-TuiSkillProfileSelection -Profiles @($state.AvailableSkillProfiles) -BundleSkillCount $state.BundleSkillCount -RegistrySkillCount (@($state.RegistrySkillEntries).Count) -InstalledSkillCount (@($state.SkillStatus | Where-Object { $_.Installed }).Count) -NewSkillCount (@($state.SkillStatus | Where-Object { -not $_.Installed }).Count) -McpCount (@($state.RegistryMcpEntries).Count) -ConfiguredMcpCount (@($state.RegistryMcpEntries | Where-Object { $_.Configured }).Count) -PrereqCount (@($state.RegistryPrereqEntries).Count) -InstalledPrereqCount (@($state.RegistryPrereqEntries | Where-Object { $_.Installed }).Count) -SkillStatus @($state.SkillStatus) -McpStatus @($state.RegistryMcpEntries) -PrereqStatus @($state.RegistryPrereqEntries)
+                    $skillSelection = Show-TuiSkillProfileSelection -Profiles @($state.AvailableSkillProfiles) -BundleSkillCount $state.BundleSkillCount -RegistrySkillCount (@($state.RegistrySkillEntries).Count) -InstalledSkillCount (@($state.SkillStatus | Where-Object { Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed' }).Count) -NewSkillCount (@($state.SkillStatus | Where-Object { -not (Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed') }).Count) -McpCount (@($state.RegistryMcpEntries).Count) -ConfiguredMcpCount (@($state.RegistryMcpEntries | Where-Object { Test-TuiObjectFlag -Entry $_ -PropertyName 'Configured' }).Count) -PrereqCount (@($state.RegistryPrereqEntries).Count) -InstalledPrereqCount (@($state.RegistryPrereqEntries | Where-Object { Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed' }).Count) -SkillStatus @($state.SkillStatus) -McpStatus @($state.RegistryMcpEntries) -PrereqStatus @($state.RegistryPrereqEntries)
                 }
                 catch {
                     Show-TuiError `
