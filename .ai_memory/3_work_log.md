@@ -286,3 +286,9 @@
 - 套件页标题改为“套件复选项”，列表行只显示名称，数量、说明、MCP 和 CLI 依赖放到顶部总览和当前项详情。
 - MCP 状态扫描进度改为与应用和 CLI 一致的同一行逐项完成进度：`检查 ... N/M 个 MCP 已完成`。
 - 同步 README、运行命令、安装流程、Skill 导入契约和 `.ai_memory`，保持当前 TUI 行为说明一致。
+
+## 2026-05-03
+
+- 前置自举依赖开屏标题改为 `获取依赖`，不再显示默认模式专用的 `步骤一：获取依赖`。
+- `Sync-BootstrapDependencies` 默认复用本地 `modules/common.psm1` 与 `manifest/apps.json`，即使源是 HTTP 也不重复下载；只有 `-RefreshBootstrapDependencies` 强制刷新。
+- 同步 `.ai_memory`，记录前置开屏与默认安装阶段编号的边界。

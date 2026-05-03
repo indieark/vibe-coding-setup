@@ -23,12 +23,12 @@
 ## 稳定事实
 
 - 应用安装先做并行 precheck，再输出执行计划统计；缺失项不查版本并进入安装，已存在项才查目标版本并决定更新或跳过。跳过项和检查失败项只进入执行摘要，不再进入后续安装循环；计划明细只展示“安装 / 更新”项，避免跳过项刷屏。
-- 默认安装按 `步骤一：获取依赖`、`步骤二：应用安装`、`步骤三：配置导入`、`步骤四：插件安装` 四段展示；完成提示为 `恭喜：安装流程完成`；工作区准备、配置导入和插件安装不再额外输出 `[当前/总数]` 阶段提示；主流程大区域之间保留两行空白，区域内小分块保持一行空白。CC Switch 配置导入在 Skill / 套件导入前执行，执行摘要名称收敛为“配置导入”。
+- 前置自举开屏标题为 `获取依赖`，不带步骤编号；该阶段服务于 TUI 与命令 / 默认安装共同入口。默认安装后续主流程从 `步骤二：应用安装`、`步骤三：配置导入`、`步骤四：插件安装` 继续展示，完成提示为 `恭喜：安装流程完成`；工作区准备、配置导入和插件安装不再额外输出 `[当前/总数]` 阶段提示；主流程大区域之间保留两行空白，区域内小分块保持一行空白。CC Switch 配置导入在 Skill / 套件导入前执行，执行摘要名称收敛为“配置导入”。
 - `skills.zip` 独立于应用安装；只要未传 `-SkipSkills`，脚本会在需要读取 Profile / registry 或导入 Skill、MCP、CLI 时按需获取，并在配置导入后尝试导入。
 - `skills.zip` 由 `indieark/00000-model` registry bundle 构建，经当前仓库 `bootstrap-assets` 镜像为公开资产后分发，终端用户机器不需要 PAT。
 - `skills.zip` 刷新是两段链路：先由 `00000-model` 的 `build-bundle` workflow 生成私库 bundle，再由本仓库 `Refresh bootstrap release assets` workflow 镜像为公开 `bootstrap-assets/skills.zip`；只完成上游 build 不代表终端会拿到新 bundle。
 - TUI 首屏不预取 `skills.zip`；只有进入套件、Skill、MCP、CLI 相关入口，或后续安装 / 演练实际要导入 Skill、MCP 或 CLI 时才按需获取。
-- 本地 `downloads/skills.zip` 是缓存；旧缓存会导致 TUI 显示旧文案、旧 Skill 数量或旧 MCP / CLI 统计。排查时先确认 release asset 是否刷新，再删除本地缓存或使用 `-RefreshSkillBundle`。
+- `modules/common.psm1` 与 `manifest/apps.json` 是自举依赖缓存；默认直接复用已存在文件，即使源是 HTTP 也不重复下载，只有显式传 `-RefreshBootstrapDependencies` 才刷新。本地 `downloads/skills.zip` 是 Skill bundle 缓存；旧缓存会导致 TUI 显示旧文案、旧 Skill 数量或旧 MCP / CLI 统计。排查时先确认 release asset 是否刷新，再删除本地缓存或使用 `-RefreshSkillBundle`。
 - 下载、winget 下载 / 安装和 Skill bundle 解压统一使用脚本自绘同一行进度；winget 输出会过滤许可证、免责声明和重复进度行，并中文化常见状态；Skill bundle 解压不再调用 `Expand-Archive`，避免 PowerShell 宿主蓝色进度区域。非交互捕获输出不打印中间百分比，只保留完成行，避免 `\r` 被展开成多行刷屏。
 - Skill 导入是“Profile 选择 + `.skill-meta.json` 来源判定 + 增量同步 + Skills Manager SQLite 注册”的组合流程。
 - Skill 选择语义已经拆开：`全部 Skill` / `-AllSkills` 导入 registry 全部 Skill，bundle 内 custom / vendored 直接导入，external 按 `source` 自动拉取或复制；它不自动写入所有 MCP，也不安装所有 CLI。`所有套件` / `-AllSuites` 按所有 Profile 并集导入 Skill、external Skill、MCP 和前置 CLI。命令交互菜单和 TUI 都应明确显示 `全部 Skill`、`所有套件`、各套件自身的 Skill / MCP / CLI 数量；`全部 Skill` 的显示数量至少覆盖 registry 条目数、bundle 离线目录数和所有套件展开后的 Skill 并集，不能小于 `所有套件` 的 Skill 数。

@@ -587,7 +587,7 @@ function Sync-BootstrapDependencies {
         [switch]$Refresh
     )
 
-    $shouldRefresh = $Refresh.IsPresent -or (Test-HttpSourceRoot -SourceRoot $SourceRoot)
+    $shouldRefresh = $Refresh.IsPresent
     foreach ($relativePath in $Dependencies) {
         Copy-BootstrapDependency `
             -SourceRoot $SourceRoot `
@@ -2978,7 +2978,7 @@ $bootstrapDependencies = @(
 )
 
 Write-BootstrapSection `
-    -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5q2l6aqk5LiA77ya6I635Y+W5L6d6LWW') `
+    -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6I635Y+W5L6d6LWW') `
     -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5ZCM5q2l5ZCv5Yqo6ISa5pys44CB5qih5Z2X44CB5bqU55So5riF5Y2V5ZKM5pys5Zyw6LWE5Lqn44CC')
 Sync-BootstrapDependencies `
     -SourceRoot $BootstrapSourceRoot `

@@ -696,3 +696,28 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 1. 若用户反馈数量或文案不一致，优先确认公开 `bootstrap-assets/skills.zip` 是否刷新，以及本机 `downloads/skills.zip` 是否仍是旧缓存。
 2. 后续新增 TUI 中文文案时必须先转 UTF-8 Base64，避免再次触发 Windows PowerShell 5.1 `-File` 解析崩溃。
 3. 后续调整组件选择逻辑时，不要破坏 Skill / MCP / CLI 跨类型累积选择和最终统一确认。
+
+## 2026-05-03 — 前置依赖开屏与缓存复用归档
+
+### 核心议题背景
+
+用户指出开屏阶段不应该显示 `步骤一：获取依赖`，因为该阶段是 TUI / 自定义入口和默认安装共同使用的前置自举流程；步骤编号应只属于默认安装主流程。同时，如果前置阶段已经下载过依赖，默认模式后续重复经过同一逻辑时应直接读取本地文件，而不是再次获取。
+
+### Cognitive Evolution Path
+
+1. 先定位到 `bootstrap.ps1` 中主入口在导入 `modules/common.psm1` 前固定调用 `Write-BootstrapSection` 和 `Sync-BootstrapDependencies`。
+2. 确认该标题处于 TUI 决策之前，因此它不是默认安装的专属 `步骤一`，而是所有路径共享的自举依赖同步。
+3. 原先 `Sync-BootstrapDependencies` 在 HTTP 源下会把 `$shouldRefresh` 设为 true，导致即使本地已有 `modules/common.psm1` 与 `manifest/apps.json` 也会重复获取。
+4. 最终收敛为：前置自举标题只显示 `获取依赖`；本地依赖缓存默认复用，只有显式传 `-RefreshBootstrapDependencies` 才刷新。
+
+### 当前结论
+
+- `bootstrap.ps1` 前置开屏标题已改为 `获取依赖`。
+- `Sync-BootstrapDependencies` 已改为只受 `-RefreshBootstrapDependencies` 控制刷新。
+- 默认安装后续阶段仍从 `步骤二：应用安装`、`步骤三：配置导入`、`步骤四：插件安装` 继续。
+
+### 后续行动指引
+
+1. 若需要强制拉取最新 `modules/common.psm1` 或 `manifest/apps.json`，使用 `-RefreshBootstrapDependencies`。
+2. 前置自举阶段不要再加默认安装专用编号；默认安装专属阶段从应用安装开始编号。
+3. `skills.zip` 仍是独立缓存链路，排查 Skill / MCP / CLI 数量时继续优先检查公开 release asset 与本地 `downloads/skills.zip`。
