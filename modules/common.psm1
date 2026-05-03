@@ -4407,7 +4407,8 @@ function Get-SkillBundleComponentStatus {
         [switch]$IncludeSkills,
         [switch]$IncludeMcp,
         [switch]$IncludePrereqs,
-        [int]$SkillProgressDelayMilliseconds = 0
+        [int]$SkillProgressDelayMilliseconds = 0,
+        [int]$McpProgressDelayMilliseconds = 0
     )
 
     $inventory = Get-SkillBundleInventory -ZipPath $ZipPath
@@ -4487,6 +4488,9 @@ function Get-SkillBundleComponentStatus {
     if ($scanMcp) {
         $checkProgressPrefix = ConvertFrom-Utf8Base64String -Value 'W+ajgOafpV0='
         Write-OperationProgress -Label 'MCP' -Percent 0 -Detail ((ConvertFrom-Utf8Base64String -Value 'MC97MH0g5LiqIE1DUCDlvIDlp4vmo4Dmn6U=') -f $mcpEntries.Count) -Prefix $checkProgressPrefix
+        if ($McpProgressDelayMilliseconds -gt 0) {
+            Start-Sleep -Milliseconds $McpProgressDelayMilliseconds
+        }
         $codexConfigPath = Join-Path (Join-Path $homeDir '.codex') 'config.toml'
         $codexConfigContent = if (Test-Path -LiteralPath $codexConfigPath) { Get-Content -Raw -Encoding UTF8 -LiteralPath $codexConfigPath } else { '' }
         $jsonTargets = @()
@@ -4536,6 +4540,9 @@ function Get-SkillBundleComponentStatus {
                 $mcpProgressPercent = if ($mcpEntries.Count -gt 0) { [int]((($i + 1) * 100) / $mcpEntries.Count) } else { 100 }
                 $mcpProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogTUNQIOW3suWujOaIkA==') -f ($i + 1), $mcpEntries.Count
                 Write-OperationProgress -Label 'MCP' -Percent $mcpProgressPercent -Detail $mcpProgressDetail -Completed:(($i + 1) -ge $mcpEntries.Count) -Prefix $checkProgressPrefix
+                if ($McpProgressDelayMilliseconds -gt 0) {
+                    Start-Sleep -Milliseconds $McpProgressDelayMilliseconds
+                }
                 [pscustomobject]@{
                     Name            = $entry.Name
                     Configured      = $targets.Count -gt 0
