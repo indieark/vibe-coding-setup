@@ -19,7 +19,7 @@
 
 - 自定义模式的“检查并安装/更新套件”动作会先读取 `skills.zip` 中的 Profile 和 registry，并以复选项展示；默认选择“全部 Skill”，也可以选择“所有套件”或“跳过 Skill 导入”。页面顶部会展示 Bundle Skill、可选 Skill、本机已安装和可能新增数量；列表行只显示名称，数量、说明、MCP 和 CLI 依赖放在当前项详情中。
 - 自定义模式的“检查并安装/更新 Skill / MCP / CLI”动作读取 registry 或状态后进入分页复选列表，并分别写回等价的 `-SkillName`、`-McpName`、`-CliName` 参数；Skill 页顶部显示总数、已安装、未安装、bundle / external 统计，MCP 页顶部显示总数、已配置和未配置，CLI 页顶部显示总数、已检测到和未检测到；读取和状态扫描期间会分别以 `Skill`、`MCP`、`CLI` 标签同一行刷新完成数量，结束时只保留完成行。MCP 状态读取异常会显示 TUI 错误页并返回工作台。
-- 当前“检查并安装/更新”是节能版本地检查，不是远程实时版本查询。Skill 的 `需更新` 基于当前 `skills.zip` 中 `.skill-meta.json` 的来源身份和 `source_revision` 与本机 `~/.skills-manager/skills/<name>/.skill-meta.json` 对比；如果公开 `skills.zip` 或本地缓存未刷新，检查结果只代表旧 bundle 视角。MCP 的 `需更新` 表示本机 MCP 配置与当前 registry 期望配置不一致，更准确地说是“配置需同步”，不是 MCP server 包版本检查。CLI 只执行 `prereqs.yaml` 的 `check` 命令判断是否检测到，当前不跑 `npm outdated`、`winget upgrade`、GitHub Release 查询等慢速/联网检查，因此已安装 CLI 会显示更新未知。
+- 当前“检查并安装/更新”是节能版本地检查，不是远程实时版本查询。Skill 的 `需更新` 基于当前 `skills.zip` 中 `.skill-meta.json` 的来源身份和 `source_revision` 与本机 `~/.skills-manager/skills/<name>/.skill-meta.json` 对比；如果公开 `skills.zip` 或本地缓存未刷新，检查结果只代表旧 bundle 视角。MCP 只检查本机是否已配置对应 server，不把用户自有 MCP 配置与 registry 做更新/同步判定。CLI 只执行 `prereqs.yaml` 的 `check` 命令判断是否检测到，当前不跑 `npm outdated`、`winget upgrade`、GitHub Release 查询等慢速/联网检查，因此已安装 CLI 会显示更新未知。
 - 后续如要做真实维护型更新检查，应先扩展 registry schema，例如为 prereq 增加 `version_check`、`target_version` / `min_version`、`package_manager`、`package_id` 或 `update_check` 字段，再按来源分层实现可缓存、可禁用、可超时的远程检查；不要直接在 TUI 状态页无条件调用包管理器远程查询。
 - Skill 入口只检查 Skill，MCP 入口只检查 MCP，CLI 入口只检查 CLI；套件入口才全量检查 Skill / MCP / CLI 并展示总览。
 - Skill / MCP / CLI 单项选择会按类型累积，选择某一类不会清空其它类型已选项，最终统一进入 `执行确认`。

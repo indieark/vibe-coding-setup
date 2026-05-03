@@ -3,9 +3,9 @@
 ## 当前状态
 
 - 默认模式的交互式套件输入区已接入节能版 Skill / MCP / CLI 状态扫描。
-- 默认 Profile 菜单中的 `全部 Skill`、`所有套件` 和各 Profile 行会显示已安装、部分安装、部分安装且需更新、需更新、更新未知或未安装。
+- 默认 Profile 菜单中的 `全部 Skill`、`所有套件` 和各 Profile 行会显示已安装、部分安装、部分安装且需更新、需更新、更新未知或未安装；其中 MCP 只参与已配置 / 未配置判断，不产生需更新状态。
 - 默认模式进入套件输入区前会显示 `[检查] Skill`、`[检查] MCP`、`[检查] CLI` 进度。
-- 自定义模式和默认模式共享同一套低开销本地状态语义：Skill 对比当前 bundle meta 与本机 meta，MCP 对比 registry 期望配置与本机配置，CLI 只检测是否存在并显示更新未知。
+- 自定义模式和默认模式共享同一套低开销本地状态语义：Skill 对比当前 bundle meta 与本机 meta，MCP 只检查本机是否已配置对应 server，CLI 只检测是否存在并显示更新未知。
 - 前置自举依赖标题已按入口区分：只有进入 TUI 首屏前显示无编号 `获取依赖`；命令模式、默认安装、TUI 首屏选择默认安装后或 TUI 默认安装 UAC 续跑后显示 `步骤一：获取依赖`。
 - `Sync-BootstrapDependencies` 即使复用本地 `modules/common.psm1` 与 `manifest/apps.json` 缓存，也会输出同步完成进度。
 - 历史 PSScriptAnalyzer 自动变量 warning 已清理：`$args` 改为 `$wingetArgs` / `$msiArgs` / `$commandArgs`，`$profile` 改为 `$profileEntry`。
@@ -54,3 +54,8 @@
 - 用户反馈默认模式状态扫描警告：`检索不到变量“$profileEntrys”`。
 - 根因是历史自动变量 warning 清理时误把集合 `$profiles` 改成了不存在的 `$profileEntrys`。
 - 已恢复两个 inventory/profile enrichment 循环为 `foreach ($profileEntry in $profiles)`，并通过 `Get-SkillBundleComponentStatus` smoke 验证 Profiles=8、Skill=105、MCP=10、CLI=12。
+
+## 2026-05-04 Hotfix 4
+
+- 用户确认 MCP 仍应检查，但不应判断“需更新 / 需同步”，因为 MCP 多为用户自有客户端配置。
+- 已将 MCP 状态语义收敛为只检查 `Configured` 与 `Targets`，`UpdateAvailable=false`、`UpdateTargets=@()`；默认 / TUI 套件聚合中 MCP 不再产生需更新状态。

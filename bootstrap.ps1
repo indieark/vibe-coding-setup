@@ -632,7 +632,8 @@ function Test-BootstrapCommonModuleTuiProgressSupport {
         $content -match 'Get-SkillBundleComponentStatus -ZipPath \$ZipPath' -and
         $content -match 'requestedProfileCount'
     )
-    return ($hasTuiProgressSupport -and $hasDefaultPromptStatusSupport)
+    $hasMcpPresenceOnlyStatusSupport = ($content -match 'UpdateTargets\s*=\s*@\(\)')
+    return ($hasTuiProgressSupport -and $hasDefaultPromptStatusSupport -and $hasMcpPresenceOnlyStatusSupport)
 }
 
 $script:TuiFrameInitialized = $false
@@ -3196,26 +3197,18 @@ function Invoke-BootstrapTuiWorkbench {
                     Ensure-TuiMcpRegistry -Force
                     $configuredMcpCount = @($state.RegistryMcpEntries | Where-Object { Test-TuiObjectFlag -Entry $_ -PropertyName 'Configured' }).Count
                     $missingMcpCount = @($state.RegistryMcpEntries | Where-Object { -not (Test-TuiObjectFlag -Entry $_ -PropertyName 'Configured') }).Count
-                    $updateMcpCount = @($state.RegistryMcpEntries | Where-Object { (Test-TuiObjectFlag -Entry $_ -PropertyName 'Configured') -and (Test-TuiObjectFlag -Entry $_ -PropertyName 'UpdateAvailable') }).Count
                     $mcpSummaryLines = @(
-                        '{0}: {1} {2}; {3} {4}; {5} {6}; {7} {8}' -f `
+                        '{0}: {1} {2}; {3} {4}; {5} {6}' -f `
                         (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5py654q25oCB5oC76KeI'), `
                         (ConvertFrom-BootstrapUtf8Base64String -Value 'TUNQIOaAu+aVsA=='), @($state.RegistryMcpEntries).Count, `
                         (ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YWN572u'), $configuredMcpCount, `
-                        (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6YWN572u'), $missingMcpCount, `
-                        (ConvertFrom-BootstrapUtf8Base64String -Value '6ZyA5pu05paw'), $updateMcpCount
+                        (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6YWN572u'), $missingMcpCount
                     )
                     $mcpEntries = @($state.RegistryMcpEntries | ForEach-Object {
                             $entry = $_
                             $statusText = if (Test-TuiObjectFlag -Entry $entry -PropertyName 'Configured') {
                                 $targetsText = if (@($entry.Targets).Count -gt 0) { @($entry.Targets) -join ', ' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YWN572u' }
-                                if (Test-TuiObjectFlag -Entry $entry -PropertyName 'UpdateAvailable') {
-                                    $updateTargetsText = if (@($entry.UpdateTargets).Count -gt 0) { @($entry.UpdateTargets) -join ', ' } else { $targetsText }
-                                    '{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YWN572u77yb6ZyA5pu05paw'), $updateTargetsText
-                                }
-                                else {
-                                    '{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5piv5pyA5paw'), $targetsText
-                                }
+                                '{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YWN572u'), $targetsText
                             }
                             else {
                                 ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6YWN572u'

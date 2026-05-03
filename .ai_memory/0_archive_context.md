@@ -805,8 +805,8 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 
 1. 先确认自定义模式已经通过 `Get-SkillBundleComponentStatus` 获得 Skill / MCP / CLI 状态和 `[检查]` 进度，但默认模式的 `Select-SkillDirectoriesForProfiles` 只展示 Profile 数量，不读取状态。
 2. 将默认模式的交互式 Profile 菜单接入同一组组件状态数据：`Install-SkillBundle` 在进入菜单前调用 `Get-SkillBundleComponentStatus`，并把 Skill / MCP / CLI 状态传入 `Select-SkillDirectoriesForProfiles`。
-3. 为默认菜单增加轻量状态聚合 helper，按 Profile 的 Skill / MCP / CLI 并集计算 ready / total、需更新和更新未知，最终在 `全部 Skill`、`所有套件` 与各 Profile 行显示状态文本。
-4. 继续核对更新检查语义，确认它仍是节能版本地对比：Skill 比较 bundle meta 与本机 meta，MCP 比较 registry 期望配置与本机配置，CLI 只做本地 check 并显示更新未知。
+3. 为默认菜单增加轻量状态聚合 helper，按 Profile 的 Skill / MCP / CLI 并集计算 ready / total；`需更新` 只来自 Skill，CLI 可显示更新未知，MCP 只参与已配置 / 未配置判断，最终在 `全部 Skill`、`所有套件` 与各 Profile 行显示状态文本。
+4. 继续核对更新检查语义，确认它仍是节能版本地对比：Skill 比较 bundle meta 与本机 meta，MCP 只检查本机是否已配置对应 server、不把用户自有配置与 registry 做更新或同步判定，CLI 只做本地 check 并显示更新未知。
 5. 处理获取依赖进度时发现，`Copy-BootstrapDependency` 在本地文件已存在且无需刷新时直接返回，因此缓存命中路径没有下载进度，也没有同步完成进度。
 6. 将 `Sync-BootstrapDependencies` 改为无论下载还是复用缓存，都按依赖数量输出同步完成进度，避免“只有标题没有动静”。
 7. 进一步区分入口语义：进入 TUI 首屏前是共同自举，标题保留 `获取依赖`；命令模式、默认安装、TUI 首屏选择默认安装后或 UAC 续跑后属于默认主流程，显示 `步骤一：获取依赖`。

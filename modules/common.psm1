@@ -4517,21 +4517,13 @@ function Get-SkillBundleComponentStatus {
             for ($i = 0; $i -lt $mcpEntries.Count; $i++) {
                 $entry = $mcpEntries[$i]
                 $targets = New-Object System.Collections.Generic.List[string]
-                $updateTargets = New-Object System.Collections.Generic.List[string]
                 $codexBlock = Get-CodexMcpServerBlockText -Content $codexConfigContent -Name $entry.Name
                 if (-not [string]::IsNullOrWhiteSpace($codexBlock)) {
                     $targets.Add('Codex')
-                    $expectedCodexBlock = New-CodexMcpServerBlockText -Entry $entry
-                    if ((ConvertTo-NormalizedConfigText -Value $codexBlock) -ne (ConvertTo-NormalizedConfigText -Value $expectedCodexBlock)) {
-                        $updateTargets.Add('Codex')
-                    }
                 }
                 foreach ($target in $jsonTargets) {
                     if (Test-JsonMcpConfigObjectHasServer -Config $target.Config -Name $entry.Name) {
                         $targets.Add($target.Name)
-                        if (-not (Test-JsonMcpConfigObjectServerInSync -Config $target.Config -Entry $entry)) {
-                            $updateTargets.Add($target.Name)
-                        }
                     }
                 }
                 if ($claudeCodeServers.ContainsKey($entry.Name)) {
@@ -4546,10 +4538,10 @@ function Get-SkillBundleComponentStatus {
                 [pscustomobject]@{
                     Name            = $entry.Name
                     Configured      = $targets.Count -gt 0
-                    UpdateAvailable = $updateTargets.Count -gt 0
+                    UpdateAvailable = $false
                     UpdateKnown     = $true
                     Targets         = $targets.ToArray()
-                    UpdateTargets   = $updateTargets.ToArray()
+                    UpdateTargets   = @()
                 }
             }
         )
