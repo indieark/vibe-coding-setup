@@ -1264,6 +1264,102 @@ function Show-TuiSkillProfileSelection {
         return $text
     }
 
+    function Get-TuiDisplayWidth {
+        param([AllowNull()][string]$Text)
+
+        if ([string]::IsNullOrEmpty($Text)) {
+            return 0
+        }
+
+        $width = 0
+        foreach ($char in $Text.ToCharArray()) {
+            $code = [int][char]$char
+            if ($code -eq 9) {
+                $width += 4
+            }
+            elseif (($code -ge 0x1100 -and $code -le 0x115F) -or
+                ($code -eq 0x2329) -or ($code -eq 0x232A) -or
+                ($code -ge 0x2E80 -and $code -le 0xA4CF) -or
+                ($code -ge 0xAC00 -and $code -le 0xD7A3) -or
+                ($code -ge 0xF900 -and $code -le 0xFAFF) -or
+                ($code -ge 0xFE10 -and $code -le 0xFE19) -or
+                ($code -ge 0xFE30 -and $code -le 0xFE6F) -or
+                ($code -ge 0xFF00 -and $code -le 0xFF60) -or
+                ($code -ge 0xFFE0 -and $code -le 0xFFE6)) {
+                $width += 2
+            }
+            else {
+                $width++
+            }
+        }
+
+        return $width
+    }
+
+    function Format-TuiColumnText {
+        param(
+            [AllowNull()][string]$Text,
+            [int]$Width = 34
+        )
+
+        $value = if ($null -eq $Text) { '' } else { [string]$Text }
+        $padding = [Math]::Max(0, $Width - (Get-TuiDisplayWidth -Text $value))
+        return ($value + (' ' * $padding))
+    }
+
+    function Get-TuiComponentStateNames {
+        param(
+            [string[]]$Names = @(),
+            [hashtable]$StatusByName = @{},
+            [Parameter(Mandatory)]
+            [string]$ReadyProperty,
+            [ValidateSet('Missing', 'Update')]
+            [string]$State = 'Missing'
+        )
+
+        $result = New-Object System.Collections.Generic.List[string]
+        foreach ($name in @($Names | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)) {
+            $key = $name.ToLowerInvariant()
+            $status = if ($StatusByName.ContainsKey($key)) { $StatusByName[$key] } else { $null }
+            $isReady = $status -and $status.PSObject.Properties[$ReadyProperty] -and [bool]$status.$ReadyProperty
+            if ($State -eq 'Missing') {
+                if (-not $isReady) {
+                    $result.Add($name)
+                }
+            }
+            elseif ($isReady -and $status.PSObject.Properties['UpdateAvailable'] -and [bool]$status.UpdateAvailable) {
+                $result.Add($name)
+            }
+        }
+
+        return $result.ToArray()
+    }
+
+    function Format-TuiComponentStatePreview {
+        param(
+            [string[]]$Skills = @(),
+            [string[]]$Mcp = @(),
+            [string[]]$Prereqs = @()
+        )
+
+        $parts = New-Object System.Collections.Generic.List[string]
+        if (@($Skills).Count -gt 0) {
+            $parts.Add(('Skill: {0}' -f (Format-TuiListPreview -Values $Skills -MaxItems 4)))
+        }
+        if (@($Mcp).Count -gt 0) {
+            $parts.Add(('MCP: {0}' -f (Format-TuiListPreview -Values $Mcp -MaxItems 4)))
+        }
+        if (@($Prereqs).Count -gt 0) {
+            $parts.Add(('CLI: {0}' -f (Format-TuiListPreview -Values $Prereqs -MaxItems 4)))
+        }
+
+        if ($parts.Count -eq 0) {
+            return (ConvertFrom-BootstrapUtf8Base64String -Value '5peg')
+        }
+
+        return ($parts.ToArray() -join '; ')
+    }
+
     function Write-TuiSkillProfileDetail {
         param(
             [Parameter(Mandatory)]
@@ -1287,6 +1383,14 @@ function Show-TuiSkillProfileSelection {
         if (-not [string]::IsNullOrWhiteSpace([string]$Option.Status)) {
             Write-Host ('  {0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '54q25oCB'), $Option.Status) -ForegroundColor Gray
         }
+        $missingText = Format-TuiComponentStatePreview -Skills @($Option.MissingSkills) -Mcp @($Option.MissingMcp) -Prereqs @($Option.MissingPrereqs)
+        if ($missingText -ne (ConvertFrom-BootstrapUtf8Base64String -Value '5peg')) {
+            Write-Host ('  {0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5a6J6KOF'), $missingText) -ForegroundColor Yellow
+        }
+        $updateText = Format-TuiComponentStatePreview -Skills @($Option.UpdateSkills) -Mcp @($Option.UpdateMcp) -Prereqs @($Option.UpdatePrereqs)
+        if ($updateText -ne (ConvertFrom-BootstrapUtf8Base64String -Value '5peg')) {
+            Write-Host ('  {0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '6ZyA5pu05paw'), $updateText) -ForegroundColor Yellow
+        }
         Write-Host ('  {0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'TUNQ'), (Format-TuiListPreview -Values @($Option.Mcp))) -ForegroundColor Gray
         Write-Host ('  {0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value 'Q0xJIOS+nei1lg=='), (Format-TuiListPreview -Values @($Option.Prereqs))) -ForegroundColor Gray
         if (-not [string]::IsNullOrWhiteSpace([string]$Option.Description)) {
@@ -1295,14 +1399,14 @@ function Show-TuiSkillProfileSelection {
     }
 
     function Get-TuiProfileSkillNames {
-        param([Parameter(Mandatory)][object]$Profile)
+        param([Parameter(Mandatory)][object]$ProfileEntry)
 
-        $expandedProperty = $Profile.PSObject.Properties['ExpandedSkills']
+        $expandedProperty = $ProfileEntry.PSObject.Properties['ExpandedSkills']
         if ($expandedProperty) {
             return @($expandedProperty.Value | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
         }
 
-        return @($Profile.Skills | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        return @($ProfileEntry.Skills | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     }
 
     function New-TuiInstalledNameSet {
@@ -1433,7 +1537,7 @@ function Show-TuiSkillProfileSelection {
         return ('{0} ({1}/{2})' -f $statusText, $ready, $total)
     }
 
-    $allSuiteSkills = @($Profiles | ForEach-Object { Get-TuiProfileSkillNames -Profile $_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    $allSuiteSkills = @($Profiles | ForEach-Object { Get-TuiProfileSkillNames -ProfileEntry $_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
     $allSuiteMcp = @($Profiles | ForEach-Object { $_.Mcp } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
     $allSuitePrereqs = @($Profiles | ForEach-Object { $_.Prereqs } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
     $allSkillStatusNames = @($SkillStatus | ForEach-Object { $_.Name } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
@@ -1448,77 +1552,101 @@ function Show-TuiSkillProfileSelection {
     $allSuitesLabel = ConvertFrom-BootstrapUtf8Base64String -Value '5omA5pyJ5aWX5Lu2'
     $options = New-Object System.Collections.Generic.List[object]
     $options.Add([pscustomobject]@{
-            Key          = 'all'
-            Label        = $allSkillsLabel
-            ProfileName  = $null
-            Enabled      = $true
-            IsAllSkills  = $true
-            IsAllSuites  = $false
-            IsSkipSkills = $false
-            SuiteCount   = 0
-            SkillCount   = $allSkillCount
-            McpCount     = 0
-            CliCount     = 0
-            Mcp          = @()
-            Prereqs      = @()
-            Status       = Get-TuiSuiteInstallStatus -Skills $allSkillStatusNames
-            Description  = ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOFIHJlZ2lzdHJ5IOWFqOmDqCBTa2lsbO+8jOS4jeWuieijhSBNQ1AgLyBDTEnjgII='
+            Key            = 'all'
+            Label          = $allSkillsLabel
+            ProfileName    = $null
+            Enabled        = $true
+            IsAllSkills    = $true
+            IsAllSuites    = $false
+            IsSkipSkills   = $false
+            SuiteCount     = 0
+            SkillCount     = $allSkillCount
+            McpCount       = 0
+            CliCount       = 0
+            Mcp            = @()
+            Prereqs        = @()
+            Status         = Get-TuiSuiteInstallStatus -Skills $allSkillStatusNames
+            MissingSkills  = @(Get-TuiComponentStateNames -Names $allSkillStatusNames -StatusByName $skillStatusByName -ReadyProperty 'Installed' -State 'Missing')
+            MissingMcp     = @()
+            MissingPrereqs = @()
+            UpdateSkills   = @(Get-TuiComponentStateNames -Names $allSkillStatusNames -StatusByName $skillStatusByName -ReadyProperty 'Installed' -State 'Update')
+            UpdateMcp      = @()
+            UpdatePrereqs  = @()
+            Description    = ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOFIHJlZ2lzdHJ5IOWFqOmDqCBTa2lsbO+8jOS4jeWuieijhSBNQ1AgLyBDTEnjgII='
         })
     $options.Add([pscustomobject]@{
-            Key          = 'suites'
-            Label        = $allSuitesLabel
-            ProfileName  = $null
-            Enabled      = $false
-            IsAllSkills  = $false
-            IsAllSuites  = $true
-            IsSkipSkills = $false
-            SuiteCount   = $Profiles.Count
-            SkillCount   = $allSuiteSkills.Count
-            McpCount     = $allSuiteMcp.Count
-            CliCount     = $allSuitePrereqs.Count
-            Mcp          = @($allSuiteMcp)
-            Prereqs      = @($allSuitePrereqs)
-            Status       = Get-TuiSuiteInstallStatus -Skills $allSuiteSkills -Mcp $allSuiteMcp -Prereqs $allSuitePrereqs
-            Description  = ConvertFrom-BootstrapUtf8Base64String -Value 'UHJvZmlsZSDlubbpm4bvvJrlronoo4XmiYDmnInlpZfku7blvJXnlKjnmoQgU2tpbGzjgIFNQ1Ag5ZKMIENMSSDliY3nva7kvp3otZY='
+            Key            = 'suites'
+            Label          = $allSuitesLabel
+            ProfileName    = $null
+            Enabled        = $false
+            IsAllSkills    = $false
+            IsAllSuites    = $true
+            IsSkipSkills   = $false
+            SuiteCount     = $Profiles.Count
+            SkillCount     = $allSuiteSkills.Count
+            McpCount       = $allSuiteMcp.Count
+            CliCount       = $allSuitePrereqs.Count
+            Mcp            = @($allSuiteMcp)
+            Prereqs        = @($allSuitePrereqs)
+            Status         = Get-TuiSuiteInstallStatus -Skills $allSuiteSkills -Mcp $allSuiteMcp -Prereqs $allSuitePrereqs
+            MissingSkills  = @(Get-TuiComponentStateNames -Names $allSuiteSkills -StatusByName $skillStatusByName -ReadyProperty 'Installed' -State 'Missing')
+            MissingMcp     = @(Get-TuiComponentStateNames -Names $allSuiteMcp -StatusByName $mcpStatusByName -ReadyProperty 'Configured' -State 'Missing')
+            MissingPrereqs = @(Get-TuiComponentStateNames -Names $allSuitePrereqs -StatusByName $prereqStatusByName -ReadyProperty 'Installed' -State 'Missing')
+            UpdateSkills   = @(Get-TuiComponentStateNames -Names $allSuiteSkills -StatusByName $skillStatusByName -ReadyProperty 'Installed' -State 'Update')
+            UpdateMcp      = @(Get-TuiComponentStateNames -Names $allSuiteMcp -StatusByName $mcpStatusByName -ReadyProperty 'Configured' -State 'Update')
+            UpdatePrereqs  = @(Get-TuiComponentStateNames -Names $allSuitePrereqs -StatusByName $prereqStatusByName -ReadyProperty 'Installed' -State 'Update')
+            Description    = ConvertFrom-BootstrapUtf8Base64String -Value 'UHJvZmlsZSDlubbpm4bvvJrlronoo4XmiYDmnInlpZfku7blvJXnlKjnmoQgU2tpbGzjgIFNQ1Ag5ZKMIENMSSDliY3nva7kvp3otZY='
         })
     $options.Add([pscustomobject]@{
-            Key          = 'skip'
-            Label        = (ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+HIFNraWxsIOWvvOWFpQ==')
-            ProfileName  = $null
-            Enabled      = $false
-            IsAllSkills  = $false
-            IsAllSuites  = $false
-            IsSkipSkills = $true
-            SuiteCount   = 0
-            SkillCount   = 0
-            McpCount     = 0
-            CliCount     = 0
-            Mcp          = @()
-            Prereqs      = @()
-            Status       = ''
-            Description  = ''
+            Key            = 'skip'
+            Label          = (ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+HIFNraWxsIOWvvOWFpQ==')
+            ProfileName    = $null
+            Enabled        = $false
+            IsAllSkills    = $false
+            IsAllSuites    = $false
+            IsSkipSkills   = $true
+            SuiteCount     = 0
+            SkillCount     = 0
+            McpCount       = 0
+            CliCount       = 0
+            Mcp            = @()
+            Prereqs        = @()
+            Status         = ''
+            MissingSkills  = @()
+            MissingMcp     = @()
+            MissingPrereqs = @()
+            UpdateSkills   = @()
+            UpdateMcp      = @()
+            UpdatePrereqs  = @()
+            Description    = ''
         })
 
-    foreach ($profile in @($Profiles)) {
-        $profileSkills = @(Get-TuiProfileSkillNames -Profile $profile)
-        $profileMcp = @($profile.Mcp | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-        $profilePrereqs = @($profile.Prereqs | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    foreach ($profileEntry in @($Profiles)) {
+        $profileSkills = @(Get-TuiProfileSkillNames -ProfileEntry $profileEntry)
+        $profileMcp = @($profileEntry.Mcp | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        $profilePrereqs = @($profileEntry.Prereqs | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
         $options.Add([pscustomobject]@{
-                Key          = $profile.Name
-                Label        = $profile.Name
-                ProfileName  = $profile.Name
-                Enabled      = $false
-                IsAllSkills  = $false
-                IsAllSuites  = $false
-                IsSkipSkills = $false
-                SuiteCount   = 0
-                SkillCount   = $profileSkills.Count
-                McpCount     = $profileMcp.Count
-                CliCount     = $profilePrereqs.Count
-                Mcp          = @($profileMcp)
-                Prereqs      = @($profilePrereqs)
-                Status       = Get-TuiSuiteInstallStatus -Skills $profileSkills -Mcp $profileMcp -Prereqs $profilePrereqs
-                Description  = $profile.Description
+                Key            = $profileEntry.Name
+                Label          = $profileEntry.Name
+                ProfileName    = $profileEntry.Name
+                Enabled        = $false
+                IsAllSkills    = $false
+                IsAllSuites    = $false
+                IsSkipSkills   = $false
+                SuiteCount     = 0
+                SkillCount     = $profileSkills.Count
+                McpCount       = $profileMcp.Count
+                CliCount       = $profilePrereqs.Count
+                Mcp            = @($profileMcp)
+                Prereqs        = @($profilePrereqs)
+                Status         = Get-TuiSuiteInstallStatus -Skills $profileSkills -Mcp $profileMcp -Prereqs $profilePrereqs
+                MissingSkills  = @(Get-TuiComponentStateNames -Names $profileSkills -StatusByName $skillStatusByName -ReadyProperty 'Installed' -State 'Missing')
+                MissingMcp     = @(Get-TuiComponentStateNames -Names $profileMcp -StatusByName $mcpStatusByName -ReadyProperty 'Configured' -State 'Missing')
+                MissingPrereqs = @(Get-TuiComponentStateNames -Names $profilePrereqs -StatusByName $prereqStatusByName -ReadyProperty 'Installed' -State 'Missing')
+                UpdateSkills   = @(Get-TuiComponentStateNames -Names $profileSkills -StatusByName $skillStatusByName -ReadyProperty 'Installed' -State 'Update')
+                UpdateMcp      = @(Get-TuiComponentStateNames -Names $profileMcp -StatusByName $mcpStatusByName -ReadyProperty 'Configured' -State 'Update')
+                UpdatePrereqs  = @(Get-TuiComponentStateNames -Names $profilePrereqs -StatusByName $prereqStatusByName -ReadyProperty 'Installed' -State 'Update')
+                Description    = $profileEntry.Description
             })
     }
 
@@ -1552,7 +1680,7 @@ function Show-TuiSkillProfileSelection {
 
         $hasStatus = @($options | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.Status) }).Count -gt 0
         if ($hasStatus) {
-            Write-Host ('  {0,-34} {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5ZCN56ew'), (ConvertFrom-BootstrapUtf8Base64String -Value '54q25oCB')) -ForegroundColor DarkGray
+            Write-Host ('      {0} {1}' -f (Format-TuiColumnText -Text (ConvertFrom-BootstrapUtf8Base64String -Value '5ZCN56ew') -Width 34), (ConvertFrom-BootstrapUtf8Base64String -Value '54q25oCB')) -ForegroundColor DarkGray
         }
         for ($i = $start; $i -le $end; $i++) {
             $option = $options[$i]
@@ -1560,7 +1688,7 @@ function Show-TuiSkillProfileSelection {
             $mark = if ($option.Enabled) { 'x' } else { ' ' }
             $color = if ($i -eq $index) { 'Cyan' } else { 'Gray' }
             if ($hasStatus) {
-                Write-Host ('{0} [{1}] {2,-34} {3}' -f $cursor, $mark, $option.Label, $option.Status) -ForegroundColor $color
+                Write-Host ('{0} [{1}] {2} {3}' -f $cursor, $mark, (Format-TuiColumnText -Text $option.Label -Width 34), $option.Status) -ForegroundColor $color
             }
             else {
                 Write-Host ('{0} [{1}] {2}' -f $cursor, $mark, $option.Label) -ForegroundColor $color
