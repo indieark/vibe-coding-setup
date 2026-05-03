@@ -6187,13 +6187,13 @@ function Install-SkillBundle {
         $explicitMcpNames = @(Split-SelectionTokens -Values $McpNames)
         $explicitPrereqNames = @(Split-SelectionTokens -Values $PrereqNames)
         $hasExplicitComponents = ($explicitSkillNames.Count + $explicitMcpNames.Count + $explicitPrereqNames.Count) -gt 0
+        $requestedProfiles = if ($AllSuites) { @($profiles | ForEach-Object { $_.Name }) } else { @(Split-SelectionTokens -Values $SkillProfiles) }
         $skillDirs = if ($hasExplicitComponents) {
             @(Select-SkillDirectoriesForExplicitSelection -SkillDirectories $allSkillDirs -RegistryRoot $registryRoot -SkillNames $explicitSkillNames -McpNames $explicitMcpNames -PrereqNames $explicitPrereqNames)
         }
         else {
-            $requestedProfiles = if ($AllSuites) { @($profiles | ForEach-Object { $_.Name }) } else { @($SkillProfiles) }
             $componentStatus = $null
-            if (@($requestedProfiles).Count -eq 0 -and -not $AllSkills -and -not $AllSuites -and (Test-InteractiveConsole)) {
+            if ($requestedProfiles.Count -eq 0 -and -not $AllSkills -and -not $AllSuites -and (Test-InteractiveConsole)) {
                 try {
                     $componentStatus = Get-SkillBundleComponentStatus -ZipPath $ZipPath
                 }
@@ -6201,12 +6201,15 @@ function Install-SkillBundle {
                     Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '6K+75Y+W57uE5Lu254q25oCB5aSx6LSl77yM57un57ut5pi+56S65peg54q25oCB5aWX5Lu26I+c5Y2V77yaezB9') -f $_.Exception.Message)
                 }
             }
-            @(Select-SkillDirectoriesForProfiles -SkillDirectories $allSkillDirs -Profiles $profiles -RequestedProfiles $requestedProfiles -RegistryRoot $registryRoot -AllSkills:$AllSkills -AllSuites:$AllSuites -SkillStatus @($componentStatus.Skills) -McpStatus @($componentStatus.Mcp) -PrereqStatus @($componentStatus.Prereqs))
+            $skillStatus = if ($null -ne $componentStatus) { @($componentStatus.Skills) } else { @() }
+            $mcpStatus = if ($null -ne $componentStatus) { @($componentStatus.Mcp) } else { @() }
+            $prereqStatus = if ($null -ne $componentStatus) { @($componentStatus.Prereqs) } else { @() }
+            @(Select-SkillDirectoriesForProfiles -SkillDirectories $allSkillDirs -Profiles $profiles -RequestedProfiles $requestedProfiles -RegistryRoot $registryRoot -AllSkills:$AllSkills -AllSuites:$AllSuites -SkillStatus $skillStatus -McpStatus $mcpStatus -PrereqStatus $prereqStatus)
         }
 
         $selection = $script:LastSkillSelection
         $selectionHasWork = $hasExplicitComponents -or $AllSkills -or $AllSuites -or `
-        (@($SkillProfiles).Count -gt 0) -or `
+        ($requestedProfiles.Count -gt 0) -or `
         ($selection -and (
                 @($selection.WantedSkills).Count -gt 0 -or
                 @($selection.MissingSkills).Count -gt 0 -or

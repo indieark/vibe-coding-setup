@@ -310,3 +310,5 @@
 - 为 MCP 状态扫描增加 TUI 专用轻量延迟，并取消最后 `100%` 后的额外等待。
 - 修复套件页重复显示 MCP 与 CLI 旧风格进度：bootstrap 检测旧 `common.psm1` 后刷新依赖，兼容兜底时静默旧 Host 进度并输出新版预览。
 - 同步 README、`docs/operations.md`、`docs/installer-flow.md` 和 `.ai_memory`；验证 suite smoke 输出 Skill=105、MCP=10、CLI=12 三行统一 `[检查]` 格式。
+
+- 修复默认模式套件输入区状态扫描漏跑：`Install-SkillBundle` 原先用 `@($SkillProfiles).Count` 判断是否已有预选 Profile，`$SkillProfiles = $null` 时会被 PowerShell 算成 1，导致真实默认交互路径跳过 `Get-SkillBundleComponentStatus`；现改为先用 `Split-SelectionTokens` 归一化，再用 `$requestedProfiles.Count` 判断。

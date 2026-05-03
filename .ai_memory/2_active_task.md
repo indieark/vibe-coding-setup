@@ -37,3 +37,9 @@
 ## 阻断
 
 - 没有当前阻断。
+
+## 2026-05-04 Hotfix
+
+- 用户实测发现默认模式套件输入区仍未显示 `[检查] Skill/MCP/CLI` 和状态标记。
+- 根因是 `Install-SkillBundle` 用数组包装统计空 `SkillProfile`，`@($null).Count` 结果为 1，误判为已有请求 Profile，跳过交互菜单前状态扫描。
+- 已改为用 `Split-SelectionTokens` 归一化 `$SkillProfiles`，并基于 `$requestedProfiles.Count` 判断是否需要在默认交互菜单前扫描状态。
