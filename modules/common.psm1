@@ -6187,13 +6187,20 @@ function Install-SkillBundle {
         $explicitMcpNames = @(Split-SelectionTokens -Values $McpNames)
         $explicitPrereqNames = @(Split-SelectionTokens -Values $PrereqNames)
         $hasExplicitComponents = ($explicitSkillNames.Count + $explicitMcpNames.Count + $explicitPrereqNames.Count) -gt 0
-        $requestedProfiles = if ($AllSuites) { @($profiles | ForEach-Object { $_.Name }) } else { @(Split-SelectionTokens -Values $SkillProfiles) }
+        [string[]]$requestedProfiles = @()
+        if ($AllSuites) {
+            $requestedProfiles = @($profiles | ForEach-Object { $_.Name } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        }
+        else {
+            $requestedProfiles = @(Split-SelectionTokens -Values $SkillProfiles)
+        }
+        $requestedProfileCount = @($requestedProfiles).Count
         $skillDirs = if ($hasExplicitComponents) {
             @(Select-SkillDirectoriesForExplicitSelection -SkillDirectories $allSkillDirs -RegistryRoot $registryRoot -SkillNames $explicitSkillNames -McpNames $explicitMcpNames -PrereqNames $explicitPrereqNames)
         }
         else {
             $componentStatus = $null
-            if ($requestedProfiles.Count -eq 0 -and -not $AllSkills -and -not $AllSuites -and (Test-InteractiveConsole)) {
+            if ($requestedProfileCount -eq 0 -and -not $AllSkills -and -not $AllSuites -and (Test-InteractiveConsole)) {
                 try {
                     $componentStatus = Get-SkillBundleComponentStatus -ZipPath $ZipPath
                 }
@@ -6209,7 +6216,7 @@ function Install-SkillBundle {
 
         $selection = $script:LastSkillSelection
         $selectionHasWork = $hasExplicitComponents -or $AllSkills -or $AllSuites -or `
-        ($requestedProfiles.Count -gt 0) -or `
+        ($requestedProfileCount -gt 0) -or `
         ($selection -and (
                 @($selection.WantedSkills).Count -gt 0 -or
                 @($selection.MissingSkills).Count -gt 0 -or

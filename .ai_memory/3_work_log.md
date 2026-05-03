@@ -312,3 +312,5 @@
 - 同步 README、`docs/operations.md`、`docs/installer-flow.md` 和 `.ai_memory`；验证 suite smoke 输出 Skill=105、MCP=10、CLI=12 三行统一 `[检查]` 格式。
 
 - 修复默认模式套件输入区状态扫描漏跑：`Install-SkillBundle` 原先用 `@($SkillProfiles).Count` 判断是否已有预选 Profile，`$SkillProfiles = $null` 时会被 PowerShell 算成 1，导致真实默认交互路径跳过 `Get-SkillBundleComponentStatus`；现改为先用 `Split-SelectionTokens` 归一化，再用 `$requestedProfiles.Count` 判断。
+
+- 继续修复默认模式套件状态扫描：`Set-StrictMode -Version Latest` 下 `$requestedProfiles.Count` 在某些空值 / 标量场景会抛出“找不到属性 Count”，现改为显式 `[string[]]$requestedProfiles` 与 `$requestedProfileCount`；同时扩展 bootstrap 的 `common.psm1` 能力探针，旧模块缺少默认模式状态扫描 hotfix 时会触发自举依赖刷新。

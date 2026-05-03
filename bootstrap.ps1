@@ -626,7 +626,13 @@ function Test-BootstrapCommonModuleTuiProgressSupport {
         return $false
     }
 
-    return ($content -match 'McpProgressDelayMilliseconds' -and $content -match '\[string\]\$Prefix')
+    $hasTuiProgressSupport = ($content -match 'McpProgressDelayMilliseconds' -and $content -match '\[string\]\$Prefix')
+    $hasDefaultPromptStatusSupport = (
+        $content -match 'Get-SkillProfilePromptStatusText' -and
+        $content -match 'Get-SkillBundleComponentStatus -ZipPath \$ZipPath' -and
+        $content -match 'requestedProfileCount'
+    )
+    return ($hasTuiProgressSupport -and $hasDefaultPromptStatusSupport)
 }
 
 $script:TuiFrameInitialized = $false
