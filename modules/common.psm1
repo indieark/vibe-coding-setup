@@ -4403,7 +4403,8 @@ function Get-SkillBundleComponentStatus {
         [string]$ZipPath,
         [switch]$IncludeSkills,
         [switch]$IncludeMcp,
-        [switch]$IncludePrereqs
+        [switch]$IncludePrereqs,
+        [int]$SkillProgressDelayMilliseconds = 0
     )
 
     $inventory = Get-SkillBundleInventory -ZipPath $ZipPath
@@ -4434,6 +4435,9 @@ function Get-SkillBundleComponentStatus {
     if ($scanSkills) {
         $centralRoot = Join-Path $homeDir '.skills-manager\skills'
         Write-OperationProgress -Label 'Skill' -Percent 0 -Detail ((ConvertFrom-Utf8Base64String -Value 'MC97MH0g5LiqIFNraWxsIOW8gOWni+ajgOafpQ==') -f $skillNames.Count)
+        if ($SkillProgressDelayMilliseconds -gt 0) {
+            Start-Sleep -Milliseconds $SkillProgressDelayMilliseconds
+        }
         $skillStatus = @(
             for ($i = 0; $i -lt $skillNames.Count; $i++) {
                 $name = $skillNames[$i]
@@ -4456,6 +4460,9 @@ function Get-SkillBundleComponentStatus {
                 $skillProgressPercent = if ($skillNames.Count -gt 0) { [int]((($i + 1) * 100) / $skillNames.Count) } else { 100 }
                 $skillProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogU2tpbGwg5bey5a6M5oiQ') -f ($i + 1), $skillNames.Count
                 Write-OperationProgress -Label 'Skill' -Percent $skillProgressPercent -Detail $skillProgressDetail -Completed:(($i + 1) -ge $skillNames.Count)
+                if ($SkillProgressDelayMilliseconds -gt 0) {
+                    Start-Sleep -Milliseconds $SkillProgressDelayMilliseconds
+                }
                 [pscustomobject]@{
                     Name            = $name
                     Kind            = if ($bundleSkillSet.ContainsKey($name.ToLowerInvariant())) { 'bundle' } else { 'external' }

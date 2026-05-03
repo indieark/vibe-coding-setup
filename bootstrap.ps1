@@ -2272,7 +2272,7 @@ function Get-BootstrapTuiSkillBundleSummary {
         -DestinationRoot $DestinationRoot `
         -Refresh:$Refresh
 
-    $componentStatus = Get-SkillBundleComponentStatus -ZipPath $skillBundlePath
+    $componentStatus = Get-SkillBundleComponentStatus -ZipPath $skillBundlePath -SkillProgressDelayMilliseconds 20
     $profiles = @($componentStatus.Profiles)
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $archive = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $skillBundlePath).ProviderPath)
@@ -2345,7 +2345,7 @@ function Get-BootstrapTuiSkillOnlySummary {
         -DestinationRoot $DestinationRoot `
         -Refresh:$Refresh
 
-    $componentStatus = Get-SkillBundleComponentStatus -ZipPath $skillBundlePath -IncludeSkills
+    $componentStatus = Get-SkillBundleComponentStatus -ZipPath $skillBundlePath -IncludeSkills -SkillProgressDelayMilliseconds 20
     $homeDir = Get-OriginalUserHomeDirectory
     $localSkillRoot = Join-Path $homeDir '.skills-manager\skills'
     $skillStatus = @($componentStatus.Skills)
