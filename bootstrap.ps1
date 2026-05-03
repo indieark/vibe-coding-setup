@@ -2756,7 +2756,7 @@ function Invoke-BootstrapTuiWorkbench {
     }
 
     function Ensure-TuiSkillRegistry {
-        if ($state.SkillRegistryLoaded) {
+        if ($state.SkillRegistryLoaded -and @($state.SkillStatus).Count -gt 0) {
             return
         }
 
@@ -2769,7 +2769,7 @@ function Invoke-BootstrapTuiWorkbench {
     }
 
     function Ensure-TuiSuiteRegistry {
-        if ($state.ComponentRegistryLoaded) {
+        if ($state.ComponentRegistryLoaded -and @($state.SkillStatus).Count -gt 0 -and @($state.RegistryMcpEntries).Count -gt 0 -and @($state.RegistryPrereqEntries).Count -gt 0) {
             return
         }
 
@@ -2845,8 +2845,17 @@ function Invoke-BootstrapTuiWorkbench {
                 }
             }
             'skill-install' {
-                Ensure-TuiSuiteRegistry
-                $skillSelection = Show-TuiSkillProfileSelection -Profiles @($state.AvailableSkillProfiles) -BundleSkillCount $state.BundleSkillCount -RegistrySkillCount (@($state.RegistrySkillEntries).Count) -InstalledSkillCount (@($state.SkillStatus | Where-Object { $_.Installed }).Count) -NewSkillCount (@($state.SkillStatus | Where-Object { -not $_.Installed }).Count) -McpCount (@($state.RegistryMcpEntries).Count) -ConfiguredMcpCount (@($state.RegistryMcpEntries | Where-Object { $_.Configured }).Count) -PrereqCount (@($state.RegistryPrereqEntries).Count) -InstalledPrereqCount (@($state.RegistryPrereqEntries | Where-Object { $_.Installed }).Count) -SkillStatus @($state.SkillStatus) -McpStatus @($state.RegistryMcpEntries) -PrereqStatus @($state.RegistryPrereqEntries)
+                try {
+                    Ensure-TuiSuiteRegistry
+                    $skillSelection = Show-TuiSkillProfileSelection -Profiles @($state.AvailableSkillProfiles) -BundleSkillCount $state.BundleSkillCount -RegistrySkillCount (@($state.RegistrySkillEntries).Count) -InstalledSkillCount (@($state.SkillStatus | Where-Object { $_.Installed }).Count) -NewSkillCount (@($state.SkillStatus | Where-Object { -not $_.Installed }).Count) -McpCount (@($state.RegistryMcpEntries).Count) -ConfiguredMcpCount (@($state.RegistryMcpEntries | Where-Object { $_.Configured }).Count) -PrereqCount (@($state.RegistryPrereqEntries).Count) -InstalledPrereqCount (@($state.RegistryPrereqEntries | Where-Object { $_.Installed }).Count) -SkillStatus @($state.SkillStatus) -McpStatus @($state.RegistryMcpEntries) -PrereqStatus @($state.RegistryPrereqEntries)
+                }
+                catch {
+                    Show-TuiError `
+                        -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6ZSZ6K+v') `
+                        -Message (ConvertFrom-BootstrapUtf8Base64String -Value '6K+75Y+W5aWX5Lu254q25oCB5aSx6LSl') `
+                        -Detail $_.Exception.Message
+                    continue
+                }
                 if ($skillSelection -eq 'quit') { return $null }
                 if ($null -ne $skillSelection) {
                     if ($skillSelection.SkipSkills) {
@@ -2876,29 +2885,38 @@ function Invoke-BootstrapTuiWorkbench {
                 }
             }
             'skill-component-install' {
-                Ensure-TuiSkillRegistry
-                $installedSkillCount = @($state.SkillStatus | Where-Object { $_.Installed }).Count
-                $missingSkillCount = @($state.SkillStatus | Where-Object { -not $_.Installed }).Count
-                $updateSkillCount = @($state.SkillStatus | Where-Object { $_.Installed -and $_.UpdateAvailable }).Count
-                $unknownSkillUpdateCount = @($state.SkillStatus | Where-Object { $_.Installed -and $_.PSObject.Properties['UpdateKnown'] -and -not $_.UpdateKnown }).Count
-                $bundleSkillCount = @($state.SkillStatus | Where-Object { $_.Kind -eq 'bundle' }).Count
-                $externalSkillCount = @($state.SkillStatus | Where-Object { $_.Kind -eq 'external' }).Count
-                $skillSummaryLines = @(
-                    '{0}: {1} {2}; {3} {4}; {5} {6}; {7} {8}; {9} {10}; bundle {11}; external {12}' -f `
-                    (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5py654q25oCB5oC76KeI'), `
-                    (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwg5oC75pWw'), @($state.SkillStatus).Count, `
-                    (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF'), $installedSkillCount, `
-                    (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5a6J6KOF'), $missingSkillCount, `
-                    (ConvertFrom-BootstrapUtf8Base64String -Value '6ZyA5pu05paw'), $updateSkillCount, `
-                    (ConvertFrom-BootstrapUtf8Base64String -Value '5pu05paw5pyq55+l'), $unknownSkillUpdateCount, `
-                        $bundleSkillCount, $externalSkillCount
-                )
-                $skillEntries = @($state.SkillStatus | ForEach-Object {
-                        $entry = $_
-                        $statusText = Get-TuiInstallUpdateStatusText -Entry $entry -StateProperty 'Installed' -MissingText (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5a6J6KOF') -UnknownText (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF77yb5pu05paw5pyq55+l')
-                        [pscustomobject]@{ Name = $entry.Name; Status = $statusText; Description = [string]$entry.Kind }
-                    })
-                $selection = Show-TuiComponentSelection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l5bm25a6J6KOFL+abtOaWsCBTa2lsbA==') -TypeName 'Skill' -Entries $skillEntries -SummaryLines $skillSummaryLines
+                try {
+                    Ensure-TuiSkillRegistry
+                    $installedSkillCount = @($state.SkillStatus | Where-Object { $_.Installed }).Count
+                    $missingSkillCount = @($state.SkillStatus | Where-Object { -not $_.Installed }).Count
+                    $updateSkillCount = @($state.SkillStatus | Where-Object { $_.Installed -and $_.UpdateAvailable }).Count
+                    $unknownSkillUpdateCount = @($state.SkillStatus | Where-Object { $_.Installed -and $_.PSObject.Properties['UpdateKnown'] -and -not $_.UpdateKnown }).Count
+                    $bundleSkillCount = @($state.SkillStatus | Where-Object { $_.Kind -eq 'bundle' }).Count
+                    $externalSkillCount = @($state.SkillStatus | Where-Object { $_.Kind -eq 'external' }).Count
+                    $skillSummaryLines = @(
+                        '{0}: {1} {2}; {3} {4}; {5} {6}; {7} {8}; {9} {10}; bundle {11}; external {12}' -f `
+                        (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5py654q25oCB5oC76KeI'), `
+                        (ConvertFrom-BootstrapUtf8Base64String -Value 'U2tpbGwg5oC75pWw'), @($state.SkillStatus).Count, `
+                        (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF'), $installedSkillCount, `
+                        (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5a6J6KOF'), $missingSkillCount, `
+                        (ConvertFrom-BootstrapUtf8Base64String -Value '6ZyA5pu05paw'), $updateSkillCount, `
+                        (ConvertFrom-BootstrapUtf8Base64String -Value '5pu05paw5pyq55+l'), $unknownSkillUpdateCount, `
+                            $bundleSkillCount, $externalSkillCount
+                    )
+                    $skillEntries = @($state.SkillStatus | ForEach-Object {
+                            $entry = $_
+                            $statusText = Get-TuiInstallUpdateStatusText -Entry $entry -StateProperty 'Installed' -MissingText (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5a6J6KOF') -UnknownText (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF77yb5pu05paw5pyq55+l')
+                            [pscustomobject]@{ Name = $entry.Name; Status = $statusText; Description = [string]$entry.Kind }
+                        })
+                    $selection = Show-TuiComponentSelection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l5bm25a6J6KOFL+abtOaWsCBTa2lsbA==') -TypeName 'Skill' -Entries $skillEntries -SummaryLines $skillSummaryLines
+                }
+                catch {
+                    Show-TuiError `
+                        -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6ZSZ6K+v') `
+                        -Message (ConvertFrom-BootstrapUtf8Base64String -Value '6K+75Y+WIFNraWxsIOeKtuaAgeWksei0pQ==') `
+                        -Detail $_.Exception.Message
+                    continue
+                }
                 if ($selection -eq 'quit') { return $null }
                 if ($null -ne $selection) {
                     $scenarioSelection = Show-TuiSkillsManagerScenarioSelection -InitialMode $state.SkillsManagerScenarioMode -InitialName $state.SkillsManagerScenarioName

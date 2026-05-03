@@ -4433,6 +4433,7 @@ function Get-SkillBundleComponentStatus {
     $skillStatus = @()
     if ($scanSkills) {
         $centralRoot = Join-Path $homeDir '.skills-manager\skills'
+        Write-OperationProgress -Label 'Skill' -Percent 0 -Detail ((ConvertFrom-Utf8Base64String -Value 'MC97MH0g5LiqIFNraWxsIOW8gOWni+ajgOafpQ==') -f $skillNames.Count)
         $skillStatus = @(
             for ($i = 0; $i -lt $skillNames.Count; $i++) {
                 $name = $skillNames[$i]
@@ -4473,6 +4474,7 @@ function Get-SkillBundleComponentStatus {
     $mcpEntries = @($inventory.Mcp)
     $mcpStatus = @()
     if ($scanMcp) {
+        Write-OperationProgress -Label 'MCP' -Percent 0 -Detail ((ConvertFrom-Utf8Base64String -Value 'MC97MH0g5LiqIE1DUCDlvIDlp4vmo4Dmn6U=') -f $mcpEntries.Count)
         $codexConfigPath = Join-Path (Join-Path $homeDir '.codex') 'config.toml'
         $codexConfigContent = if (Test-Path -LiteralPath $codexConfigPath) { Get-Content -Raw -Encoding UTF8 -LiteralPath $codexConfigPath } else { '' }
         $jsonTargets = @()
@@ -4540,6 +4542,7 @@ function Get-SkillBundleComponentStatus {
     $prereqEntries = @($inventory.Prereqs)
     $prereqStatus = @()
     if ($scanPrereqs) {
+        Write-OperationProgress -Label 'CLI' -Percent 0 -Detail ((ConvertFrom-Utf8Base64String -Value 'MC97MH0g5LiqIENMSSDlvIDlp4vmo4Dmn6U=') -f $prereqEntries.Count)
         $prereqStatus = @(
             for ($i = 0; $i -lt $prereqEntries.Count; $i++) {
                 $entry = $prereqEntries[$i]
