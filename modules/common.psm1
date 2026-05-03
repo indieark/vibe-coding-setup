@@ -2706,6 +2706,38 @@ function Test-SkillMetaMatchesSource {
     return ($sourceRegistryType -eq 'custom') -and ($destinationRegistryType -eq 'custom') -and ($sourceEntryName -eq $destinationEntryName)
 }
 
+function Get-SkillMetaUpdateStatus {
+    param(
+        [object]$SourceMeta,
+        [object]$DestinationMeta,
+        [Parameter(Mandatory)]
+        [string]$SkillName
+    )
+
+    if ($null -eq $SourceMeta) {
+        return [pscustomobject]@{ Known = $false; Available = $false }
+    }
+
+    if ($null -eq $DestinationMeta) {
+        return [pscustomobject]@{ Known = $true; Available = $true }
+    }
+
+    if (-not (Test-SkillMetaMatchesSource -SourceMeta $SourceMeta -DestinationMeta $DestinationMeta -SkillName $SkillName)) {
+        return [pscustomobject]@{ Known = $true; Available = $true }
+    }
+
+    $sourceRevision = Get-SkillMetaStringValue -Meta $SourceMeta -Name 'source_revision'
+    if ([string]::IsNullOrWhiteSpace($sourceRevision)) {
+        return [pscustomobject]@{ Known = $false; Available = $false }
+    }
+
+    $destinationRevision = Get-SkillMetaStringValue -Meta $DestinationMeta -Name 'source_revision'
+    return [pscustomobject]@{
+        Known     = $true
+        Available = ($sourceRevision -ne $destinationRevision)
+    }
+}
+
 function Get-SkillInstallState {
     param(
         [Parameter(Mandatory)]
@@ -3631,6 +3663,7 @@ function Get-SkillBundleInventory {
             Prereqs        = @()
             McpAssets      = @()
             PrereqAssets   = @()
+            SkillSources   = @()
             RegistryRoot   = ''
         }
     }
@@ -3654,6 +3687,22 @@ function Get-SkillBundleInventory {
         $prereqEntries = @()
         $mcpAssets = @()
         $prereqAssets = @()
+        $skillSources = @(
+            foreach ($skillDir in $skillDirs) {
+                $skillName = Split-Path -Leaf $skillDir
+                $meta = $null
+                try {
+                    $meta = Read-SkillMetaFile -SkillPath $skillDir
+                }
+                catch {
+                    $meta = $null
+                }
+                [pscustomobject]@{
+                    Name = $skillName
+                    Meta = $meta
+                }
+            }
+        )
         if ($registryRoot) {
             $profiles = @(Read-SkillProfilesFromRegistry -RegistryRoot $registryRoot)
             foreach ($profile in $profiles) {
@@ -3677,6 +3726,7 @@ function Get-SkillBundleInventory {
             Prereqs        = $prereqEntries
             McpAssets      = $mcpAssets
             PrereqAssets   = $prereqAssets
+            SkillSources   = $skillSources
             RegistryRoot   = if ($registryRoot) { $registryRoot } else { '' }
         }
     }
@@ -3865,6 +3915,93 @@ function New-McpServerConfigObject {
     return [pscustomobject]$config
 }
 
+function ConvertTo-ComparableConfigJson {
+    param(
+        [AllowNull()]
+        [object]$Value
+    )
+
+    if ($null -eq $Value) {
+        return ''
+    }
+
+    return ($Value | ConvertTo-Json -Depth 24 -Compress)
+}
+
+function Get-JsonMcpServerConfig {
+    param(
+        [AllowNull()]
+        [object]$Config,
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+
+    if (-not $Config -or -not $Config.PSObject.Properties['mcpServers']) {
+        return $null
+    }
+
+    $serverProperty = $Config.mcpServers.PSObject.Properties[$Name]
+    if (-not $serverProperty) {
+        return $null
+    }
+
+    return $serverProperty.Value
+}
+
+function Test-JsonMcpConfigObjectHasServer {
+    param(
+        [AllowNull()]
+        [object]$Config,
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+
+    return $null -ne (Get-JsonMcpServerConfig -Config $Config -Name $Name)
+}
+
+function Test-JsonMcpConfigObjectServerInSync {
+    param(
+        [AllowNull()]
+        [object]$Config,
+        [Parameter(Mandatory)]
+        [object]$Entry
+    )
+
+    $existing = Get-JsonMcpServerConfig -Config $Config -Name $Entry.Name
+    if ($null -eq $existing) {
+        return $false
+    }
+
+    $expected = New-McpServerConfigObject -Entry $Entry
+    if ($null -eq $expected) {
+        return $false
+    }
+
+    return (ConvertTo-ComparableConfigJson -Value $existing) -eq (ConvertTo-ComparableConfigJson -Value $expected)
+}
+
+function Read-JsonMcpConfigObject {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ConfigPath
+    )
+
+    if (-not (Test-Path -LiteralPath $ConfigPath)) {
+        return $null
+    }
+
+    try {
+        $raw = Get-Content -Raw -Encoding UTF8 -LiteralPath $ConfigPath
+        if ([string]::IsNullOrWhiteSpace($raw)) {
+            return $null
+        }
+        return ($raw | ConvertFrom-Json)
+    }
+    catch {
+        return $null
+    }
+}
+
 function Set-JsonMcpServerConfig {
     param(
         [Parameter(Mandatory)]
@@ -4020,6 +4157,60 @@ function Remove-TomlMcpServerBlock {
     return (($output.ToArray() -join "`r`n").TrimEnd() + "`r`n")
 }
 
+function New-CodexMcpServerBlockText {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Entry
+    )
+
+    if ($Entry.Transport -ne 'stdio' -or [string]::IsNullOrWhiteSpace($Entry.Command)) {
+        return ''
+    }
+
+    $blockLines = New-Object System.Collections.Generic.List[string]
+    $blockLines.Add(('[mcp_servers.{0}]' -f $Entry.Name))
+    $blockLines.Add(('command = {0}' -f (ConvertTo-TomlQuotedString -Value $Entry.Command)))
+    $blockLines.Add(('args = {0}' -f (ConvertTo-TomlStringArray -Values @($Entry.Args))))
+    if ($Entry.Env.Count -gt 0) {
+        $envPairs = @($Entry.Env | ForEach-Object { '{0} = "${{{0}}}"' -f $_ })
+        $blockLines.Add(('env = {{ {0} }}' -f ($envPairs -join ', ')))
+    }
+
+    return ($blockLines.ToArray() -join "`n")
+}
+
+function Get-CodexMcpServerBlockText {
+    param(
+        [AllowNull()]
+        [string]$Content,
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Content)) {
+        return ''
+    }
+
+    $escaped = [regex]::Escape($Name)
+    $pattern = '(?ms)^\[mcp_servers\.{0}\]\s*\r?\n(?<body>.*?)(?=^\[|\z)' -f $escaped
+    $match = [regex]::Match($Content, $pattern)
+    if (-not $match.Success) {
+        return ''
+    }
+
+    return ('[mcp_servers.{0}]' -f $Name) + "`n" + $match.Groups['body'].Value.Trim()
+}
+
+function ConvertTo-NormalizedConfigText {
+    param([AllowNull()][string]$Value)
+
+    if ($null -eq $Value) {
+        return ''
+    }
+
+    return (($Value -replace "`r`n", "`n") -replace "`r", "`n").Trim()
+}
+
 function Sync-CodexMcpServers {
     param(
         [Parameter(Mandatory)]
@@ -4053,15 +4244,7 @@ function Sync-CodexMcpServers {
         }
 
         $content = Remove-TomlMcpServerBlock -Content $content -Name $name
-        $blockLines = New-Object System.Collections.Generic.List[string]
-        $blockLines.Add(('[mcp_servers.{0}]' -f $name))
-        $blockLines.Add(('command = {0}' -f (ConvertTo-TomlQuotedString -Value $entry.Command)))
-        $blockLines.Add(('args = {0}' -f (ConvertTo-TomlStringArray -Values @($entry.Args))))
-        if ($entry.Env.Count -gt 0) {
-            $envPairs = @($entry.Env | ForEach-Object { '{0} = "${{{0}}}"' -f $_ })
-            $blockLines.Add(('env = {{ {0} }}' -f ($envPairs -join ', ')))
-        }
-        $blocks.Add(($blockLines.ToArray() -join "`r`n"))
+        $blocks.Add((New-CodexMcpServerBlockText -Entry $entry).Replace("`n", "`r`n"))
     }
 
     if ($blocks.Count -eq 0) {
@@ -4128,24 +4311,20 @@ function Test-JsonMcpConfigHasServer {
         [string]$Name
     )
 
-    if (-not (Test-Path -LiteralPath $ConfigPath)) {
-        return $false
-    }
+    $config = Read-JsonMcpConfigObject -ConfigPath $ConfigPath
+    return Test-JsonMcpConfigObjectHasServer -Config $config -Name $Name
+}
 
-    try {
-        $raw = Get-Content -Raw -Encoding UTF8 -LiteralPath $ConfigPath
-        if ([string]::IsNullOrWhiteSpace($raw)) {
-            return $false
-        }
-        $config = $raw | ConvertFrom-Json
-        if (-not $config -or -not $config.PSObject.Properties['mcpServers']) {
-            return $false
-        }
-        return @($config.mcpServers.PSObject.Properties | ForEach-Object { $_.Name }) -contains $Name
-    }
-    catch {
-        return $false
-    }
+function Test-JsonMcpConfigServerInSync {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ConfigPath,
+        [Parameter(Mandatory)]
+        [object]$Entry
+    )
+
+    $config = Read-JsonMcpConfigObject -ConfigPath $ConfigPath
+    return Test-JsonMcpConfigObjectServerInSync -Config $config -Entry $Entry
 }
 
 function Test-CodexMcpConfigHasServer {
@@ -4156,18 +4335,22 @@ function Test-CodexMcpConfigHasServer {
         [string]$Name
     )
 
-    if (-not (Test-Path -LiteralPath $ConfigPath)) {
-        return $false
-    }
+    $content = if (Test-Path -LiteralPath $ConfigPath) { Get-Content -Raw -Encoding UTF8 -LiteralPath $ConfigPath } else { '' }
+    return -not [string]::IsNullOrWhiteSpace((Get-CodexMcpServerBlockText -Content $content -Name $Name))
+}
 
-    try {
-        $content = Get-Content -Raw -Encoding UTF8 -LiteralPath $ConfigPath
-        $pattern = '^\[mcp_servers\.{0}\]\s*$' -f [regex]::Escape($Name)
-        return [regex]::IsMatch($content, $pattern, [System.Text.RegularExpressions.RegexOptions]::Multiline)
-    }
-    catch {
-        return $false
-    }
+function Test-CodexMcpConfigServerInSync {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ConfigPath,
+        [Parameter(Mandatory)]
+        [object]$Entry
+    )
+
+    $content = if (Test-Path -LiteralPath $ConfigPath) { Get-Content -Raw -Encoding UTF8 -LiteralPath $ConfigPath } else { '' }
+    $existing = Get-CodexMcpServerBlockText -Content $content -Name $Entry.Name
+    $expected = New-CodexMcpServerBlockText -Entry $Entry
+    return (ConvertTo-NormalizedConfigText -Value $existing) -eq (ConvertTo-NormalizedConfigText -Value $expected)
 }
 
 function Test-ClaudeCodeMcpHasServer {
@@ -4234,6 +4417,13 @@ function Get-SkillBundleComponentStatus {
     foreach ($name in @($inventory.BundleSkills)) {
         $bundleSkillSet[$name.ToLowerInvariant()] = $true
     }
+    $skillSourceByName = @{}
+    foreach ($source in @($inventory.SkillSources)) {
+        if ($null -eq $source -or [string]::IsNullOrWhiteSpace([string]$source.Name)) {
+            continue
+        }
+        $skillSourceByName[[string]$source.Name.ToLowerInvariant()] = $source.Meta
+    }
 
     $skillNames = @(
         @($inventory.BundleSkills) + @($inventory.RegistrySkills | ForEach-Object { $_.Name }) |
@@ -4251,11 +4441,27 @@ function Get-SkillBundleComponentStatus {
                 $skillProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogU2tpbGwg5bey5a6M5oiQ') -f ($i + 1), $skillNames.Count
                 Write-OperationProgress -Label 'Skill' -Percent $skillProgressPercent -Detail $skillProgressDetail -Completed:(($i + 1) -ge $skillNames.Count)
                 $installed = Test-Path -LiteralPath (Join-Path $path 'SKILL.md')
+                $sourceMeta = $null
+                if ($skillSourceByName.ContainsKey($name.ToLowerInvariant())) {
+                    $sourceMeta = $skillSourceByName[$name.ToLowerInvariant()]
+                }
+                $destinationMeta = $null
+                if ($installed) {
+                    try {
+                        $destinationMeta = Read-SkillMetaFile -SkillPath $path
+                    }
+                    catch {
+                        $destinationMeta = $null
+                    }
+                }
+                $updateStatus = if ($installed) { Get-SkillMetaUpdateStatus -SourceMeta $sourceMeta -DestinationMeta $destinationMeta -SkillName $name } else { [pscustomobject]@{ Known = $true; Available = $false } }
                 [pscustomobject]@{
-                    Name      = $name
-                    Kind      = if ($bundleSkillSet.ContainsKey($name.ToLowerInvariant())) { 'bundle' } else { 'external' }
-                    Installed = $installed
-                    Path      = $path
+                    Name            = $name
+                    Kind            = if ($bundleSkillSet.ContainsKey($name.ToLowerInvariant())) { 'bundle' } else { 'external' }
+                    Installed       = $installed
+                    UpdateAvailable = [bool]$updateStatus.Available
+                    UpdateKnown     = [bool]$updateStatus.Known
+                    Path            = $path
                 }
             }
         )
@@ -4268,6 +4474,7 @@ function Get-SkillBundleComponentStatus {
     $mcpStatus = @()
     if ($scanMcp) {
         $codexConfigPath = Join-Path (Join-Path $homeDir '.codex') 'config.toml'
+        $codexConfigContent = if (Test-Path -LiteralPath $codexConfigPath) { Get-Content -Raw -Encoding UTF8 -LiteralPath $codexConfigPath } else { '' }
         $jsonTargets = @()
         if (-not [string]::IsNullOrWhiteSpace($roamingDir)) {
             $jsonTargets += [pscustomobject]@{ Name = 'Claude Desktop'; Path = Join-Path $roamingDir 'Claude\claude_desktop_config.json' }
@@ -4277,6 +4484,13 @@ function Get-SkillBundleComponentStatus {
             [pscustomobject]@{ Name = 'Gemini CLI'; Path = Join-Path $homeDir '.gemini\settings.json' },
             [pscustomobject]@{ Name = 'Antigravity'; Path = Join-Path $homeDir '.gemini\antigravity\mcp_config.json' }
         )
+        $jsonTargets = @($jsonTargets | ForEach-Object {
+                [pscustomobject]@{
+                    Name   = $_.Name
+                    Path   = $_.Path
+                    Config = Read-JsonMcpConfigObject -ConfigPath $_.Path
+                }
+            })
         $claudeCodeServers = @{}
         foreach ($serverName in @(Get-ClaudeCodeMcpServerNames)) {
             $claudeCodeServers[$serverName] = $true
@@ -4288,21 +4502,33 @@ function Get-SkillBundleComponentStatus {
                 $mcpProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogTUNQIOW3suWujOaIkA==') -f ($i + 1), $mcpEntries.Count
                 Write-OperationProgress -Label 'MCP' -Percent $mcpProgressPercent -Detail $mcpProgressDetail -Completed:(($i + 1) -ge $mcpEntries.Count)
                 $targets = New-Object System.Collections.Generic.List[string]
-                if (Test-CodexMcpConfigHasServer -ConfigPath $codexConfigPath -Name $entry.Name) {
+                $updateTargets = New-Object System.Collections.Generic.List[string]
+                $codexBlock = Get-CodexMcpServerBlockText -Content $codexConfigContent -Name $entry.Name
+                if (-not [string]::IsNullOrWhiteSpace($codexBlock)) {
                     $targets.Add('Codex')
+                    $expectedCodexBlock = New-CodexMcpServerBlockText -Entry $entry
+                    if ((ConvertTo-NormalizedConfigText -Value $codexBlock) -ne (ConvertTo-NormalizedConfigText -Value $expectedCodexBlock)) {
+                        $updateTargets.Add('Codex')
+                    }
                 }
                 foreach ($target in $jsonTargets) {
-                    if (Test-JsonMcpConfigHasServer -ConfigPath $target.Path -Name $entry.Name) {
+                    if (Test-JsonMcpConfigObjectHasServer -Config $target.Config -Name $entry.Name) {
                         $targets.Add($target.Name)
+                        if (-not (Test-JsonMcpConfigObjectServerInSync -Config $target.Config -Entry $entry)) {
+                            $updateTargets.Add($target.Name)
+                        }
                     }
                 }
                 if ($claudeCodeServers.ContainsKey($entry.Name)) {
                     $targets.Add('Claude Code')
                 }
                 [pscustomobject]@{
-                    Name       = $entry.Name
-                    Configured = $targets.Count -gt 0
-                    Targets    = $targets.ToArray()
+                    Name            = $entry.Name
+                    Configured      = $targets.Count -gt 0
+                    UpdateAvailable = $updateTargets.Count -gt 0
+                    UpdateKnown     = $true
+                    Targets         = $targets.ToArray()
+                    UpdateTargets   = $updateTargets.ToArray()
                 }
             }
         )
@@ -4325,9 +4551,11 @@ function Get-SkillBundleComponentStatus {
                     $installed = $true
                 }
                 [pscustomobject]@{
-                    Name      = $entry.Name
-                    Kind      = $entry.Kind
-                    Installed = $installed
+                    Name            = $entry.Name
+                    Kind            = $entry.Kind
+                    Installed       = $installed
+                    UpdateAvailable = $false
+                    UpdateKnown     = $false
                 }
             }
         )
