@@ -314,3 +314,5 @@
 - 修复默认模式套件输入区状态扫描漏跑：`Install-SkillBundle` 原先用 `@($SkillProfiles).Count` 判断是否已有预选 Profile，`$SkillProfiles = $null` 时会被 PowerShell 算成 1，导致真实默认交互路径跳过 `Get-SkillBundleComponentStatus`；现改为先用 `Split-SelectionTokens` 归一化，再用 `$requestedProfiles.Count` 判断。
 
 - 继续修复默认模式套件状态扫描：`Set-StrictMode -Version Latest` 下 `$requestedProfiles.Count` 在某些空值 / 标量场景会抛出“找不到属性 Count”，现改为显式 `[string[]]$requestedProfiles` 与 `$requestedProfileCount`；同时扩展 bootstrap 的 `common.psm1` 能力探针，旧模块缺少默认模式状态扫描 hotfix 时会触发自举依赖刷新。
+
+- 修复默认模式状态扫描中的 `$profileEntrys` 拼写残留：历史 PSScriptAnalyzer warning 清理时误把集合 `$profiles` 改成不存在变量，导致 `Get-SkillBundleComponentStatus` 在 StrictMode 下失败并回退为无状态菜单；现恢复为遍历 `$profiles`，smoke 验证 Profiles=8、Skill=105、MCP=10、CLI=12。

@@ -48,3 +48,9 @@
 
 - 其他机器反馈 `skills.zip 导入失败：在此对象上找不到属性“Count”`，根因是模块启用 `Set-StrictMode -Version Latest`，直接访问可能为空值 / 标量的 `$requestedProfiles.Count` 不安全。
 - 已改为显式 `[string[]]$requestedProfiles` 并使用 `$requestedProfileCount`；同时扩展 `Test-BootstrapCommonModuleTuiProgressSupport`，把默认模式状态扫描 hotfix 纳入自举依赖能力探针，避免继续复用旧 `common.psm1`。
+
+## 2026-05-04 Hotfix 3
+
+- 用户反馈默认模式状态扫描警告：`检索不到变量“$profileEntrys”`。
+- 根因是历史自动变量 warning 清理时误把集合 `$profiles` 改成了不存在的 `$profileEntrys`。
+- 已恢复两个 inventory/profile enrichment 循环为 `foreach ($profileEntry in $profiles)`，并通过 `Get-SkillBundleComponentStatus` smoke 验证 Profiles=8、Skill=105、MCP=10、CLI=12。

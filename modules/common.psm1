@@ -3223,7 +3223,7 @@ function Get-SkillBundleProfiles {
         if ($registryRoot) {
             $skillDirs = @(Get-SkillDirectoriesFromExtractedRoot -RootPath $tempRoot)
             $profiles = @(Read-SkillProfilesFromRegistry -RegistryRoot $registryRoot)
-            foreach ($profileEntry in $profileEntrys) {
+            foreach ($profileEntry in $profiles) {
                 $prereqs = @(Get-ProfilePrereqNames -RegistryRoot $registryRoot -SkillNames @($profileEntry.Skills) -McpNames @($profileEntry.Mcp))
                 $profileEntry | Add-Member -MemberType NoteProperty -Name Prereqs -Value $prereqs -Force
                 $expandedSkills = @(Expand-ProfileSkillReferences -SkillNames @($profileEntry.Skills) -SkillDirectories $skillDirs)
@@ -3708,7 +3708,7 @@ function Get-SkillBundleInventory {
         )
         if ($registryRoot) {
             $profiles = @(Read-SkillProfilesFromRegistry -RegistryRoot $registryRoot)
-            foreach ($profileEntry in $profileEntrys) {
+            foreach ($profileEntry in $profiles) {
                 $prereqs = @(Get-ProfilePrereqNames -RegistryRoot $registryRoot -SkillNames @($profileEntry.Skills) -McpNames @($profileEntry.Mcp))
                 $profileEntry | Add-Member -MemberType NoteProperty -Name Prereqs -Value $prereqs -Force
                 $expandedSkills = @(Expand-ProfileSkillReferences -SkillNames @($profileEntry.Skills) -SkillDirectories $skillDirs)
