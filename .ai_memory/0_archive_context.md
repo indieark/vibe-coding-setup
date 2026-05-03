@@ -721,3 +721,42 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 1. 若需要强制拉取最新 `modules/common.psm1` 或 `manifest/apps.json`，使用 `-RefreshBootstrapDependencies`。
 2. 前置自举阶段不要再加默认安装专用编号；默认安装专属阶段从应用安装开始编号。
 3. `skills.zip` 仍是独立缓存链路，排查 Skill / MCP / CLI 数量时继续优先检查公开 release asset 与本地 `downloads/skills.zip`。
+
+## 2026-05-03 — Skill / MCP 进度显示统一归档
+
+### 核心议题背景
+
+用户发现自定义模式下“检查并安装/更新 CLI”会显示类似 `CLI ███... 17% 2/12 个 CLI 已完成` 的进度条，但“检查并安装/更新 Skill”和“MCP”看不到同等进度反馈。目标是修复 Skill / MCP 的显示不一致，并检查其它路径是否有同类问题。
+
+### Cognitive Evolution Path
+
+1. 先对比自定义模式的 Skill、MCP、CLI 入口：CLI 通过 `Get-SkillBundleComponentStatus -IncludePrereqs` 内部的 `Write-OperationProgress -Label 'CLI'` 显示进度。
+2. 发现 Skill-only 入口此前在 `bootstrap.ps1` 中手写状态汇总和 `Write-BootstrapProgressLine`，没有复用 `Write-OperationProgress`，导致显示口径与 CLI 不一致。
+3. 发现 MCP 状态扫描虽然已有 `Write-OperationProgress`，但标签是泛化“检查”，且刷新位置在具体检测之后，检测耗时时用户容易看不到逐项反馈。
+4. 最终将 Skill-only 入口改为复用 `Get-SkillBundleComponentStatus -IncludeSkills`，并在通用组件状态函数里为 Skill、MCP、CLI 分别使用 `Skill`、`MCP`、`CLI` 标签。
+5. 同时检查执行阶段，发现 Skill 导入循环还保留普通 `Write-Log` 的 `Skill 进度：当前/总数 名称`，于是也改为 `Write-OperationProgress -Label 'Skill'`，保证状态扫描与导入阶段视觉一致。
+
+### 关键决策
+
+- 组件状态扫描的唯一进度口径是 `Write-OperationProgress`；Skill 不再维护另一套 `Write-BootstrapProgressLine` 进度格式。
+- Skill / MCP / CLI 进度标签必须直观显示组件类型，不再把 MCP 显示为泛化“检查”。
+- MCP 状态扫描在具体配置检测前刷新进度，优先解决“检测耗时时完全无反馈”的体验问题。
+- 文档同步时只描述行为和可见效果，不复制 registry 条目列表或实时数量作为长期事实。
+
+### 当前结论
+
+- 自定义模式中 Skill、MCP、CLI 状态扫描都能显示同一套自绘进度条，并分别显示 `Skill`、`MCP`、`CLI` 标签。
+- Skill 导入阶段也改为 `Skill` 标签进度条，不再使用旧的 `Skill 进度：当前/总数 名称` 文本日志。
+- README、`docs/operations.md`、`docs/installer-flow.md`、`docs/skill-import.md` 和 `.ai_memory` 已同步当前行为。
+
+### 验证闭环
+
+- PowerShell parser 检查通过：`bootstrap.ps1`、`modules/common.psm1`。
+- `Import-Module .\modules\common.psm1 -Force` 通过。
+- 只读 smoke test 显示 `Skill=105`、`MCP=10`、`CLI=12` 均能输出完成进度。
+
+### 后续行动指引
+
+1. 如果用户仍反馈看不到 Skill / MCP 进度，先确认运行的是最新脚本，而不是旧的本地 checkout 或旧自举缓存。
+2. 如果显示数量不符合预期，继续按两段链路排查公开 `bootstrap-assets/skills.zip` 和本地 `downloads/skills.zip` 缓存。
+3. 后续新增组件类型时，应先接入 `Get-SkillBundleComponentStatus` 风格的类型化进度，再更新自定义工作台和文档。

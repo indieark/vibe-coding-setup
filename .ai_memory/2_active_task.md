@@ -2,11 +2,12 @@
 
 ## 当前状态
 
-- 已将前置自举依赖开屏标题从 `步骤一：获取依赖` 改为 `获取依赖`，避免 TUI / 自定义入口显示默认模式专用编号。
-- 默认安装后续阶段仍从 `步骤二：应用安装`、`步骤三：配置导入`、`步骤四：插件安装` 继续，完成提示保持 `恭喜：安装流程完成`。
-- `Sync-BootstrapDependencies` 已改为默认复用本地 `modules/common.psm1` 与 `manifest/apps.json`，即使源是 HTTP 也不重复下载。
-- 只有显式传 `-RefreshBootstrapDependencies` 时才刷新自举依赖。
-- 已同步 `.ai_memory` 记录本次开屏文案与缓存复用语义。
+- 已修复自定义模式“检查并安装/更新 Skill / MCP”进度显示不一致问题。
+- `Get-SkillBundleComponentStatus` 现在为 Skill 状态扫描补充 `Skill` 标签进度条，并将 MCP 状态扫描标签统一为 `MCP`。
+- `Get-BootstrapTuiSkillOnlySummary` 已改为复用 `Get-SkillBundleComponentStatus -IncludeSkills`，不再维护一套手写 Skill 进度。
+- MCP 状态扫描会在执行具体配置检测前刷新进度，避免检测耗时时用户看不到反馈。
+- Skill 导入循环也使用 `Write-OperationProgress -Label 'Skill'` 显示导入完成数量。
+- README、`docs/operations.md`、`docs/installer-flow.md`、`docs/skill-import.md` 已同步当前进度显示语义。
 
 ## 当前未完成项
 
@@ -15,15 +16,16 @@
 
 ## 最近验证
 
-- `bootstrap.ps1` PowerShell parser 通过。
-- `git diff` 确认代码只改动自举依赖刷新条件和前置开屏标题。
-- 待推送代码提交：本次自举依赖开屏与缓存复用修正。
+- PowerShell parser 检查通过：`bootstrap.ps1`、`modules/common.psm1`。
+- `Import-Module .\modules\common.psm1 -Force` 通过。
+- 只读 smoke test 显示 `Skill=105`、`MCP=10`、`CLI=12` 均能输出进度。
+- 文档一致性检查已覆盖 README、docs 和 `.ai_memory` 中的 Skill / MCP / CLI 进度描述。
 
 ## 下一步
 
 1. 如用户继续反馈 TUI 显示与预期不一致，先确认是否使用最新脚本，再确认公开 `bootstrap-assets/skills.zip` 与本地 `downloads/skills.zip` 缓存。
 2. 若继续调整 TUI 文案，避免新增裸中文源码字符串；保持 UTF-8 Base64 文案约束。
-3. 若需要强制刷新自举依赖，使用 `-RefreshBootstrapDependencies`。
+3. 若新增组件类型，需要同时补状态检测、选择页详情、执行确认参数和文档进度说明。
 
 ## 阻断
 

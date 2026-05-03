@@ -4244,8 +4244,12 @@ function Get-SkillBundleComponentStatus {
     if ($scanSkills) {
         $centralRoot = Join-Path $homeDir '.skills-manager\skills'
         $skillStatus = @(
-            foreach ($name in $skillNames) {
+            for ($i = 0; $i -lt $skillNames.Count; $i++) {
+                $name = $skillNames[$i]
                 $path = Join-Path $centralRoot $name
+                $skillProgressPercent = if ($skillNames.Count -gt 0) { [int]((($i + 1) * 100) / $skillNames.Count) } else { 100 }
+                $skillProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogU2tpbGwg5bey5a6M5oiQ') -f ($i + 1), $skillNames.Count
+                Write-OperationProgress -Label 'Skill' -Percent $skillProgressPercent -Detail $skillProgressDetail -Completed:(($i + 1) -ge $skillNames.Count)
                 $installed = Test-Path -LiteralPath (Join-Path $path 'SKILL.md')
                 [pscustomobject]@{
                     Name      = $name
@@ -4255,6 +4259,9 @@ function Get-SkillBundleComponentStatus {
                 }
             }
         )
+        if ($skillNames.Count -eq 0) {
+            Write-OperationProgress -Label 'Skill' -Percent 100 -Detail ((ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogU2tpbGwg5bey5a6M5oiQ') -f 0, 0) -Completed
+        }
     }
 
     $mcpEntries = @($inventory.Mcp)
@@ -4277,6 +4284,9 @@ function Get-SkillBundleComponentStatus {
         $mcpStatus = @(
             for ($i = 0; $i -lt $mcpEntries.Count; $i++) {
                 $entry = $mcpEntries[$i]
+                $mcpProgressPercent = if ($mcpEntries.Count -gt 0) { [int]((($i + 1) * 100) / $mcpEntries.Count) } else { 100 }
+                $mcpProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogTUNQIOW3suWujOaIkA==') -f ($i + 1), $mcpEntries.Count
+                Write-OperationProgress -Label 'MCP' -Percent $mcpProgressPercent -Detail $mcpProgressDetail -Completed:(($i + 1) -ge $mcpEntries.Count)
                 $targets = New-Object System.Collections.Generic.List[string]
                 if (Test-CodexMcpConfigHasServer -ConfigPath $codexConfigPath -Name $entry.Name) {
                     $targets.Add('Codex')
@@ -4289,9 +4299,6 @@ function Get-SkillBundleComponentStatus {
                 if ($claudeCodeServers.ContainsKey($entry.Name)) {
                     $targets.Add('Claude Code')
                 }
-                $mcpProgressPercent = if ($mcpEntries.Count -gt 0) { [int]((($i + 1) * 100) / $mcpEntries.Count) } else { 100 }
-                $mcpProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogTUNQIOW3suWujOaIkA==') -f ($i + 1), $mcpEntries.Count
-                Write-OperationProgress -Label (ConvertFrom-Utf8Base64String -Value '5qOA5p+l') -Percent $mcpProgressPercent -Detail $mcpProgressDetail -Completed:(($i + 1) -ge $mcpEntries.Count)
                 [pscustomobject]@{
                     Name       = $entry.Name
                     Configured = $targets.Count -gt 0
@@ -4300,7 +4307,7 @@ function Get-SkillBundleComponentStatus {
             }
         )
         if ($mcpEntries.Count -eq 0) {
-            Write-OperationProgress -Label (ConvertFrom-Utf8Base64String -Value '5qOA5p+l') -Percent 100 -Detail ((ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogTUNQIOW3suWujOaIkA==') -f 0, 0) -Completed
+            Write-OperationProgress -Label 'MCP' -Percent 100 -Detail ((ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogTUNQIOW3suWujOaIkA==') -f 0, 0) -Completed
         }
     }
 
@@ -5843,7 +5850,9 @@ function Install-SkillBundle {
         foreach ($skillDir in $skillDirs) {
             $skillImportIndex++
             $skillName = Split-Path -Leaf $skillDir
-            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'U2tpbGwg6L+b5bqm77yaezB9L3sxfSB7Mn0=') -f $skillImportIndex, $skillImportTotal, $skillName)
+            $skillImportPercent = if ($skillImportTotal -gt 0) { [int](($skillImportIndex * 100) / $skillImportTotal) } else { 100 }
+            $skillImportDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogU2tpbGwg5bey5a6M5oiQ') -f $skillImportIndex, $skillImportTotal
+            Write-OperationProgress -Label 'Skill' -Percent $skillImportPercent -Detail $skillImportDetail -Completed:($skillImportIndex -ge $skillImportTotal)
             $importResult = Import-SkillDirectoryToTargets `
                 -SourcePath $skillDir `
                 -SkillName $skillName `

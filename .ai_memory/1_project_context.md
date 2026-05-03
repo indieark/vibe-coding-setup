@@ -29,7 +29,7 @@
 - `skills.zip` 刷新是两段链路：先由 `00000-model` 的 `build-bundle` workflow 生成私库 bundle，再由本仓库 `Refresh bootstrap release assets` workflow 镜像为公开 `bootstrap-assets/skills.zip`；只完成上游 build 不代表终端会拿到新 bundle。
 - TUI 首屏不预取 `skills.zip`；只有进入套件、Skill、MCP、CLI 相关入口，或后续安装 / 演练实际要导入 Skill、MCP 或 CLI 时才按需获取。
 - `modules/common.psm1` 与 `manifest/apps.json` 是自举依赖缓存；默认直接复用已存在文件，即使源是 HTTP 也不重复下载，只有显式传 `-RefreshBootstrapDependencies` 才刷新。本地 `downloads/skills.zip` 是 Skill bundle 缓存；旧缓存会导致 TUI 显示旧文案、旧 Skill 数量或旧 MCP / CLI 统计。排查时先确认 release asset 是否刷新，再删除本地缓存或使用 `-RefreshSkillBundle`。
-- 下载、winget 下载 / 安装和 Skill bundle 解压统一使用脚本自绘同一行进度；winget 输出会过滤许可证、免责声明和重复进度行，并中文化常见状态；Skill bundle 解压不再调用 `Expand-Archive`，避免 PowerShell 宿主蓝色进度区域。非交互捕获输出不打印中间百分比，只保留完成行，避免 `\r` 被展开成多行刷屏。
+- 下载、winget 下载 / 安装和 Skill bundle 解压统一使用脚本自绘同一行进度；应用 precheck 和 Skill / MCP / CLI 状态扫描也复用脚本自绘进度，其中组件扫描分别显示 `Skill`、`MCP`、`CLI` 标签；winget 输出会过滤许可证、免责声明和重复进度行，并中文化常见状态；Skill bundle 解压不再调用 `Expand-Archive`，避免 PowerShell 宿主蓝色进度区域。非交互捕获输出不打印中间百分比，只保留完成行，避免 `\r` 被展开成多行刷屏。
 - Skill 导入是“Profile 选择 + `.skill-meta.json` 来源判定 + 增量同步 + Skills Manager SQLite 注册”的组合流程。
 - Skill 选择语义已经拆开：`全部 Skill` / `-AllSkills` 导入 registry 全部 Skill，bundle 内 custom / vendored 直接导入，external 按 `source` 自动拉取或复制；它不自动写入所有 MCP，也不安装所有 CLI。`所有套件` / `-AllSuites` 按所有 Profile 并集导入 Skill、external Skill、MCP 和前置 CLI。命令交互菜单和 TUI 都应明确显示 `全部 Skill`、`所有套件`、各套件自身的 Skill / MCP / CLI 数量；`全部 Skill` 的显示数量至少覆盖 registry 条目数、bundle 离线目录数和所有套件展开后的 Skill 并集，不能小于 `所有套件` 的 Skill 数。
 - `00000-model` registry 约定：自创 `pro-*` / `use-*` Skill 统一归入 `AI 调用基础套件`，其它业务套件不重复挂这些通用自创能力。
@@ -46,7 +46,7 @@
 - 自定义模式聚焦任务动作：检查并安装/更新软件、检查并安装/更新套件、检查并安装/更新 Skill、检查并安装/更新 MCP、检查并安装/更新 CLI；工作台先显示 `[可执行动作]`，只有已有可执行选择后才在动作区下方显示 `[当前选择]` 与 `开始执行`，进入最终 `执行确认` 页后按 Enter 才返回执行参数。
 - 自定义模式的 Skill / 套件 / MCP / CLI 相关读取结果会在本轮工作台中复用；Skill 入口只检查 Skill，MCP 入口只检查 MCP，CLI 入口只检查 CLI，套件入口才全量检查 Skill / MCP / CLI 并展示总览。套件页标题为“套件复选项”，列表行只显示名称，Bundle Skill、可选 Skill、本机已安装、可能新增以及当前项的 Skill / MCP / CLI 数量、说明、依赖放在顶部总览和当前项详情中；单项 Skill 选择页合并 `BundleSkills + RegistrySkills` 后去重展示，并显示 Skill 总数、已安装、未安装、bundle / external 统计；MCP 页显示 MCP 总数、已配置、未配置和已配置目标；CLI 页显示 CLI 总数、已检测到、未检测到和检测状态；MCP 状态读取异常会停在 TUI 错误页并返回工作台。
 - 自定义模式的套件、Skill、MCP、CLI 长列表都按当前光标分页显示，顶部保留已选数量和已选摘要，底部展示当前项详情，避免长列表强制滚到底部导致方向键抽动；清屏使用 `[Console]::Clear()` + 光标归零，失败时再回退 `Clear-Host`。
-- 默认模式和自定义模式的软件 precheck 都会在终端同一行刷新已完成数量，并在结束时刷新为完成行；Skill、MCP、CLI 状态扫描也同一行刷新完成数量，结束时只保留完成行。MCP 状态扫描在每个 MCP 实际检查完成后刷新，格式与应用和 CLI 一致，如 `检查 ... N/M 个 MCP 已完成`。
+- 默认模式和自定义模式的软件 precheck 都会在终端同一行刷新已完成数量，并在结束时刷新为完成行；Skill、MCP、CLI 状态扫描也同一行刷新完成数量，分别以 `Skill`、`MCP`、`CLI` 为进度标签，结束时只保留完成行。Skill 单项入口复用 `Get-SkillBundleComponentStatus -IncludeSkills`，MCP 状态扫描会在执行具体配置检测前刷新 `MCP` 进度，避免检测耗时时无反馈。
 - 自定义模式中单项 Skill / MCP / CLI 选择按类型累积，选择某一类不会清空其它类型已选项；最终统一进入 `执行确认`。
 - winget 安装如果已经输出成功但进程迟迟不退出，脚本会短暂等待后结束卡住的 winget 外壳并继续后续检测；没有成功输出时仍按原始退出码处理失败。
 - MCP 状态检查会一次性读取 Claude Code 的 `mcp list`，再在本轮状态循环里复用结果，避免每个 MCP 都调用一次 Claude Code 导致几十秒等待。

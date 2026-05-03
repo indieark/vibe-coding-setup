@@ -2098,68 +2098,19 @@ function Get-BootstrapTuiSkillOnlySummary {
         -DestinationRoot $DestinationRoot `
         -Refresh:$Refresh
 
-    $inventory = Get-SkillBundleInventory -ZipPath $skillBundlePath
+    $componentStatus = Get-SkillBundleComponentStatus -ZipPath $skillBundlePath -IncludeSkills
     $homeDir = Get-OriginalUserHomeDirectory
     $localSkillRoot = Join-Path $homeDir '.skills-manager\skills'
-    $installedSkills = @()
-    if (Test-Path -LiteralPath $localSkillRoot) {
-        $installedSkills = @(
-            Get-ChildItem -LiteralPath $localSkillRoot -Directory -ErrorAction SilentlyContinue |
-            Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md') } |
-            ForEach-Object { $_.Name } |
-            Sort-Object -Unique
-        )
-    }
-
-    $installedSet = @{}
-    foreach ($skillName in $installedSkills) {
-        $installedSet[[string]$skillName.ToLowerInvariant()] = $true
-    }
-
-    $bundleSkillSet = @{}
-    foreach ($skillName in @($inventory.BundleSkills)) {
-        if (-not [string]::IsNullOrWhiteSpace([string]$skillName)) {
-            $bundleSkillSet[[string]$skillName.ToLowerInvariant()] = $true
-        }
-    }
-    $skillNames = @(
-        @($inventory.BundleSkills) + @($inventory.RegistrySkills | ForEach-Object { $_.Name }) |
-        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
-        Sort-Object -Unique
-    )
-    $registrySkills = @(
-        foreach ($skillName in $skillNames) {
-            $key = [string]$skillName.ToLowerInvariant()
-            [pscustomobject]@{
-                Name    = $skillName
-                Section = if ($bundleSkillSet.ContainsKey($key)) { 'bundle' } else { 'external' }
-            }
-        }
-    )
-
-    $skillStatus = @(
-        for ($i = 0; $i -lt $registrySkills.Count; $i++) {
-            $entry = $registrySkills[$i]
-            $progressPercent = if ($registrySkills.Count -gt 0) { [int]((($i + 1) * 100) / $registrySkills.Count) } else { 100 }
-            $detail = (ConvertFrom-BootstrapUtf8Base64String -Value 'ezB9L3sxfSDkuKogU2tpbGwg5bey5a6M5oiQ') -f ($i + 1), $registrySkills.Count
-            $isComplete = (($i + 1) -ge $registrySkills.Count)
-            $line = '  Skill {0,3}%  {1}' -f $progressPercent, $detail
-            Write-BootstrapProgressLine -Line $line -Completed:$isComplete
-            [pscustomobject]@{
-                Name      = $entry.Name
-                Kind      = $entry.Section
-                Installed = $installedSet.ContainsKey([string]$entry.Name.ToLowerInvariant())
-            }
-        }
-    )
-    $newSkills = @($skillNames | Where-Object { -not $installedSet.ContainsKey([string]$_.ToLowerInvariant()) })
+    $skillStatus = @($componentStatus.Skills)
+    $installedSkills = @($skillStatus | Where-Object { $_.Installed } | ForEach-Object { $_.Name } | Sort-Object -Unique)
+    $newSkills = @($skillStatus | Where-Object { -not $_.Installed } | ForEach-Object { $_.Name } | Sort-Object -Unique)
 
     return [pscustomobject]@{
-        Profiles        = @($inventory.Profiles)
-        BundleSkills    = @($inventory.BundleSkills)
+        Profiles        = @($componentStatus.Profiles)
+        BundleSkills    = @($componentStatus.BundleSkills)
         InstalledSkills = $installedSkills
         NewSkills       = $newSkills
-        RegistrySkills  = $registrySkills
+        RegistrySkills  = @($componentStatus.RegistrySkills)
         SkillStatus     = $skillStatus
         McpStatus       = @()
         PrereqStatus    = @()
