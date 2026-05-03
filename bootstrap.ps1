@@ -603,6 +603,26 @@ function Sync-BootstrapDependencies {
     }
 }
 
+function Test-BootstrapCommonModuleTuiProgressSupport {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return $false
+    }
+
+    try {
+        $content = Get-Content -Raw -Encoding UTF8 -LiteralPath $Path
+    }
+    catch {
+        return $false
+    }
+
+    return ($content -match 'McpProgressDelayMilliseconds' -and $content -match '\[string\]\$Prefix')
+}
+
 $script:TuiFrameInitialized = $false
 $script:TuiFrameLastLineCount = 0
 
@@ -2323,6 +2343,37 @@ function Write-BootstrapTuiMcpProgressPreview {
     }
 }
 
+function Write-BootstrapTuiCliProgressPreview {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ZipPath,
+        [int]$DelayMilliseconds = 0
+    )
+
+    if ($DelayMilliseconds -le 0) {
+        return
+    }
+
+    try {
+        $inventory = Get-SkillBundleInventory -ZipPath $ZipPath
+        $prereqEntries = @($inventory.Prereqs)
+    }
+    catch {
+        return
+    }
+
+    Write-BootstrapDownloadProgress -Label 'CLI' -Percent 0 -Detail ((ConvertFrom-BootstrapUtf8Base64String -Value 'MC97MH0g5LiqIENMSSDlvIDlp4vmo4Dmn6U=') -f $prereqEntries.Count) -Prefix (ConvertFrom-BootstrapUtf8Base64String -Value 'W+ajgOafpV0=')
+    Start-Sleep -Milliseconds $DelayMilliseconds
+    for ($i = 0; $i -lt $prereqEntries.Count; $i++) {
+        $progressPercent = if ($prereqEntries.Count -gt 0) { [int]((($i + 1) * 100) / $prereqEntries.Count) } else { 100 }
+        $progressDetail = (ConvertFrom-BootstrapUtf8Base64String -Value 'ezB9L3sxfSDkuKogQ0xJIOW3suWujOaIkA==') -f ($i + 1), $prereqEntries.Count
+        Write-BootstrapDownloadProgress -Label 'CLI' -Percent $progressPercent -Detail $progressDetail -Completed:(($i + 1) -ge $prereqEntries.Count) -Prefix (ConvertFrom-BootstrapUtf8Base64String -Value 'W+ajgOafpV0=')
+        if (($i + 1) -lt $prereqEntries.Count) {
+            Start-Sleep -Milliseconds $DelayMilliseconds
+        }
+    }
+}
+
 function Get-BootstrapTuiComponentStatus {
     param(
         [Parameter(Mandatory)]
@@ -2331,7 +2382,8 @@ function Get-BootstrapTuiComponentStatus {
         [switch]$IncludeMcp,
         [switch]$IncludePrereqs,
         [int]$SkillProgressDelayMilliseconds = 0,
-        [int]$McpProgressDelayMilliseconds = 0
+        [int]$McpProgressDelayMilliseconds = 0,
+        [int]$CliProgressDelayMilliseconds = 0
     )
 
     $arguments = @{
@@ -2342,17 +2394,33 @@ function Get-BootstrapTuiComponentStatus {
     if ($IncludePrereqs) { $arguments.IncludePrereqs = $true }
 
     $statusCommand = Get-Command Get-SkillBundleComponentStatus -ErrorAction Stop
+    $scanAll = -not ($IncludeSkills -or $IncludeMcp -or $IncludePrereqs)
+    $scanSkills = $scanAll -or $IncludeSkills
+    $scanMcp = $scanAll -or $IncludeMcp
+    $scanPrereqs = $scanAll -or $IncludePrereqs
+    $legacyStatusProgress = -not $statusCommand.Parameters.ContainsKey('McpProgressDelayMilliseconds')
+    $suppressStatusProgress = $false
     if ($statusCommand.Parameters.ContainsKey('SkillProgressDelayMilliseconds')) {
         $arguments.SkillProgressDelayMilliseconds = $SkillProgressDelayMilliseconds
     }
-    elseif ($SkillProgressDelayMilliseconds -gt 0 -and (-not ($IncludeSkills -or $IncludeMcp -or $IncludePrereqs) -or $IncludeSkills)) {
+    elseif ($SkillProgressDelayMilliseconds -gt 0 -and $scanSkills) {
         Write-BootstrapTuiSkillProgressPreview -ZipPath $ZipPath -DelayMilliseconds $SkillProgressDelayMilliseconds
+        $suppressStatusProgress = $true
     }
     if ($statusCommand.Parameters.ContainsKey('McpProgressDelayMilliseconds')) {
         $arguments.McpProgressDelayMilliseconds = $McpProgressDelayMilliseconds
     }
-    elseif ($McpProgressDelayMilliseconds -gt 0 -and (-not ($IncludeSkills -or $IncludeMcp -or $IncludePrereqs) -or $IncludeMcp)) {
+    elseif ($McpProgressDelayMilliseconds -gt 0 -and $scanMcp) {
         Write-BootstrapTuiMcpProgressPreview -ZipPath $ZipPath -DelayMilliseconds $McpProgressDelayMilliseconds
+        $suppressStatusProgress = $true
+    }
+    if (($suppressStatusProgress -or $legacyStatusProgress) -and $CliProgressDelayMilliseconds -gt 0 -and $scanPrereqs) {
+        Write-BootstrapTuiCliProgressPreview -ZipPath $ZipPath -DelayMilliseconds $CliProgressDelayMilliseconds
+        $suppressStatusProgress = $true
+    }
+
+    if ($suppressStatusProgress) {
+        return Get-SkillBundleComponentStatus @arguments 6>$null
     }
 
     return Get-SkillBundleComponentStatus @arguments
@@ -2377,7 +2445,7 @@ function Get-BootstrapTuiSkillBundleSummary {
         -DestinationRoot $DestinationRoot `
         -Refresh:$Refresh
 
-    $componentStatus = Get-BootstrapTuiComponentStatus -ZipPath $skillBundlePath -SkillProgressDelayMilliseconds 20 -McpProgressDelayMilliseconds 30
+    $componentStatus = Get-BootstrapTuiComponentStatus -ZipPath $skillBundlePath -SkillProgressDelayMilliseconds 20 -McpProgressDelayMilliseconds 30 -CliProgressDelayMilliseconds 30
     $profiles = @($componentStatus.Profiles)
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $archive = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $skillBundlePath).ProviderPath)
@@ -2524,7 +2592,7 @@ function Get-BootstrapTuiCliOnlySummary {
         -DestinationRoot $DestinationRoot `
         -Refresh:$Refresh
 
-    $componentStatus = Get-SkillBundleComponentStatus -ZipPath $skillBundlePath -IncludePrereqs
+    $componentStatus = Get-BootstrapTuiComponentStatus -ZipPath $skillBundlePath -IncludePrereqs -CliProgressDelayMilliseconds 30
     return [pscustomobject]@{
         Profiles        = @($componentStatus.Profiles)
         BundleSkills    = @($componentStatus.BundleSkills)
@@ -3391,8 +3459,10 @@ function Test-BootstrapShouldUseTui {
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 if ([string]::IsNullOrWhiteSpace($BootstrapSourceRoot)) {
-    $localDependenciesReady = (Test-Path -LiteralPath (Join-Path $root 'modules\common.psm1')) -and (Test-Path -LiteralPath (Join-Path $root 'manifest\apps.json'))
-    if ($localDependenciesReady) {
+    $localCommonModulePath = Join-Path $root 'modules\common.psm1'
+    $localDependenciesReady = (Test-Path -LiteralPath $localCommonModulePath) -and (Test-Path -LiteralPath (Join-Path $root 'manifest\apps.json'))
+    $localCommonModuleReady = Test-BootstrapCommonModuleTuiProgressSupport -Path $localCommonModulePath
+    if ($localDependenciesReady -and $localCommonModuleReady) {
         $BootstrapSourceRoot = $root
     }
     else {
@@ -3405,6 +3475,12 @@ $bootstrapDependencies = @(
     'manifest/apps.json'
 )
 
+$bootstrapDependenciesRefresh = $RefreshBootstrapDependencies.IsPresent
+$bootstrapCommonModulePath = Join-Path $root 'modules\common.psm1'
+if ((-not $bootstrapDependenciesRefresh) -and (-not (Test-BootstrapCommonModuleTuiProgressSupport -Path $bootstrapCommonModulePath))) {
+    $bootstrapDependenciesRefresh = $true
+}
+
 Write-BootstrapSection `
     -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6I635Y+W5L6d6LWW') `
     -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5ZCM5q2l5ZCv5Yqo6ISa5pys44CB5qih5Z2X44CB5bqU55So5riF5Y2V5ZKM5pys5Zyw6LWE5Lqn44CC')
@@ -3412,7 +3488,7 @@ Sync-BootstrapDependencies `
     -SourceRoot $BootstrapSourceRoot `
     -DestinationRoot $root `
     -Dependencies $bootstrapDependencies `
-    -Refresh:$RefreshBootstrapDependencies
+    -Refresh:$bootstrapDependenciesRefresh
 
 Import-Module (Join-Path $root 'modules\common.psm1') -Force
 
