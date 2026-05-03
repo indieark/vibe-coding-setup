@@ -4540,7 +4540,7 @@ function Get-SkillBundleComponentStatus {
                 $mcpProgressPercent = if ($mcpEntries.Count -gt 0) { [int]((($i + 1) * 100) / $mcpEntries.Count) } else { 100 }
                 $mcpProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogTUNQIOW3suWujOaIkA==') -f ($i + 1), $mcpEntries.Count
                 Write-OperationProgress -Label 'MCP' -Percent $mcpProgressPercent -Detail $mcpProgressDetail -Completed:(($i + 1) -ge $mcpEntries.Count) -Prefix $checkProgressPrefix
-                if ($McpProgressDelayMilliseconds -gt 0) {
+                if ($McpProgressDelayMilliseconds -gt 0 -and ($i + 1) -lt $mcpEntries.Count) {
                     Start-Sleep -Milliseconds $McpProgressDelayMilliseconds
                 }
                 [pscustomobject]@{

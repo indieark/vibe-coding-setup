@@ -2317,7 +2317,9 @@ function Write-BootstrapTuiMcpProgressPreview {
         $progressPercent = if ($mcpEntries.Count -gt 0) { [int]((($i + 1) * 100) / $mcpEntries.Count) } else { 100 }
         $progressDetail = (ConvertFrom-BootstrapUtf8Base64String -Value 'ezB9L3sxfSDkuKogTUNQIOW3suWujOaIkA==') -f ($i + 1), $mcpEntries.Count
         Write-BootstrapDownloadProgress -Label 'MCP' -Percent $progressPercent -Detail $progressDetail -Completed:(($i + 1) -ge $mcpEntries.Count) -Prefix (ConvertFrom-BootstrapUtf8Base64String -Value 'W+ajgOafpV0=')
-        Start-Sleep -Milliseconds $DelayMilliseconds
+        if (($i + 1) -lt $mcpEntries.Count) {
+            Start-Sleep -Milliseconds $DelayMilliseconds
+        }
     }
 }
 
@@ -2375,7 +2377,7 @@ function Get-BootstrapTuiSkillBundleSummary {
         -DestinationRoot $DestinationRoot `
         -Refresh:$Refresh
 
-    $componentStatus = Get-BootstrapTuiComponentStatus -ZipPath $skillBundlePath -SkillProgressDelayMilliseconds 20 -McpProgressDelayMilliseconds 80
+    $componentStatus = Get-BootstrapTuiComponentStatus -ZipPath $skillBundlePath -SkillProgressDelayMilliseconds 20 -McpProgressDelayMilliseconds 30
     $profiles = @($componentStatus.Profiles)
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $archive = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $skillBundlePath).ProviderPath)
@@ -2488,7 +2490,7 @@ function Get-BootstrapTuiMcpOnlySummary {
         -DestinationRoot $DestinationRoot `
         -Refresh:$Refresh
 
-    $componentStatus = Get-BootstrapTuiComponentStatus -ZipPath $skillBundlePath -IncludeMcp -McpProgressDelayMilliseconds 80
+    $componentStatus = Get-BootstrapTuiComponentStatus -ZipPath $skillBundlePath -IncludeMcp -McpProgressDelayMilliseconds 30
     return [pscustomobject]@{
         Profiles        = @($componentStatus.Profiles)
         BundleSkills    = @($componentStatus.BundleSkills)
