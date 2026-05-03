@@ -2832,6 +2832,21 @@ function Invoke-BootstrapTuiWorkbench {
         return ConvertFrom-BootstrapUtf8Base64String -Value '5bey5piv5pyA5paw'
     }
 
+    function Test-TuiObjectFlag {
+        param(
+            [AllowNull()]
+            [object]$Entry,
+            [Parameter(Mandatory)]
+            [string]$PropertyName
+        )
+
+        if ($null -eq $Entry -or -not $Entry.PSObject.Properties[$PropertyName]) {
+            return $false
+        }
+
+        return [bool]$Entry.$PropertyName
+    }
+
     while ($true) {
         $action = Show-TuiWorkbenchMenu -State $state
         switch ($action) {
@@ -2887,10 +2902,10 @@ function Invoke-BootstrapTuiWorkbench {
             'skill-component-install' {
                 try {
                     Ensure-TuiSkillRegistry
-                    $installedSkillCount = @($state.SkillStatus | Where-Object { $_.Installed }).Count
-                    $missingSkillCount = @($state.SkillStatus | Where-Object { -not $_.Installed }).Count
-                    $updateSkillCount = @($state.SkillStatus | Where-Object { $_.Installed -and $_.UpdateAvailable }).Count
-                    $unknownSkillUpdateCount = @($state.SkillStatus | Where-Object { $_.Installed -and $_.PSObject.Properties['UpdateKnown'] -and -not $_.UpdateKnown }).Count
+                    $installedSkillCount = @($state.SkillStatus | Where-Object { Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed' }).Count
+                    $missingSkillCount = @($state.SkillStatus | Where-Object { -not (Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed') }).Count
+                    $updateSkillCount = @($state.SkillStatus | Where-Object { (Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed') -and (Test-TuiObjectFlag -Entry $_ -PropertyName 'UpdateAvailable') }).Count
+                    $unknownSkillUpdateCount = @($state.SkillStatus | Where-Object { (Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed') -and $_.PSObject.Properties['UpdateKnown'] -and -not (Test-TuiObjectFlag -Entry $_ -PropertyName 'UpdateKnown') }).Count
                     $bundleSkillCount = @($state.SkillStatus | Where-Object { $_.Kind -eq 'bundle' }).Count
                     $externalSkillCount = @($state.SkillStatus | Where-Object { $_.Kind -eq 'external' }).Count
                     $skillSummaryLines = @(
@@ -2935,9 +2950,9 @@ function Invoke-BootstrapTuiWorkbench {
             'mcp-component-install' {
                 try {
                     Ensure-TuiMcpRegistry
-                    $configuredMcpCount = @($state.RegistryMcpEntries | Where-Object { $_.Configured }).Count
-                    $missingMcpCount = @($state.RegistryMcpEntries | Where-Object { -not $_.Configured }).Count
-                    $updateMcpCount = @($state.RegistryMcpEntries | Where-Object { $_.Configured -and $_.UpdateAvailable }).Count
+                    $configuredMcpCount = @($state.RegistryMcpEntries | Where-Object { Test-TuiObjectFlag -Entry $_ -PropertyName 'Configured' }).Count
+                    $missingMcpCount = @($state.RegistryMcpEntries | Where-Object { -not (Test-TuiObjectFlag -Entry $_ -PropertyName 'Configured') }).Count
+                    $updateMcpCount = @($state.RegistryMcpEntries | Where-Object { (Test-TuiObjectFlag -Entry $_ -PropertyName 'Configured') -and (Test-TuiObjectFlag -Entry $_ -PropertyName 'UpdateAvailable') }).Count
                     $mcpSummaryLines = @(
                         '{0}: {1} {2}; {3} {4}; {5} {6}; {7} {8}' -f `
                         (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5py654q25oCB5oC76KeI'), `
@@ -2948,9 +2963,9 @@ function Invoke-BootstrapTuiWorkbench {
                     )
                     $mcpEntries = @($state.RegistryMcpEntries | ForEach-Object {
                             $entry = $_
-                            $statusText = if ($entry.Configured) {
+                            $statusText = if (Test-TuiObjectFlag -Entry $entry -PropertyName 'Configured') {
                                 $targetsText = if (@($entry.Targets).Count -gt 0) { @($entry.Targets) -join ', ' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YWN572u' }
-                                if ($entry.PSObject.Properties['UpdateAvailable'] -and [bool]$entry.UpdateAvailable) {
+                                if (Test-TuiObjectFlag -Entry $entry -PropertyName 'UpdateAvailable') {
                                     $updateTargetsText = if (@($entry.UpdateTargets).Count -gt 0) { @($entry.UpdateTargets) -join ', ' } else { $targetsText }
                                     '{0}: {1}' -f (ConvertFrom-BootstrapUtf8Base64String -Value '5bey6YWN572u77yb6ZyA5pu05paw'), $updateTargetsText
                                 }
@@ -2985,24 +3000,33 @@ function Invoke-BootstrapTuiWorkbench {
                 }
             }
             'cli-component-install' {
-                Ensure-TuiPrereqRegistry
-                $installedCliCount = @($state.RegistryPrereqEntries | Where-Object { $_.Installed }).Count
-                $missingCliCount = @($state.RegistryPrereqEntries | Where-Object { -not $_.Installed }).Count
-                $unknownCliUpdateCount = @($state.RegistryPrereqEntries | Where-Object { $_.Installed -and $_.PSObject.Properties['UpdateKnown'] -and -not $_.UpdateKnown }).Count
-                $cliSummaryLines = @(
-                    '{0}: {1} {2}; {3} {4}; {5} {6}; {7} {8}' -f `
-                    (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5py654q25oCB5oC76KeI'), `
-                    (ConvertFrom-BootstrapUtf8Base64String -Value 'Q0xJIOaAu+aVsA=='), @($state.RegistryPrereqEntries).Count, `
-                    (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5qOA5rWL5Yiw'), $installedCliCount, `
-                    (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5qOA5rWL5Yiw'), $missingCliCount, `
-                    (ConvertFrom-BootstrapUtf8Base64String -Value '5pu05paw5pyq55+l'), $unknownCliUpdateCount
-                )
-                $cliEntries = @($state.RegistryPrereqEntries | ForEach-Object {
-                        $entry = $_
-                        $statusText = Get-TuiInstallUpdateStatusText -Entry $entry -StateProperty 'Installed' -MissingText (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5qOA5rWL5Yiw') -UnknownText (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF77yb5pu05paw5pyq55+l')
-                        [pscustomobject]@{ Name = $entry.Name; Status = $statusText; Description = ('{0}; {1}' -f $entry.Kind, $statusText) }
-                    })
-                $selection = Show-TuiComponentSelection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l5bm25a6J6KOFL+abtOaWsCBDTEk=') -TypeName 'CLI' -Entries $cliEntries -SummaryLines $cliSummaryLines
+                try {
+                    Ensure-TuiPrereqRegistry
+                    $installedCliCount = @($state.RegistryPrereqEntries | Where-Object { Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed' }).Count
+                    $missingCliCount = @($state.RegistryPrereqEntries | Where-Object { -not (Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed') }).Count
+                    $unknownCliUpdateCount = @($state.RegistryPrereqEntries | Where-Object { (Test-TuiObjectFlag -Entry $_ -PropertyName 'Installed') -and $_.PSObject.Properties['UpdateKnown'] -and -not (Test-TuiObjectFlag -Entry $_ -PropertyName 'UpdateKnown') }).Count
+                    $cliSummaryLines = @(
+                        '{0}: {1} {2}; {3} {4}; {5} {6}; {7} {8}' -f `
+                        (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5py654q25oCB5oC76KeI'), `
+                        (ConvertFrom-BootstrapUtf8Base64String -Value 'Q0xJIOaAu+aVsA=='), @($state.RegistryPrereqEntries).Count, `
+                        (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5qOA5rWL5Yiw'), $installedCliCount, `
+                        (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5qOA5rWL5Yiw'), $missingCliCount, `
+                        (ConvertFrom-BootstrapUtf8Base64String -Value '5pu05paw5pyq55+l'), $unknownCliUpdateCount
+                    )
+                    $cliEntries = @($state.RegistryPrereqEntries | ForEach-Object {
+                            $entry = $_
+                            $statusText = Get-TuiInstallUpdateStatusText -Entry $entry -StateProperty 'Installed' -MissingText (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq5qOA5rWL5Yiw') -UnknownText (ConvertFrom-BootstrapUtf8Base64String -Value '5bey5a6J6KOF77yb5pu05paw5pyq55+l')
+                            [pscustomobject]@{ Name = $entry.Name; Status = $statusText; Description = ('{0}; {1}' -f $entry.Kind, $statusText) }
+                        })
+                    $selection = Show-TuiComponentSelection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l5bm25a6J6KOFL+abtOaWsCBDTEk=') -TypeName 'CLI' -Entries $cliEntries -SummaryLines $cliSummaryLines
+                }
+                catch {
+                    Show-TuiError `
+                        -Title (ConvertFrom-BootstrapUtf8Base64String -Value '6ZSZ6K+v') `
+                        -Message (ConvertFrom-BootstrapUtf8Base64String -Value '6K+75Y+WIENMSSDnirbmgIHlpLHotKU=') `
+                        -Detail $_.Exception.Message
+                    continue
+                }
                 if ($selection -eq 'quit') { return $null }
                 if ($null -ne $selection) {
                     $state.SkipApps = $true
