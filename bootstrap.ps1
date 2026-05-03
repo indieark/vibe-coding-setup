@@ -412,7 +412,8 @@ function Write-BootstrapDownloadProgress {
         [int]$Percent,
         [Parameter(Mandatory)]
         [string]$Detail,
-        [switch]$Completed
+        [switch]$Completed,
+        [string]$Prefix = '[bootstrap]'
     )
 
     $safePercent = [Math]::Min(100, [Math]::Max(0, $Percent))
@@ -422,7 +423,12 @@ function Write-BootstrapDownloadProgress {
     $filledChar = [char]0x2588
     $emptyChar = [char]0x2591
     $bar = (([string]$filledChar) * $filled) + (([string]$emptyChar) * $empty)
-    $line = ('[bootstrap] {0} [{1}] {2,3}% {3}' -f $Label, $bar, $safePercent, $Detail)
+    $line = if ($Prefix -eq '[bootstrap]') {
+        ('[bootstrap] {0} [{1}] {2,3}% {3}' -f $Label, $bar, $safePercent, $Detail)
+    }
+    else {
+        ('{0} {1} {2} {3,3}%  {4}' -f $Prefix, $Label, $bar, $safePercent, $Detail)
+    }
     Write-BootstrapProgressLine -Line $line -Completed:$Completed
 }
 
@@ -2276,12 +2282,12 @@ function Write-BootstrapTuiSkillProgressPreview {
         return
     }
 
-    Write-BootstrapDownloadProgress -Label 'Skill' -Percent 0 -Detail ((ConvertFrom-BootstrapUtf8Base64String -Value 'MC97MH0g5LiqIFNraWxsIOW8gOWni+ajgOafpQ==') -f $skillNames.Count)
+    Write-BootstrapDownloadProgress -Label 'Skill' -Percent 0 -Detail ((ConvertFrom-BootstrapUtf8Base64String -Value 'MC97MH0g5LiqIFNraWxsIOW8gOWni+ajgOafpQ==') -f $skillNames.Count) -Prefix (ConvertFrom-BootstrapUtf8Base64String -Value 'W+ajgOafpV0=')
     Start-Sleep -Milliseconds $DelayMilliseconds
     for ($i = 0; $i -lt $skillNames.Count; $i++) {
         $progressPercent = if ($skillNames.Count -gt 0) { [int]((($i + 1) * 100) / $skillNames.Count) } else { 100 }
         $progressDetail = (ConvertFrom-BootstrapUtf8Base64String -Value 'ezB9L3sxfSDkuKogU2tpbGwg5bey5a6M5oiQ') -f ($i + 1), $skillNames.Count
-        Write-BootstrapDownloadProgress -Label 'Skill' -Percent $progressPercent -Detail $progressDetail -Completed:(($i + 1) -ge $skillNames.Count)
+        Write-BootstrapDownloadProgress -Label 'Skill' -Percent $progressPercent -Detail $progressDetail -Completed:(($i + 1) -ge $skillNames.Count) -Prefix (ConvertFrom-BootstrapUtf8Base64String -Value 'W+ajgOafpV0=')
         Start-Sleep -Milliseconds $DelayMilliseconds
     }
 }

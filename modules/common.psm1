@@ -42,7 +42,8 @@ function Write-OperationProgress {
         [string]$Label,
         [Nullable[int]]$Percent,
         [string]$Detail,
-        [switch]$Completed
+        [switch]$Completed,
+        [string]$Prefix = ''
     )
 
     $barWidth = 20
@@ -79,7 +80,8 @@ function Write-OperationProgress {
             return
         }
 
-        $line = Format-OperationProgressLine -Text ('  {0} {1}{2}' -f $Label, (ConvertFrom-Utf8Base64String -Value '6L+Q6KGM5Lit'), $suffix)
+        $labelText = if ([string]::IsNullOrWhiteSpace($Prefix)) { '  {0}' -f $Label } else { '{0} {1}' -f $Prefix, $Label }
+        $line = Format-OperationProgressLine -Text ('{0} {1}{2}' -f $labelText, (ConvertFrom-Utf8Base64String -Value '6L+Q6KGM5Lit'), $suffix)
         Write-Host ("`r{0}" -f $line) -ForegroundColor Cyan -NoNewline
         $script:OperationProgressLineActive = $true
         return
@@ -97,7 +99,8 @@ function Write-OperationProgress {
     $bar = (([string]$filledChar) * $filled) + (([string]$emptyChar) * $empty)
     $percentText = if ($null -ne $Percent -or $Completed) { '{0,3}%' -f $percentValue } else { ConvertFrom-Utf8Base64String -Value '6L+Q6KGM5Lit' }
 
-    $line = Format-OperationProgressLine -Text ('  {0} {1} {2}{3}' -f $Label, $bar, $percentText, $suffix)
+    $labelText = if ([string]::IsNullOrWhiteSpace($Prefix)) { '  {0}' -f $Label } else { '{0} {1}' -f $Prefix, $Label }
+    $line = Format-OperationProgressLine -Text ('{0} {1} {2}{3}' -f $labelText, $bar, $percentText, $suffix)
     if (-not $canRenderInPlace) {
         if ($Completed) {
             Write-Host $line -ForegroundColor Cyan
@@ -4434,7 +4437,8 @@ function Get-SkillBundleComponentStatus {
     $skillStatus = @()
     if ($scanSkills) {
         $centralRoot = Join-Path $homeDir '.skills-manager\skills'
-        Write-OperationProgress -Label 'Skill' -Percent 0 -Detail ((ConvertFrom-Utf8Base64String -Value 'MC97MH0g5LiqIFNraWxsIOW8gOWni+ajgOafpQ==') -f $skillNames.Count)
+        $checkProgressPrefix = ConvertFrom-Utf8Base64String -Value 'W+ajgOafpV0='
+        Write-OperationProgress -Label 'Skill' -Percent 0 -Detail ((ConvertFrom-Utf8Base64String -Value 'MC97MH0g5LiqIFNraWxsIOW8gOWni+ajgOafpQ==') -f $skillNames.Count) -Prefix $checkProgressPrefix
         if ($SkillProgressDelayMilliseconds -gt 0) {
             Start-Sleep -Milliseconds $SkillProgressDelayMilliseconds
         }
@@ -4459,7 +4463,7 @@ function Get-SkillBundleComponentStatus {
                 $updateStatus = if ($installed) { Get-SkillMetaUpdateStatus -SourceMeta $sourceMeta -DestinationMeta $destinationMeta -SkillName $name } else { [pscustomobject]@{ Known = $true; Available = $false } }
                 $skillProgressPercent = if ($skillNames.Count -gt 0) { [int]((($i + 1) * 100) / $skillNames.Count) } else { 100 }
                 $skillProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogU2tpbGwg5bey5a6M5oiQ') -f ($i + 1), $skillNames.Count
-                Write-OperationProgress -Label 'Skill' -Percent $skillProgressPercent -Detail $skillProgressDetail -Completed:(($i + 1) -ge $skillNames.Count)
+                Write-OperationProgress -Label 'Skill' -Percent $skillProgressPercent -Detail $skillProgressDetail -Completed:(($i + 1) -ge $skillNames.Count) -Prefix $checkProgressPrefix
                 if ($SkillProgressDelayMilliseconds -gt 0) {
                     Start-Sleep -Milliseconds $SkillProgressDelayMilliseconds
                 }
@@ -4474,14 +4478,15 @@ function Get-SkillBundleComponentStatus {
             }
         )
         if ($skillNames.Count -eq 0) {
-            Write-OperationProgress -Label 'Skill' -Percent 100 -Detail ((ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogU2tpbGwg5bey5a6M5oiQ') -f 0, 0) -Completed
+            Write-OperationProgress -Label 'Skill' -Percent 100 -Detail ((ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogU2tpbGwg5bey5a6M5oiQ') -f 0, 0) -Completed -Prefix $checkProgressPrefix
         }
     }
 
     $mcpEntries = @($inventory.Mcp)
     $mcpStatus = @()
     if ($scanMcp) {
-        Write-OperationProgress -Label 'MCP' -Percent 0 -Detail ((ConvertFrom-Utf8Base64String -Value 'MC97MH0g5LiqIE1DUCDlvIDlp4vmo4Dmn6U=') -f $mcpEntries.Count)
+        $checkProgressPrefix = ConvertFrom-Utf8Base64String -Value 'W+ajgOafpV0='
+        Write-OperationProgress -Label 'MCP' -Percent 0 -Detail ((ConvertFrom-Utf8Base64String -Value 'MC97MH0g5LiqIE1DUCDlvIDlp4vmo4Dmn6U=') -f $mcpEntries.Count) -Prefix $checkProgressPrefix
         $codexConfigPath = Join-Path (Join-Path $homeDir '.codex') 'config.toml'
         $codexConfigContent = if (Test-Path -LiteralPath $codexConfigPath) { Get-Content -Raw -Encoding UTF8 -LiteralPath $codexConfigPath } else { '' }
         $jsonTargets = @()
@@ -4530,7 +4535,7 @@ function Get-SkillBundleComponentStatus {
                 }
                 $mcpProgressPercent = if ($mcpEntries.Count -gt 0) { [int]((($i + 1) * 100) / $mcpEntries.Count) } else { 100 }
                 $mcpProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogTUNQIOW3suWujOaIkA==') -f ($i + 1), $mcpEntries.Count
-                Write-OperationProgress -Label 'MCP' -Percent $mcpProgressPercent -Detail $mcpProgressDetail -Completed:(($i + 1) -ge $mcpEntries.Count)
+                Write-OperationProgress -Label 'MCP' -Percent $mcpProgressPercent -Detail $mcpProgressDetail -Completed:(($i + 1) -ge $mcpEntries.Count) -Prefix $checkProgressPrefix
                 [pscustomobject]@{
                     Name            = $entry.Name
                     Configured      = $targets.Count -gt 0
@@ -4542,20 +4547,21 @@ function Get-SkillBundleComponentStatus {
             }
         )
         if ($mcpEntries.Count -eq 0) {
-            Write-OperationProgress -Label 'MCP' -Percent 100 -Detail ((ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogTUNQIOW3suWujOaIkA==') -f 0, 0) -Completed
+            Write-OperationProgress -Label 'MCP' -Percent 100 -Detail ((ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogTUNQIOW3suWujOaIkA==') -f 0, 0) -Completed -Prefix $checkProgressPrefix
         }
     }
 
     $prereqEntries = @($inventory.Prereqs)
     $prereqStatus = @()
     if ($scanPrereqs) {
-        Write-OperationProgress -Label 'CLI' -Percent 0 -Detail ((ConvertFrom-Utf8Base64String -Value 'MC97MH0g5LiqIENMSSDlvIDlp4vmo4Dmn6U=') -f $prereqEntries.Count)
+        $checkProgressPrefix = ConvertFrom-Utf8Base64String -Value 'W+ajgOafpV0='
+        Write-OperationProgress -Label 'CLI' -Percent 0 -Detail ((ConvertFrom-Utf8Base64String -Value 'MC97MH0g5LiqIENMSSDlvIDlp4vmo4Dmn6U=') -f $prereqEntries.Count) -Prefix $checkProgressPrefix
         $prereqStatus = @(
             for ($i = 0; $i -lt $prereqEntries.Count; $i++) {
                 $entry = $prereqEntries[$i]
                 $cliProgressPercent = if ($prereqEntries.Count -gt 0) { [int]((($i + 1) * 100) / $prereqEntries.Count) } else { 100 }
                 $cliProgressDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogQ0xJIOW3suWujOaIkA==') -f ($i + 1), $prereqEntries.Count
-                Write-OperationProgress -Label 'CLI' -Percent $cliProgressPercent -Detail $cliProgressDetail -Completed:(($i + 1) -ge $prereqEntries.Count)
+                Write-OperationProgress -Label 'CLI' -Percent $cliProgressPercent -Detail $cliProgressDetail -Completed:(($i + 1) -ge $prereqEntries.Count) -Prefix $checkProgressPrefix
                 $installed = Test-RegistryCommandSucceeded -CommandText $entry.Check
                 if ((-not $installed) -and $entry.Name -eq 'lark' -and (Get-Command lark-cli -ErrorAction SilentlyContinue)) {
                     $installed = $true
