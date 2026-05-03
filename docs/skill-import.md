@@ -9,7 +9,7 @@
 3. 终端用户运行安装器时，只下载当前仓库公开 `skills.zip`。
 4. 用户机器不需要 `indieark/00000-model` 私库 PAT。
 
-安装器不会在 TUI 首屏预取 `skills.zip`。只有进入自定义模式的 Skill / 套件 / MCP / CLI 相关入口，或后续安装 / 演练实际要导入 Skill 时，才会按需获取 bundle；同一轮自定义模式会复用已读取的 registry / 状态结果。
+安装器不会在 TUI 首屏预取 `skills.zip`。只有进入自定义模式的 Skill / 套件 / MCP / CLI 相关入口，或后续安装 / 演练实际要导入 Skill、MCP 或 CLI 时，才会按需获取 bundle；同一轮自定义模式会复用已读取的 registry / 状态结果。
 
 `skills.zip` 是公开 release asset，不等于 `00000-model` 刚刚构建出的私库 bundle。改完 registry 后，必须等本仓库 `Refresh bootstrap release assets` workflow 镜像完成；本地 `downloads/skills.zip` 旧缓存也会导致 TUI 继续显示旧文案、旧 Skill 数量或旧 Profile 统计。排查和刷新步骤见 [资产刷新链路](asset-refresh.md)。
 
@@ -17,9 +17,10 @@
 
 `Install-SkillBundle` 解压 `skills.zip` 后，会读取 bundle 内置的 `registry/profiles.yaml`：
 
-- 自定义模式的“检查并安装/更新套件”动作会先读取 `skills.zip` 中的 Profile 和 registry，并以复选项展示；默认选择“全部 Skill”，也可以选择“所有套件”或“跳过 Skill 导入”。页面顶部会展示 Bundle Skill、可选 Skill、本机已安装和可能新增数量。
-- 自定义模式的“检查并安装/更新 Skill / MCP / CLI”动作读取 registry 或状态后进入分页复选列表，并分别写回等价的 `-SkillName`、`-McpName`、`-CliName` 参数；Skill 页顶部显示总数、已安装、未安装、bundle / external 统计，MCP 页顶部显示总数、已配置和未配置，CLI 页顶部显示总数、已检测到和未检测到；读取和状态扫描期间会同一行刷新完成数量，结束时只保留完成行。MCP 状态读取异常会显示 TUI 错误页并返回工作台。
-- Skill / 套件入口使用轻量 Skill registry 读取路径，不检测 MCP / CLI；MCP / CLI 入口才读取 MCP 配置状态和 CLI 检测状态。
+- 自定义模式的“检查并安装/更新套件”动作会先读取 `skills.zip` 中的 Profile 和 registry，并以复选项展示；默认选择“全部 Skill”，也可以选择“所有套件”或“跳过 Skill 导入”。页面顶部会展示 Bundle Skill、可选 Skill、本机已安装和可能新增数量；列表行只显示名称，数量、说明、MCP 和 CLI 依赖放在当前项详情中。
+- 自定义模式的“检查并安装/更新 Skill / MCP / CLI”动作读取 registry 或状态后进入分页复选列表，并分别写回等价的 `-SkillName`、`-McpName`、`-CliName` 参数；Skill 页顶部显示总数、已安装、未安装、bundle / external 统计，MCP 页顶部显示总数、已配置和未配置，CLI 页顶部显示总数、已检测到和未检测到；读取和状态扫描期间会同一行刷新完成数量，MCP 也使用与应用和 CLI 一致的 `检查 ... N/M 个 MCP 已完成` 格式，结束时只保留完成行。MCP 状态读取异常会显示 TUI 错误页并返回工作台。
+- Skill 入口只检查 Skill，MCP 入口只检查 MCP，CLI 入口只检查 CLI；套件入口才全量检查 Skill / MCP / CLI 并展示总览。
+- Skill / MCP / CLI 单项选择会按类型累积，选择某一类不会清空其它类型已选项，最终统一进入 `执行确认`。
 - “全部 Skill”导入可选 Skill 集合：TUI 展示时会合并 `BundleSkills + RegistrySkills` 后去重，bundle 内已有的 custom / vendored 直接导入，不在 bundle 内的 external 按来源自动拉取或复制；它不会自动写入所有 MCP 或安装所有 CLI。
 - “所有套件”按全部 Profile 的并集合并 Skill / MCP / CLI 前置依赖，并在终端显示套件数、Skill 数、MCP 数和 CLI 数。
 - TUI 中选择任意 Profile 后，会取消“全部 Skill”，并在确认页生成等价 `-SkillProfile` 命令。

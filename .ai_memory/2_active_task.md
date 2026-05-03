@@ -2,13 +2,12 @@
 
 ## 当前状态
 
-- 已完成自定义工作台文案与行为校准：入口统一为“检查并安装/更新软件 / 套件 / Skill / MCP / CLI”。
-- `开始执行` 只在已经选择软件或 Skill/MCP/CLI 后显示；点击后进入最终 `执行确认` 页，按 Enter 才真正返回执行参数。
-- 默认安装输出标题改为 `步骤一：获取依赖`、`步骤二：应用安装`、`步骤三：配置导入`、`步骤四：插件安装`，最终完成提示为 `恭喜：安装流程完成`。
-- 套件/Profile 页会展示 Bundle Skill、可选 Skill、本机已安装和可能新增数量。
-- 单项 Skill 选择页已从只读 `RegistrySkills` 改为合并 `BundleSkills + RegistrySkills` 后去重，并显示 bundle / external 与已安装状态。
-- MCP 选择页会显示已配置目标或未配置；CLI 选择页会显示检测状态。
-- 已同步 `docs/operations.md`、`docs/installer-flow.md`、`docs/skill-import.md`、`docs/README.md`、`docs/roadmap.md` 和 `.ai_memory`。
+- 已完成自定义模式组件检查拆分：Skill 入口只检查 Skill，MCP 入口只检查 MCP，CLI 入口只检查 CLI；套件入口才全量检查 Skill / MCP / CLI 并展示总览。
+- 套件/Profile 页已改为“套件复选项”，列表行只显示名称；数量、说明、MCP 和 CLI 依赖放在顶部总览与当前项详情中。
+- 单项 Skill / MCP / CLI 选择保持跨类型累积，不会因为选择某一类而清空其它类型已选项，最后统一进入 `执行确认`。
+- MCP 状态扫描已修正为与应用和 CLI 一致的同一行逐项完成进度，格式为 `检查 ... N/M 个 MCP 已完成`，不新增阶段提示。
+- 已修复 Windows PowerShell 5.1 真实启动路径中的裸中文解析崩溃；新增中文文案继续使用 UTF-8 Base64 解码输出。
+- 已同步 README、`docs/operations.md`、`docs/installer-flow.md`、`docs/skill-import.md` 和 `.ai_memory`。
 
 ## 当前未完成项
 
@@ -17,15 +16,17 @@
 
 ## 最近验证
 
-- `bootstrap.ps1` PowerShell parser 通过。
+- `cmd.exe /d /c "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ...\bootstrap.ps1 -DryRun -SkipApps -SkipSkills"` 启动验证通过。
 - `modules/common.psm1` PowerShell parser 通过。
-- 本地缓存 `downloads/skills.zip` 验证：`BundleSkills=72`、`RegistrySkills=63`、`Profiles=8`、`Mcp=10`；此前显示 60 多的原因是 UI 只用了 registry-only 口径。
+- Base64 字面量检查通过。
+- MCP-only 状态检查输出验证为 `检查 ... 10/10 个 MCP 已完成`。
+- 最新已推送代码提交：`36f9b88 fix: show mcp status progress per item`。
 
 ## 下一步
 
-1. 运行 `git diff --check` 和文档过时措辞检查。
-2. 提交并推送本轮 TUI / Skill 状态展示修复。
-3. 手动触发 `Refresh bootstrap release assets` workflow，并关注 run 是否成功。
+1. 如用户继续反馈 TUI 显示与预期不一致，先确认是否使用最新脚本与最新公开 `bootstrap-assets/skills.zip`，再检查本地 `downloads/skills.zip` 缓存。
+2. 若继续调整 TUI 文案，避免新增裸中文源码字符串；保持 UTF-8 Base64 文案约束。
+3. 后续安装器增强优先考虑可观测、可校验、可回滚能力。
 
 ## 阻断
 

@@ -661,3 +661,38 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 用户随后确认重复字符主要来自旧缓存/旧脚本未刷新，但仍希望继续优化显示，并指出 Skill 单项页没有总览、MCP 单项入口仍会闪退。本轮继续收敛为：不再做半套覆盖重绘，而是在整屏清理层使用 Windows 控制台 API；`Start-TuiFrame` 移除不兼容的 ANSI 清屏序列，改为 `[Console]::Clear()` + 光标归零，并以 `Clear-Host` 兜底。自定义工作台菜单压缩为一行列表，当前项详情放到底部，减少长描述换行。随后进一步调整工作台布局：先显示 `[可执行动作]`，只有已有可执行选择时才在动作区下方显示 `[当前选择]`，底部文案固定为 `当前项`。
 
 组件选择页新增 `SummaryLines`，Skill/MCP/CLI 单项页顶部统一展示本机状态总览；MCP 分支增加 `try/catch` 错误页兜底，读取 MCP 状态或组装列表异常时展示错误详情并返回工作台，不再直接闪退。验证时本地状态为 `Skill total=105 installed=74 missing=31`、`MCP total=10 configured=4 missing=6`、`CLI total=12 installed=8 missing=4`。
+
+## 2026-05-03 — 组件检查拆分、套件页简化与 MCP 进度修复归档
+
+### 核心议题背景
+
+用户要求自定义模式中 Skill、MCP、CLI 的检查不要互相拖慢：进入 Skill 页只检查 Skill，进入 MCP 页只检查 MCP，进入 CLI 页只检查 CLI；只有套件/Profile 页才做全量 Skill / MCP / CLI 总览。同时用户强调跨类型多选必须保留，不能因为选择某一类而清空其它类。后续实测又暴露了三类问题：套件页标题和列表后缀语义混乱、Windows PowerShell 5.1 启动因裸中文字符串解析崩溃、MCP 检查进度只看见最终 100%。
+
+### Cognitive Evolution Path
+
+1. 先把核心状态函数 `Get-SkillBundleComponentStatus` 改为可按 `IncludeSkills`、`IncludeMcp`、`IncludePrereqs` 选择扫描范围，避免所有入口都全量读 MCP / CLI。
+2. 在 TUI 状态层拆出 Skill、MCP、CLI 的 loaded flag 和 ensure 函数；Skill / MCP / CLI 单项入口只触发对应检查，套件入口触发全量检查并展示总览。
+3. 初版一度引入“选择某类型时清空其它类型”的逻辑；用户指出会破坏最终统一确认前的跨类型多选后，明确回滚该思路，保持选择按类型累积。
+4. 套件页原本复用 Skill 复选页标题和长 label，导致页面显示为“Skill 复选项”且每行塞入描述和数量。最终收敛为“套件复选项”：列表行只显示名称，数量和说明集中到顶部总览与当前项详情。
+5. 修复裸中文导致的开屏崩溃后，形成强约束：`bootstrap.ps1` 中新增中文文案仍要使用 UTF-8 Base64 解码，不能直接写中文源码字符串。
+6. MCP 进度问题最初被误判为需要阶段提示；用户澄清后，撤掉阶段提示，只保留和应用 / CLI 一致的 `Write-OperationProgress` 格式，并把进度更新放在每个 MCP 实际检查完成后。
+
+### 关键决策
+
+- 组件状态检查边界：Skill / MCP / CLI 单项入口只检查对应类型；套件入口才全量检查并显示总览。
+- 跨类型选择必须累积，最终统一在 `执行确认` 页确认。
+- 套件页是 Profile / suite 选择页，不是 Skill 单项页；标题与列表文案要反映这一点。
+- MCP 进度格式不另起炉灶，统一使用 `检查 ... N/M 个 MCP 已完成`。
+- Windows PowerShell 5.1 兼容优先级高于源码可读中文；新增中文提示继续用 UTF-8 Base64。
+
+### 当前结论
+
+- 相关代码已推送至 `main`，最新已推送代码提交为 `36f9b88 fix: show mcp status progress per item`。
+- 用户文档和 `.ai_memory` 已同步当前 TUI 行为。
+- 真实启动路径、PowerShell parser、Base64 字面量和 MCP-only 状态检查均已验证。
+
+### 后续行动指引
+
+1. 若用户反馈数量或文案不一致，优先确认公开 `bootstrap-assets/skills.zip` 是否刷新，以及本机 `downloads/skills.zip` 是否仍是旧缓存。
+2. 后续新增 TUI 中文文案时必须先转 UTF-8 Base64，避免再次触发 Windows PowerShell 5.1 `-File` 解析崩溃。
+3. 后续调整组件选择逻辑时，不要破坏 Skill / MCP / CLI 跨类型累积选择和最终统一确认。

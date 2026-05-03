@@ -21,9 +21,9 @@
 - 从公开 `skills.zip` 按 registry / Profile 导入 Skill；`-AllSkills` 代表 registry 全部 Skill，bundled 直接导入，external 按来源拉取。
 - 默认进入拟似 TUI，可在进入脚本后选择默认安装、自定义模式或安全演练。
 - TUI 会尽量切换英文输入布局，Profile / 应用多选支持英文逗号、中文逗号和顿号。
-- `skills.zip` 不在 TUI 首屏预取；只有进入 Skill 选择或实际导入 Skill 时才按需获取。
+- `skills.zip` 不在 TUI 首屏预取；只有进入套件、Skill、MCP、CLI 相关入口或实际导入组件时才按需获取。
 - 应用安装前会并行检查本机是否已安装，并持续显示已完成检查数量；只有已安装项才查目标版本并判断是否需要更新。
-- Skill / MCP / CLI 状态读取会显示逐项检查进度；winget 已报告安装完成但进程未退出时会自动收尾，避免终端停在“仍在运行”。
+- Skill / MCP / CLI 状态读取会显示与应用检查一致的逐项完成进度；winget 已报告安装完成但进程未退出时会自动收尾，避免终端停在“仍在运行”。
 
 - 使用 `.skill-meta.json` 识别 Skill 来源，并由用户选择是否写入 Skills Manager 默认场景或自定义场景。
 - 对同名 Skill 做安全三态判定：已跟踪、旧孤儿、第三方同名。
@@ -65,7 +65,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 | Skill / MCP 导入 | `skills.zip` 内置 registry 和 Profile，TUI 与命令模式都支持全部 Skill、按 Profile、按单项导入 bundled / external Skill、前置 CLI 依赖和 MCP 配置，并可选择 Skills Manager 场景注册方式 |
 | 输入兼容         | TUI 进入前 best-effort 切英文输入布局；多选分隔支持 `,`、`，`、`、`                                                                                                                    |
 | 去重安全         | `Tracked / Orphan / Foreign` 三态判定，默认备份不删除                                                                                                                                  |
-| 进度展示         | 工作区、应用、Skill 和 CC Switch Provider 阶段显示 `[当前/总数]`；winget 输出会过滤噪音并中文化常见状态                                                                                |
+| 进度展示         | 应用 precheck、Skill / MCP / CLI 状态扫描、下载、winget 下载 / 安装和 Skill bundle 解压使用脚本自绘同一行进度；winget 输出会过滤噪音并中文化常见状态                                   |
 | 可追更           | `.skill-meta.json` 字段透传到 Skills Manager DB                                                                                                                                        |
 
 ## 安全边界
@@ -100,7 +100,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 ## 当前状态
 
 - `main` 已包含按需装机器 Phase 1-4：私库 bundle 镜像、Profile 选择、Skill meta 透传、三态去重，以及 registry 驱动的全部 Skill / external Skill / prereq / MCP 写入。
-- 安装器已包含集成拟似 TUI 自定义模式、运行时 Skill Profile 复选、UAC 交接提示和安装进度展示。
+- 安装器已包含集成拟似 TUI 自定义模式、运行时套件 / Skill / MCP / CLI 复选、UAC 交接提示和安装进度展示。
 - Phase 5 飞书只读镜像在 `indieark/00000-model` 侧按计划推进。
 - 下一步安装器增强应优先围绕可观测、可校验、可回滚，而不是继续堆安装项。
 
