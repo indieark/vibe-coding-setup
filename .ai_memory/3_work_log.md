@@ -316,3 +316,10 @@
 - 继续修复默认模式套件状态扫描：`Set-StrictMode -Version Latest` 下 `$requestedProfiles.Count` 在某些空值 / 标量场景会抛出“找不到属性 Count”，现改为显式 `[string[]]$requestedProfiles` 与 `$requestedProfileCount`；同时扩展 bootstrap 的 `common.psm1` 能力探针，旧模块缺少默认模式状态扫描 hotfix 时会触发自举依赖刷新。
 
 - 修复默认模式状态扫描中的 `$profileEntrys` 拼写残留：历史 PSScriptAnalyzer warning 清理时误把集合 `$profiles` 改成不存在变量，导致 `Get-SkillBundleComponentStatus` 在 StrictMode 下失败并回退为无状态菜单；现恢复为遍历 `$profiles`，smoke 验证 Profiles=8、Skill=105、MCP=10、CLI=12。
+
+## 2026-05-06
+
+- 修复 `skills.zip` 导入 external skill 时报 `在此对象上找不到属性“ImportedSkills”`。
+- 根因是 PowerShell success output stream 被 external 安装路径中的非结果输出污染：`git clone` native stdout 与 `Invoke-DownloadFile` 返回下载路径都可能混入 `Import-ExternalSkillsFromSelection` 的调用结果。
+- `Invoke-GitCloneWithRetry` 现在丢弃 `git clone` stdout；external archive 下载调用显式 `[void](Invoke-DownloadFile ...)`；`Install-SkillBundle` 只从 external 输出中选择带 `ImportedSkills` 的结构化结果，没有结构化结果时明确报错。
+- 验证通过：`modules/common.psm1` Parser、`Import-Module`、`git diff --check`，以及 `中文办公自动化套件` dry-run external skill 路径。

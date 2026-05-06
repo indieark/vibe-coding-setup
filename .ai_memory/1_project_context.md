@@ -36,6 +36,7 @@
 - Profile 菜单顺序不在安装器中硬编码；安装器通过 `Read-SkillProfilesFromRegistry` 按 `skills.zip` 内 `registry.tar.gz/profiles.yaml` 的原始顺序展示。当前顺序来源由 `indieark/00000-model/00-编程配置/registry/profiles.yaml` 维护。
 - 默认模式的插件安装输入区在交互终端中默认不安装任何 Profile；直接回车 / 不填会跳过 Skill 导入，只有输入 `0`、`00` 或具体套件序号 / 名称才安装。
 - registry 驱动导入已经支持 registry 全量 Skill、bundled skill、external skill、MCP 和前置依赖。external skill 可从 `repo`、`archive_url` / `download_url`、`local_path` 自动导入；只有 `homepage` 的条目只提示人工处理。
+- external skill 导入函数必须只把结构化结果对象返回给上层；native 命令 stdout、下载函数返回值等成功流输出需要显式丢弃。`Install-SkillBundle` 读取 external 结果时只接受带 `ImportedSkills` 的对象；若完全没有结构化结果，应报错而不是静默当作成功。
 - 前置依赖由 `registry/prereqs.yaml` 驱动，安装器按 `check` 先判定，再根据平台和 `command` / `npm` / `pipx` / `pip` / `brew` / `winget` / `scoop` 等安装方式处理；单项失败汇总告警，不阻断后续可安装项。
 - MCP 写入由 `registry/mcp.yaml` 与 Profile 引用驱动，目前覆盖 Codex、Claude Desktop、Claude Code、Cursor、Gemini CLI 和 Antigravity；Antigravity 的目标文件是 `~/.gemini/antigravity/mcp_config.json`。
 - 同名 Skill 三态判定已经落地：`Tracked` 增量同步，`Orphan` 默认备份替换，`Foreign` 默认跳过。

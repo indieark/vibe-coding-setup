@@ -5916,7 +5916,7 @@ function Invoke-GitCloneWithRetry {
     )
 
     for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
-        & $GitPath @CloneArgs
+        & $GitPath @CloneArgs | Out-Null
         if ($LASTEXITCODE -eq 0) {
             return
         }
@@ -6076,7 +6076,7 @@ function Import-ExternalSkillsFromSelection {
                         $fileName = '{0}.zip' -f $fileName
                     }
                     $archivePath = Join-Path $workRoot $fileName
-                    Invoke-DownloadFile -Url $archiveUrl -DestinationPath $archivePath
+                    [void](Invoke-DownloadFile -Url $archiveUrl -DestinationPath $archivePath)
                 }
                 else {
                     $archivePath = Resolve-RegistryLocalSkillPath -RegistryRoot $Selection.RegistryRoot -LocalPath $archiveUrl
@@ -6272,14 +6272,19 @@ function Install-SkillBundle {
         }
 
         if ($selection -and -not [string]::IsNullOrWhiteSpace($selection.RegistryRoot)) {
-            $externalResult = Import-ExternalSkillsFromSelection `
-                -Selection $selection `
-                -CentralRoot $centralRoot `
-                -Targets $targets `
-                -NoReplaceOrphan:$NoReplaceOrphan `
-                -ReplaceForeign:$ReplaceForeign `
-                -RenameForeign:$RenameForeign `
-                -DryRun:$DryRun
+            $externalResultItems = @(Import-ExternalSkillsFromSelection `
+                    -Selection $selection `
+                    -CentralRoot $centralRoot `
+                    -Targets $targets `
+                    -NoReplaceOrphan:$NoReplaceOrphan `
+                    -ReplaceForeign:$ReplaceForeign `
+                    -RenameForeign:$RenameForeign `
+                    -DryRun:$DryRun)
+            $externalResult = @($externalResultItems | Where-Object { $null -ne $_ -and $_.PSObject.Properties['ImportedSkills'] } | Select-Object -Last 1)
+            if ($externalResult.Count -eq 0) {
+                throw 'external skill import did not return a structured result'
+            }
+            $externalResult = $externalResult[0]
 
             foreach ($metadata in @($externalResult.ImportedSkills)) {
                 $importedSkills.Add($metadata)

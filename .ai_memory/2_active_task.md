@@ -10,6 +10,7 @@
 - `Sync-BootstrapDependencies` 即使复用本地 `modules/common.psm1` 与 `manifest/apps.json` 缓存，也会输出同步完成进度。
 - 历史 PSScriptAnalyzer 自动变量 warning 已清理：`$args` 改为 `$wingetArgs` / `$msiArgs` / `$commandArgs`，`$profile` 改为 `$profileEntry`。
 - README、`docs/operations.md`、`docs/installer-flow.md`、`docs/skill-import.md` 和 `.ai_memory` 已同步当前语义。
+- 2026-05-06 已修复 `skills.zip` external skill 导入路径在 `Set-StrictMode -Version Latest` 下因成功流混入非结果对象而报 `在此对象上找不到属性“ImportedSkills”` 的问题。
 
 ## 当前未完成项
 
@@ -17,12 +18,15 @@
 - 如需真实维护型 CLI / MCP 包版本检查，需要先扩展 registry schema，并为联网检查提供缓存、超时和禁用策略。
 - 当前 TUI 是 PowerShell 控制台拟似 TUI，不是独立 GUI；后续如需 GUI，应继续复用 `bootstrap.ps1` 的参数和安装内核。
 - `Ensure-*` 函数仍会触发 PSScriptAnalyzer unapproved verb 风格 warning；本轮未扩大重命名，避免影响多处调用。
+
 ## 最近验证
 
 - PowerShell Parser 检查通过：`bootstrap.ps1`、`modules/common.psm1`。
 - `Import-Module modules/common.psm1` 通过。
 - `git diff --check` 通过。
+- `Install-SkillBundle -SkillProfiles '中文办公自动化套件' -SkipSkillsManagerLaunch -DryRun` 已覆盖 external skill 分支，返回 `ok / 已导入 5 个 skill`。
 - 默认 / 命令模式 smoke 显示 `== 步骤一：获取依赖 ==` 和 `[bootstrap] 同步 ... 100% 2/2 个依赖已完成`。
+
 - 只读组件状态 smoke 显示：
   - `[检查] Skill ... 105/105 个 Skill 已完成`
   - `[检查] MCP ... 10/10 个 MCP 已完成`
@@ -33,6 +37,7 @@
 1. 如用户继续反馈 TUI / 默认模式进度异常，优先确认是否运行最新 `bootstrap.ps1` 与刷新后的 `modules/common.psm1`。
 2. 如果显示的 Skill / MCP / CLI 数量不符合 registry，优先检查公开 `bootstrap-assets/skills.zip` 与本地 `downloads/skills.zip` 缓存。
 3. 后续新增组件类型时，需要同时补状态检测、选择页详情、执行确认参数和文档进度说明。
+4. 如再次遇到 `ImportedSkills` / `CopiedCount` 等结果属性缺失，优先排查 PowerShell success output stream 是否被 native stdout 或函数返回值污染。
 
 ## 阻断
 

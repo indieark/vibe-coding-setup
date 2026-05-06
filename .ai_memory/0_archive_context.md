@@ -818,6 +818,7 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 - 默认模式和自定义模式共享同一套本地状态检查语义，避免出现两个不同的“更新检查”口径。
 - `获取依赖` 是否带 `步骤一` 由入口语义决定：TUI 首屏前不编号，默认主流程编号。
 - 缓存命中也要显示完成进度；进度不等于下载，`同步` 可以表达本地复用完成。
+
 ### 当前结论
 
 - 默认模式套件输入区现在会先显示 `[检查] Skill`、`[检查] MCP`、`[检查] CLI`，再在菜单行上显示安装 / 更新状态。
@@ -838,3 +839,37 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 1. 若用户反馈默认模式套件菜单没有状态，先确认运行的是最新 `modules/common.psm1`，并确认是否进入交互式 Profile 菜单。
 2. 若用户反馈 `获取依赖` 标题不符合预期，先判断当前是否还在 TUI 首屏前共同自举，还是已经进入默认主流程。
 3. 若用户要求彻底清理 PSScriptAnalyzer warning，再单独评估 `Ensure-*` 函数重命名范围，避免破坏内部调用。
+
+## 2026-05-06 — `ImportedSkills` StrictMode 热修复归档
+
+### 核心议题背景
+
+用户反馈 `skills.zip` 导入失败，错误为 `在此对象上找不到属性“ImportedSkills”。请确认该属性存在。`。问题出现在 registry/Profile 触发 external skill 导入的路径，而非普通 bundled skill 拷贝路径。
+
+### Cognitive Evolution Path
+
+1. 先定位 `ImportedSkills` 的生产者和消费者：`Import-ExternalSkillsFromSelection` 返回带 `ImportedSkills`、`CopiedCount`、`PlannedCount` 等字段的结构化对象；`Install-SkillBundle` 随后直接读取 `$externalResult.ImportedSkills`。
+2. 结合 `Set-StrictMode -Version Latest` 判断，报错不一定表示函数没有 return；也可能表示 PowerShell 成功输出流中混入了其它对象，导致变量接收到数组或最后一个对象不是结构化结果。
+3. 复读 external skill 路径后发现两个典型污染源：`Invoke-GitCloneWithRetry` 直接执行 native `git clone`，其 stdout 会进入 success stream；`Invoke-DownloadFile` 返回 `$DestinationPath`，调用端未丢弃时也会进入 success stream。
+4. 第一层修复是阻止污染源：`git clone` 输出 `| Out-Null`，external archive 下载改为 `[void](Invoke-DownloadFile ...)`。
+5. 第二层修复是在 `Install-SkillBundle` 调用 external 导入时收集输出数组，只接受带 `ImportedSkills` 属性的结构化结果对象。
+6. 复审后将兜底从“没有结构化结果就当空结果”收紧为“没有结构化结果就明确报错”，避免未来真实内部错误被静默吞掉。
+
+### 关键决策
+
+- 这是 PowerShell success output stream 污染修复，不是业务失败重试，也不是跳过 external skill。
+- 正常 external skill 安装失败仍由 `Import-ExternalSkillsFromSelection` 内部计入 `FailedCount` 并返回结构化结果；结构化结果缺失才是异常。
+- 不在 `Install-SkillBundle` 中静默忽略缺字段对象；只过滤混入输出，保留对真实异常的可见性。
+
+### 验证闭环
+
+- `modules/common.psm1` PowerShell Parser 通过。
+- `Import-Module modules/common.psm1` 通过。
+- `git diff --check` 通过。
+- `Install-SkillBundle -SkillProfiles '中文办公自动化套件' -SkipSkillsManagerLaunch -DryRun` 返回 `ok / 已导入 5 个 skill`，覆盖 external skill 分支。
+
+### 后续行动指引
+
+1. 后续 PowerShell 函数若需要返回结构化对象，应审查内部 native 命令和 helper 调用是否会向 success stream 输出非结果对象。
+2. 对 external skill 真实安装失败，应继续看 `FailedCount` 和 warning；对结构化结果缺失，应按脚本内部契约破坏处理。
+3. 如用户再次报告 `ImportedSkills`、`CopiedCount` 等属性缺失，优先搜索上游函数是否新增了未丢弃返回值或 native stdout。
