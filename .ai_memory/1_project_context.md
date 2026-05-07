@@ -54,7 +54,7 @@
 - MCP 状态检查会一次性读取 Claude Code 的 `mcp list`，再在本轮状态循环里复用结果，避免每个 MCP 都调用一次 Claude Code 导致几十秒等待。
 - 当前 registry 中飞书 CLI 的历史检测命令是 `lark --version`，但 `@larksuite/cli` 实际提供 `lark-cli`；安装器对该别名做兼容检测，避免状态页误判 lark 未安装。
 - `-SkipApps` 可跳过应用安装阶段，支持命令模式或自定义模式只执行 Skill 导入。
-- Skill 导入后不再默认把所有导入项堆到 Skills Manager 默认场景；`SkillsManagerScenarioMode` 支持 `prompt/default/custom/skip`，TUI 安装 Skill 时会选择默认场景、自定义场景或跳过场景注册。
+- Skill 导入后不再默认把所有导入项堆到 Skills Manager 默认场景；`SkillsManagerScenarioMode` 支持 `prompt/default/custom/skip`。TUI 默认安装和自定义模式安装 Skill 时都会显式选择写入默认场景、自定义场景或跳过场景注册；如果跳过 Skill 安装则不显示场景选择。
 - 进入 TUI 前会 best-effort 切换英文输入布局，并向前台终端窗口发送输入语言切换请求；该行为不修改用户系统默认输入法。
 - Profile / 应用多选文本统一支持英文逗号、中文逗号和顿号分隔。
 

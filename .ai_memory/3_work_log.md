@@ -323,3 +323,10 @@
 - 根因是 PowerShell success output stream 被 external 安装路径中的非结果输出污染：`git clone` native stdout 与 `Invoke-DownloadFile` 返回下载路径都可能混入 `Import-ExternalSkillsFromSelection` 的调用结果。
 - `Invoke-GitCloneWithRetry` 现在丢弃 `git clone` stdout；external archive 下载调用显式 `[void](Invoke-DownloadFile ...)`；`Install-SkillBundle` 只从 external 输出中选择带 `ImportedSkills` 的结构化结果，没有结构化结果时明确报错。
 - 验证通过：`modules/common.psm1` Parser、`Import-Module`、`git diff --check`，以及 `中文办公自动化套件` dry-run external skill 路径。
+
+## 2026-05-07
+
+- 补齐 TUI 默认安装路径的 Skills Manager 场景选择：选择默认安装且未跳过 Skill 时，先进入 `Skills Manager 场景`页。
+- 默认安装现在可选择写入默认场景、自定义场景或跳过场景注册；`B` 返回模式选择，`Q` 取消退出。
+- 自定义模式的套件安装和单项 Skill 安装已有场景选择，本次保持原行为。
+- 验证通过：`bootstrap.ps1` Parser、`git diff --check -- bootstrap.ps1`。

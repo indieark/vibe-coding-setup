@@ -3341,7 +3341,21 @@ function Invoke-BootstrapTui {
         }
 
         if ($selectedMode -eq 'original') {
-            return New-TuiBootstrapResult -Only $null -Options $InitialOptions -SkillProfiles $InitialSkillProfiles -SkillsManagerScenarioMode $InitialSkillsManagerScenarioMode -SkillsManagerScenarioName $InitialSkillsManagerScenarioName -UseDefaultInstall
+            $initialSkipSkills = @($InitialOptions | Where-Object { $_.SwitchName -eq 'SkipSkills' -and $_.Enabled }).Count -gt 0
+            $scenarioSelection = $null
+            if (-not $initialSkipSkills) {
+                $scenarioSelection = Show-TuiSkillsManagerScenarioSelection -InitialMode $InitialSkillsManagerScenarioMode -InitialName $InitialSkillsManagerScenarioName
+                if ($scenarioSelection -eq 'quit') {
+                    return $null
+                }
+                if ($null -eq $scenarioSelection) {
+                    continue
+                }
+            }
+
+            $scenarioMode = if ($null -ne $scenarioSelection) { $scenarioSelection.Mode } else { $InitialSkillsManagerScenarioMode }
+            $scenarioName = if ($null -ne $scenarioSelection) { $scenarioSelection.Name } else { $InitialSkillsManagerScenarioName }
+            return New-TuiBootstrapResult -Only $null -Options $InitialOptions -SkillProfiles $InitialSkillProfiles -SkillsManagerScenarioMode $scenarioMode -SkillsManagerScenarioName $scenarioName -UseDefaultInstall
         }
 
         if ($selectedMode -eq 'dryrun') {

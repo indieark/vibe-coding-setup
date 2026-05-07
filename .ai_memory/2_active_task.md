@@ -11,6 +11,7 @@
 - 历史 PSScriptAnalyzer 自动变量 warning 已清理：`$args` 改为 `$wingetArgs` / `$msiArgs` / `$commandArgs`，`$profile` 改为 `$profileEntry`。
 - README、`docs/operations.md`、`docs/installer-flow.md`、`docs/skill-import.md` 和 `.ai_memory` 已同步当前语义。
 - 2026-05-06 已修复 `skills.zip` external skill 导入路径在 `Set-StrictMode -Version Latest` 下因成功流混入非结果对象而报 `在此对象上找不到属性“ImportedSkills”` 的问题。
+- 2026-05-07 已补齐 TUI 默认安装入口的 Skills Manager 场景选择；默认安装和自定义模式现在都能在写入 Skills Manager 前选择默认场景、自定义场景或跳过场景注册。
 
 ## 当前未完成项
 
@@ -25,6 +26,7 @@
 - `Import-Module modules/common.psm1` 通过。
 - `git diff --check` 通过。
 - `Install-SkillBundle -SkillProfiles '中文办公自动化套件' -SkipSkillsManagerLaunch -DryRun` 已覆盖 external skill 分支，返回 `ok / 已导入 5 个 skill`。
+- `bootstrap.ps1` Parser 通过；`git diff --check -- bootstrap.ps1` 通过。
 - 默认 / 命令模式 smoke 显示 `== 步骤一：获取依赖 ==` 和 `[bootstrap] 同步 ... 100% 2/2 个依赖已完成`。
 
 - 只读组件状态 smoke 显示：
@@ -38,6 +40,7 @@
 2. 如果显示的 Skill / MCP / CLI 数量不符合 registry，优先检查公开 `bootstrap-assets/skills.zip` 与本地 `downloads/skills.zip` 缓存。
 3. 后续新增组件类型时，需要同时补状态检测、选择页详情、执行确认参数和文档进度说明。
 4. 如再次遇到 `ImportedSkills` / `CopiedCount` 等结果属性缺失，优先排查 PowerShell success output stream 是否被 native stdout 或函数返回值污染。
+5. 如用户反馈 TUI 默认安装不应多一步场景确认，可考虑基于显式启动参数保留原始 `prompt` 行为，但当前共识是默认和自定义都应能选场景。
 
 ## 阻断
 

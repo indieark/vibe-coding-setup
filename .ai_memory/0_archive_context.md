@@ -873,3 +873,35 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 1. 后续 PowerShell 函数若需要返回结构化对象，应审查内部 native 命令和 helper 调用是否会向 success stream 输出非结果对象。
 2. 对 external skill 真实安装失败，应继续看 `FailedCount` 和 warning；对结构化结果缺失，应按脚本内部契约破坏处理。
 3. 如用户再次报告 `ImportedSkills`、`CopiedCount` 等属性缺失，优先搜索上游函数是否新增了未丢弃返回值或 native stdout。
+
+## 2026-05-07 — TUI 默认安装 Skills Manager 场景选择归档
+
+### 核心议题背景
+
+用户指出“安装到 Skill Manager 应该是能选场景的，无论是默认还是自定义”。此前底层 `Sync-SkillsManagerRegistry` 已经支持 `prompt/default/custom/skip`，自定义工作台中套件安装和单项 Skill 安装也会调用 `Show-TuiSkillsManagerScenarioSelection`，但 TUI 首屏“默认安装”路径直接返回 `New-TuiBootstrapResult`，没有在 TUI 中显式选择场景。
+
+### Cognitive Evolution Path
+
+1. 先确认底层 DB 同步能力已经存在：`Sync-SkillsManagerRegistry` 会按 `SkillsManagerScenarioMode` 写入默认场景、自定义场景或跳过场景注册。
+2. 再分入口排查：命令模式默认参数是 `prompt`；自定义模式在选择套件或单项 Skill 后会弹场景页；MCP/CLI 单项入口会固定 `skip`，因为不导入 Skill。
+3. 缺口定位到 `Invoke-BootstrapTui` 的 `original` 分支：选择默认安装时直接用初始场景参数生成结果，用户在 TUI 中看不到场景选择。
+4. 最小修正是在 `original` 分支中检查 `InitialOptions` 是否包含 `SkipSkills`；如果没有跳过 Skill，就调用 `Show-TuiSkillsManagerScenarioSelection`，并把选择结果写入 `New-TuiBootstrapResult`。
+5. 返回语义保持一致：`B` 返回 TUI 模式选择，`Q` 取消退出；如果跳过 Skill 安装，则不显示场景选择。
+
+### 关键决策
+
+- 默认模式和自定义模式都应显式选择 Skills Manager 场景，避免用户误以为所有 Skill 都自动写入默认场景。
+- MCP / CLI 单项安装不导入 Skill，因此仍跳过 Skills Manager 场景注册。
+- 不改底层 `Sync-SkillsManagerRegistry` DB 写入逻辑，本次只补 TUI 默认安装入口。
+
+### 验证闭环
+
+- `bootstrap.ps1` PowerShell Parser 通过。
+- `git diff --check -- bootstrap.ps1` 通过。
+- 当前提交只应包含 `bootstrap.ps1` 和 `.ai_memory` 归档；工作区已有 `manifest/apps.json`、`modules/common.psm1` 改动需单独处理。
+
+### 后续行动指引
+
+1. 若用户反馈默认安装多一步过重，可讨论是否将默认选项停留在 `default` 或 `skip` 上，但不应移除“可选场景”的能力。
+2. 若未来新增 Skill 导入入口，必须同样调用场景选择或显式传递 `SkillsManagerScenarioMode`。
+3. 手工验收时优先走 TUI 首屏默认安装，确认场景页在插件安装前出现，且选择结果显示在执行确认 / 后续命令参数中。
