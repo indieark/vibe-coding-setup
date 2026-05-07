@@ -868,7 +868,8 @@ function Invoke-WingetAction {
             Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'd2luZ2V0IHVwZ3JhZGUgezB9IOi/lOWbniB7MX3vvIznu6fnu63lkI7nu63mtYHnqIs=') -f $PackageId, $exitCode)
             return
         }
-        $exitText = if ($null -eq $exitCode) { 'unknown' } else { [string]$exitCode }
+        $outputFailureCode = [regex]::Match([string]$combinedOutput, '0x[0-9A-Fa-f]{8}')
+        $exitText = if ($null -ne $exitCode) { [string]$exitCode } elseif ($outputFailureCode.Success) { $outputFailureCode.Value } else { 'unknown' }
         throw ((ConvertFrom-Utf8Base64String -Value 'd2luZ2V0IHswfSB7MX0g5aSx6LSl77yM6YCA5Ye656CBPXsyfQ==') -f $Action, $PackageId, $exitText)
     }
 
@@ -1824,6 +1825,10 @@ function Install-AppFromDefinition {
         }
     }
 
+    $fallback = Get-ObjectPropertyValue -Object $Definition -Name 'fallback'
+    $primaryFailure = $null
+    $fallbackFailures = New-Object System.Collections.Generic.List[string]
+
     switch ($Definition.strategy) {
         'winget' {
             try {
@@ -1838,6 +1843,7 @@ function Install-AppFromDefinition {
                 }
             }
             catch {
+                $primaryFailure = $_.Exception.Message
                 $recoveredResult = Resolve-PrimaryInstallFailure -Definition $Definition -InitialDecision $decision -PrimarySource 'winget' -ErrorRecord $_ -DryRun:$DryRun
                 if ($null -ne $recoveredResult) {
                     return $recoveredResult
@@ -1851,8 +1857,8 @@ function Install-AppFromDefinition {
                 Invoke-DownloadFile -Url $asset.Url -DestinationPath $destination -DryRun:$DryRun | Out-Null
                 Install-DownloadedPackage `
                     -PackagePath $destination `
-                    -InstallerType $Definition.fallback.installerType `
-                    -SilentArgs $Definition.fallback.silentArgs `
+                    -InstallerType ([string](Get-ObjectPropertyValue -Object $fallback -Name 'installerType')) `
+                    -SilentArgs @((Get-ObjectPropertyValue -Object $fallback -Name 'silentArgs' -Default @())) `
                     -DryRun:$DryRun
 
                 return [pscustomobject]@{
@@ -1864,6 +1870,7 @@ function Install-AppFromDefinition {
                 }
             }
             catch {
+                $primaryFailure = $_.Exception.Message
                 $recoveredResult = Resolve-PrimaryInstallFailure -Definition $Definition -InitialDecision $decision -PrimarySource 'github-release' -ErrorRecord $_ -DryRun:$DryRun
                 if ($null -ne $recoveredResult) {
                     return $recoveredResult
@@ -1872,14 +1879,16 @@ function Install-AppFromDefinition {
         }
         'release-asset' {
             try {
-                $assetName = $Definition.assetName
-                $url = Get-GitHubReleaseAssetDownloadUrl -Repo $Definition.repo -Tag $Definition.tag -AssetName $assetName
+                $assetName = [string](Get-ObjectPropertyValue -Object $Definition -Name 'assetName')
+                $repo = [string](Get-ObjectPropertyValue -Object $Definition -Name 'repo')
+                $tag = [string](Get-ObjectPropertyValue -Object $Definition -Name 'tag')
+                $url = Get-GitHubReleaseAssetDownloadUrl -Repo $repo -Tag $tag -AssetName $assetName
                 $destination = Join-Path $downloadsRoot $assetName
                 Invoke-DownloadFile -Url $url -DestinationPath $destination -DryRun:$DryRun | Out-Null
                 Install-DownloadedPackage `
                     -PackagePath $destination `
-                    -InstallerType $Definition.installerType `
-                    -SilentArgs $Definition.silentArgs `
+                    -InstallerType ([string](Get-ObjectPropertyValue -Object $Definition -Name 'installerType')) `
+                    -SilentArgs @((Get-ObjectPropertyValue -Object $Definition -Name 'silentArgs' -Default @())) `
                     -DryRun:$DryRun
 
                 return [pscustomobject]@{
@@ -1887,10 +1896,11 @@ function Install-AppFromDefinition {
                     Key    = $Definition.key
                     Status = 'ok'
                     Source = 'release-asset'
-                    Detail = '{0}@{1}/{2}' -f $Definition.repo, $Definition.tag, $assetName
+                    Detail = '{0}@{1}/{2}' -f $repo, $tag, $assetName
                 }
             }
             catch {
+                $primaryFailure = $_.Exception.Message
                 $recoveredResult = Resolve-PrimaryInstallFailure -Definition $Definition -InitialDecision $decision -PrimarySource 'release-asset' -ErrorRecord $_ -DryRun:$DryRun
                 if ($null -ne $recoveredResult) {
                     return $recoveredResult
@@ -1899,13 +1909,14 @@ function Install-AppFromDefinition {
         }
         'direct-url' {
             try {
-                $fileName = Split-Path -Leaf ([uri]$Definition.url).AbsolutePath
+                $directUrl = [string](Get-ObjectPropertyValue -Object $Definition -Name 'url')
+                $fileName = Split-Path -Leaf ([uri]$directUrl).AbsolutePath
                 $destination = Join-Path $downloadsRoot $fileName
-                Invoke-DownloadFile -Url $Definition.url -DestinationPath $destination -DryRun:$DryRun | Out-Null
+                Invoke-DownloadFile -Url $directUrl -DestinationPath $destination -DryRun:$DryRun | Out-Null
                 Install-DownloadedPackage `
                     -PackagePath $destination `
-                    -InstallerType $Definition.fallback.installerType `
-                    -SilentArgs $Definition.fallback.silentArgs `
+                    -InstallerType ([string](Get-ObjectPropertyValue -Object $fallback -Name 'installerType')) `
+                    -SilentArgs @((Get-ObjectPropertyValue -Object $fallback -Name 'silentArgs' -Default @())) `
                     -DryRun:$DryRun
 
                 return [pscustomobject]@{
@@ -1913,10 +1924,11 @@ function Install-AppFromDefinition {
                     Key    = $Definition.key
                     Status = 'ok'
                     Source = 'direct-url'
-                    Detail = $Definition.url
+                    Detail = $directUrl
                 }
             }
             catch {
+                $primaryFailure = $_.Exception.Message
                 $recoveredResult = Resolve-PrimaryInstallFailure -Definition $Definition -InitialDecision $decision -PrimarySource 'direct-url' -ErrorRecord $_ -DryRun:$DryRun
                 if ($null -ne $recoveredResult) {
                     return $recoveredResult
@@ -1935,8 +1947,8 @@ function Install-AppFromDefinition {
                 Invoke-DownloadFile -Url $url -DestinationPath $destination -DryRun:$DryRun | Out-Null
                 Install-DownloadedPackage `
                     -PackagePath $destination `
-                    -InstallerType $Definition.fallback.installerType `
-                    -SilentArgs $Definition.fallback.silentArgs `
+                    -InstallerType ([string](Get-ObjectPropertyValue -Object $fallback -Name 'installerType')) `
+                    -SilentArgs @((Get-ObjectPropertyValue -Object $fallback -Name 'silentArgs' -Default @())) `
                     -DryRun:$DryRun
 
                 return [pscustomobject]@{
@@ -1948,6 +1960,7 @@ function Install-AppFromDefinition {
                 }
             }
             catch {
+                $primaryFailure = $_.Exception.Message
                 $recoveredResult = Resolve-PrimaryInstallFailure -Definition $Definition -InitialDecision $decision -PrimarySource 'github-latest-tag' -ErrorRecord $_ -DryRun:$DryRun
                 if ($null -ne $recoveredResult) {
                     return $recoveredResult
@@ -1959,14 +1972,17 @@ function Install-AppFromDefinition {
         }
     }
 
-    if (-not $Definition.fallback) {
-        throw ((ConvertFrom-Utf8Base64String -Value 'ezB9IOayoeacieWPr+eUqCBmYWxsYmFjaw==') -f $Definition.name)
+    if ($null -eq $fallback) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$primaryFailure)) {
+            throw ('{0} has no fallback package; primary source failed: {1}' -f $Definition.name, $primaryFailure)
+        }
+        throw ('{0} has no fallback package' -f $Definition.name)
     }
 
-    $fallbackWingetId = [string](Get-ObjectPropertyValue -Object $Definition.fallback -Name 'wingetId')
+    $fallbackWingetId = [string](Get-ObjectPropertyValue -Object $fallback -Name 'wingetId')
     if (-not [string]::IsNullOrWhiteSpace($fallbackWingetId)) {
         try {
-            $fallbackWingetSource = [string](Get-ObjectPropertyValue -Object $Definition.fallback -Name 'wingetSource')
+            $fallbackWingetSource = [string](Get-ObjectPropertyValue -Object $fallback -Name 'wingetSource')
             Invoke-WingetAction -Action 'install' -PackageId $fallbackWingetId -Source $fallbackWingetSource -DryRun:$DryRun
 
             return [pscustomobject]@{
@@ -1978,15 +1994,16 @@ function Install-AppFromDefinition {
             }
         }
         catch {
+            [void]$fallbackFailures.Add(('winget fallback: {0}' -f $_.Exception.Message))
             Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'd2luZ2V0IGZhbGxiYWNrIOWksei0pe+8mnswfQ==') -f $_.Exception.Message)
         }
     }
 
-    $fallbackReleaseAsset = [string](Get-ObjectPropertyValue -Object $Definition.fallback -Name 'releaseAsset')
+    $fallbackReleaseAsset = [string](Get-ObjectPropertyValue -Object $fallback -Name 'releaseAsset')
     if (-not [string]::IsNullOrWhiteSpace($fallbackReleaseAsset)) {
         try {
-            $releaseRepo = [string](Get-ObjectPropertyValue -Object $Definition.fallback -Name 'releaseRepo')
-            $releaseTag = [string](Get-ObjectPropertyValue -Object $Definition.fallback -Name 'releaseTag')
+            $releaseRepo = [string](Get-ObjectPropertyValue -Object $fallback -Name 'releaseRepo')
+            $releaseTag = [string](Get-ObjectPropertyValue -Object $fallback -Name 'releaseTag')
             $assetName = $fallbackReleaseAsset
             $url = Get-GitHubReleaseAssetDownloadUrl -Repo $releaseRepo -Tag $releaseTag -AssetName $assetName
             $destination = Join-Path $downloadsRoot $assetName
@@ -1994,8 +2011,8 @@ function Install-AppFromDefinition {
             Invoke-DownloadFile -Url $url -DestinationPath $destination -DryRun:$DryRun | Out-Null
             Install-DownloadedPackage `
                 -PackagePath $destination `
-                -InstallerType ([string](Get-ObjectPropertyValue -Object $Definition.fallback -Name 'installerType')) `
-                -SilentArgs @((Get-ObjectPropertyValue -Object $Definition.fallback -Name 'silentArgs' -Default @())) `
+                -InstallerType ([string](Get-ObjectPropertyValue -Object $fallback -Name 'installerType')) `
+                -SilentArgs @((Get-ObjectPropertyValue -Object $fallback -Name 'silentArgs' -Default @())) `
                 -DryRun:$DryRun
 
             return [pscustomobject]@{
@@ -2007,11 +2024,12 @@ function Install-AppFromDefinition {
             }
         }
         catch {
+            [void]$fallbackFailures.Add(('release fallback: {0}' -f $_.Exception.Message))
             Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'UmVsZWFzZSBmYWxsYmFjayDlpLHotKXvvJp7MH0=') -f $_.Exception.Message)
         }
     }
 
-    $fallbackUris = @((Get-ObjectPropertyValue -Object $Definition.fallback -Name 'uriCandidates' -Default @()))
+    $fallbackUris = @((Get-ObjectPropertyValue -Object $fallback -Name 'uriCandidates' -Default @()))
     if ($fallbackUris.Count -gt 0) {
         foreach ($fallbackUri in $fallbackUris) {
             try {
@@ -2029,12 +2047,21 @@ function Install-AppFromDefinition {
                 }
             }
             catch {
+                [void]$fallbackFailures.Add(('URI fallback: {0}' -f $_.Exception.Message))
                 Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'VVJJIGZhbGxiYWNrIOWksei0pe+8mnswfQ==') -f $_.Exception.Message)
             }
         }
     }
 
-    throw ((ConvertFrom-Utf8Base64String -Value 'ezB9IOWcqOe6v+adpea6kOWksei0peWQjuayoeacieWPr+eUqCBmYWxsYmFjayDlronoo4XljIU=') -f $Definition.name)
+    $failureDetails = New-Object System.Collections.Generic.List[string]
+    if (-not [string]::IsNullOrWhiteSpace([string]$primaryFailure)) {
+        [void]$failureDetails.Add(('primary: {0}' -f $primaryFailure))
+    }
+    if ($fallbackFailures.Count -gt 0) {
+        [void]$failureDetails.Add(('fallback: {0}' -f ($fallbackFailures -join ' | ')))
+    }
+    $failureSuffix = if ($failureDetails.Count -gt 0) { '; {0}' -f ($failureDetails -join '; ') } else { '' }
+    throw ('{0} has no usable fallback package after online source failed{1}' -f $Definition.name, $failureSuffix)
 }
 
 function ConvertFrom-SecureStringPlainText {

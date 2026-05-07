@@ -905,3 +905,35 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 1. 若用户反馈默认安装多一步过重，可讨论是否将默认选项停留在 `default` 或 `skip` 上，但不应移除“可选场景”的能力。
 2. 若未来新增 Skill 导入入口，必须同样调用场景选择或显式传递 `SkillsManagerScenarioMode`。
 3. 手工验收时优先走 TUI 首屏默认安装，确认场景页在插件安装前出现，且选择结果显示在执行确认 / 后续命令参数中。
+
+## 2026-05-07 — winget 源隔离与 fallback 诊断归档
+
+### 核心议题背景
+
+用户反馈启动脚本更新 Visual Studio Code 时失败，日志显示 `winget install Microsoft.VisualStudioCode` 搜索 `msstore` 源失败，错误为 `0x80072ee2`，包装层最后只报退出码 `unknown`。这不是 VS Code 包本身不存在，而是 winget 默认搜索所有源时被 Microsoft Store 源超时误伤。
+
+### Cognitive Evolution Path
+
+1. 先定位 `Invoke-WingetAction` 和 `manifest/apps.json`，确认 VS Code、Git、Node.js、Python 都是普通 winget 源包，但未显式指定 `wingetSource`。
+2. 没有选择全局禁用 `msstore`，因为 Codex Desktop 仍是 Store 包，必须保留 `wingetSource: "msstore"`。
+3. 最小修复是按 manifest 精确分源：Git、Node.js、Python、VS Code 加 `wingetSource: "winget"`，Codex Desktop 保持 `msstore`。
+4. 继续复查失败日志可读性，发现 `ExitCode` 缺失时虽然 combined output 中有 `0x80072ee2`，最终仍显示 `unknown`；因此在 `Invoke-WingetAction` 中增加 HRESULT 提取。
+5. 复查应用安装 fallback 链路时发现主来源失败后的 fallback 诊断也不够完整；修正为统一使用局部 `$fallback` 对象，并收集 winget / release / URI fallback 的失败详情，最终错误带上 `primary:` 与 `fallback:` 摘要。
+
+### 关键决策
+
+- Store 与非 Store 包按 manifest 显式分源，不做全局源屏蔽。
+- 默认源搜索容易被任一源故障拖垮；非 Store 应用不应依赖默认源搜索。
+- 失败诊断应保留原始 HRESULT 与 fallback 失败链，方便判断是网络源、Store 源、release 资产还是本地安装器问题。
+
+### 验证闭环
+
+- `manifest/apps.json` `ConvertFrom-Json` 通过。
+- `modules/common.psm1` PowerShell Parser 通过。
+- `Import-Module modules/common.psm1` 通过。
+- `git diff --check` 通过。
+### 后续行动指引
+
+1. 后续新增 winget 应用时，必须先判断来源并显式设置 `wingetSource`。
+2. 如果用户再次看到 `Failed when searching source: msstore`，优先检查对应应用是否遗漏 `wingetSource: "winget"`。
+3. 如果最终错误包含 `primary:` 和 `fallback:`，应按链路逐项判断，不要只看最后一句错误。

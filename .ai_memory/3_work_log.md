@@ -330,3 +330,7 @@
 - 默认安装现在可选择写入默认场景、自定义场景或跳过场景注册；`B` 返回模式选择，`Q` 取消退出。
 - 自定义模式的套件安装和单项 Skill 安装已有场景选择，本次保持原行为。
 - 验证通过：`bootstrap.ps1` Parser、`git diff --check -- bootstrap.ps1`。
+
+- 修复 VS Code 更新时 `winget install Microsoft.VisualStudioCode` 被 `msstore` 源超时误伤的问题：Git、Node.js、Python、VS Code 显式指定 `wingetSource: "winget"`，Codex Desktop 保持 `wingetSource: "msstore"`。
+- `Invoke-WingetAction` 在退出码缺失时会从 combined output 提取 `0x...` HRESULT，避免日志只显示 `unknown`。
+- 应用 fallback 链路统一读取 `$fallback` 对象，并把 winget / release / URI fallback 的失败原因汇总进最终错误，便于定位主来源和回退来源同时失败的场景。

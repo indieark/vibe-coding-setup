@@ -12,6 +12,8 @@
 - README、`docs/operations.md`、`docs/installer-flow.md`、`docs/skill-import.md` 和 `.ai_memory` 已同步当前语义。
 - 2026-05-06 已修复 `skills.zip` external skill 导入路径在 `Set-StrictMode -Version Latest` 下因成功流混入非结果对象而报 `在此对象上找不到属性“ImportedSkills”` 的问题。
 - 2026-05-07 已补齐 TUI 默认安装入口的 Skills Manager 场景选择；默认安装和自定义模式现在都能在写入 Skills Manager 前选择默认场景、自定义场景或跳过场景注册。
+- 2026-05-07 已修复非 Store winget 包默认搜索 `msstore` 源导致的安装 / 更新误失败；Git、Node.js、Python、VS Code 显式使用 `wingetSource: "winget"`，Codex Desktop 保持 `msstore`。
+- 2026-05-07 已增强应用安装失败可观测性：winget 退出码缺失时从输出提取 `0x...` HRESULT，fallback 失败会汇总 primary 与各 fallback 详情。
 
 ## 当前未完成项
 
@@ -27,6 +29,7 @@
 - `git diff --check` 通过。
 - `Install-SkillBundle -SkillProfiles '中文办公自动化套件' -SkipSkillsManagerLaunch -DryRun` 已覆盖 external skill 分支，返回 `ok / 已导入 5 个 skill`。
 - `bootstrap.ps1` Parser 通过；`git diff --check -- bootstrap.ps1` 通过。
+- `manifest/apps.json` JSON 解析通过；`modules/common.psm1` Parser 与 `Import-Module` 通过。
 - 默认 / 命令模式 smoke 显示 `== 步骤一：获取依赖 ==` 和 `[bootstrap] 同步 ... 100% 2/2 个依赖已完成`。
 
 - 只读组件状态 smoke 显示：
@@ -41,6 +44,7 @@
 3. 后续新增组件类型时，需要同时补状态检测、选择页详情、执行确认参数和文档进度说明。
 4. 如再次遇到 `ImportedSkills` / `CopiedCount` 等结果属性缺失，优先排查 PowerShell success output stream 是否被 native stdout 或函数返回值污染。
 5. 如用户反馈 TUI 默认安装不应多一步场景确认，可考虑基于显式启动参数保留原始 `prompt` 行为，但当前共识是默认和自定义都应能选场景。
+6. 后续新增 winget 应用时必须判断源类型并显式写入 `wingetSource`，避免非 Store 应用被 `msstore` 源状态影响。
 
 ## 阻断
 

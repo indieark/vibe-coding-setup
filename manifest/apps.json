@@ -6,6 +6,7 @@
       "order": 10,
       "strategy": "winget",
       "wingetId": "Git.Git",
+      "wingetSource": "winget",
       "detect": {
         "command": "git",
         "args": [
@@ -34,6 +35,7 @@
       "order": 20,
       "strategy": "winget",
       "wingetId": "OpenJS.NodeJS",
+      "wingetSource": "winget",
       "detect": {
         "command": "node",
         "args": [
@@ -57,6 +59,7 @@
       "order": 30,
       "strategy": "winget",
       "wingetId": "Python.Python.3.13",
+      "wingetSource": "winget",
       "detect": {
         "command": "py",
         "args": [
@@ -93,6 +96,7 @@
       "order": 40,
       "strategy": "winget",
       "wingetId": "Microsoft.VisualStudioCode",
+      "wingetSource": "winget",
       "detect": {
         "command": "code",
         "args": [
