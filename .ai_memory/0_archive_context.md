@@ -695,7 +695,7 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 
 1. 若用户反馈数量或文案不一致，优先确认公开 `bootstrap-assets/skills.zip` 是否刷新，以及本机 `downloads/skills.zip` 是否仍是旧缓存。
 2. 后续新增 TUI 中文文案时必须先转 UTF-8 Base64，避免再次触发 Windows PowerShell 5.1 `-File` 解析崩溃。
-3. 后续调整组件选择逻辑时，不要破坏 Skill / MCP / CLI 跨类型累积选择和最终统一确认。
+3. 该条历史建议已被 2026-05-10 自定义工作台修复取代：后续调整组件选择逻辑时，应明确当前动作是替换计划还是与软件 / 套件组合，并保证 `开始执行` 直接写回当前有效参数。
 
 ## 2026-05-03 — 前置依赖开屏与缓存复用归档
 
@@ -937,3 +937,39 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 1. 后续新增 winget 应用时，必须先判断来源并显式设置 `wingetSource`。
 2. 如果用户再次看到 `Failed when searching source: msstore`，优先检查对应应用是否遗漏 `wingetSource: "winget"`。
 3. 如果最终错误包含 `primary:` 和 `fallback:`，应按链路逐项判断，不要只看最后一句错误。
+
+## 2026-05-10 — 自定义工作台开始执行与 UAC 续跑归档
+
+### 核心议题背景
+
+用户反馈自定义模式存在三处连锁问题：选择检查 / 更新类选项后，`开始执行` 出现在最后一项；选择 `开始执行` 后还要看一页命令确认；确认后原窗口关闭并打开管理员窗口，但管理员窗口没有执行自定义选择，而是回到默认模式。
+
+### Cognitive Evolution Path
+
+1. 先复查 `Show-TuiWorkbenchMenu`，确认 `开始执行` 只有在已有可执行选择后才追加到 `$actions` 末尾，导致光标和视觉优先级都落在最后。
+2. 再复查 `review` 分支，确认它仍调用 `Show-TuiReview` 展示等价命令并等待 Enter；这页对用户没有实际决策价值。
+3. 继续复查 TUI 结果写回和 UAC 重启链路：管理员窗口依赖 `$PSBoundParameters` 中的 `BootstrapTuiResolved`、`SkipApps`、`Only`、`SkillName`、`McpName`、`CliName` 等参数；如果工作台状态残留或写回不完整，就容易表现为默认模式或混入旧选择。
+4. 最小修复是把 `review` 动作前置为第一项，并让 `review` 分支直接返回 `New-TuiBootstrapResult`，跳过 `Show-TuiReview`。
+5. 同时清理单项 Skill / MCP / CLI 选择时的旧软件和其它单项组件状态，确保最终只有当前有效自定义动作写回。
+
+### 关键决策
+
+- `开始执行` 不是检查动作的一部分，而是当前计划的执行入口；已有计划时应排第一。
+- 自定义模式不再展示命令确认页；命令预览保留给安全演练等仍需要确认的路径。
+- 单项 Skill / MCP / CLI 路径按当前选择替换旧组件状态，避免 UAC 后执行过期动作。
+- 默认安装仍保持原语义：不写入 `-Only`，只写入 `BootstrapTuiResolved` 防止提权后二次进入 TUI。
+
+### 验证闭环
+
+- `bootstrap.ps1` PowerShell Parser 通过。
+- `modules/common.psm1` PowerShell Parser 通过。
+- 旧命令模式通过：`powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only git`。
+- 已解析 TUI 自定义参数 smoke 通过：`-BootstrapTuiResolved -DryRun -SkipApps -SkipSkills -SkipCcSwitch` 不进入默认软件安装。
+- UAC 参数序列化 smoke 输出包含 `-BootstrapTuiResolved`、`-SkipApps`、`-SkillName`、`"skill-a,skill-b"`、`-SkillsManagerScenarioMode`、`"skip"`。
+- `git diff --check` 通过。
+
+### 后续行动指引
+
+1. 若用户反馈管理员窗口仍跑默认模式，先检查新窗口命令参数是否包含 `-BootstrapTuiResolved` 和当前自定义选择参数。
+2. 若未来新增自定义工作台动作，必须明确该动作是替换当前计划还是与软件 / 套件组合，并同步清理旧状态。
+3. 文档中不要再写“自定义模式最终执行确认页”，当前语义是 `开始执行` 直接执行。

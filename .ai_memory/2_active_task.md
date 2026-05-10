@@ -14,6 +14,7 @@
 - 2026-05-07 已补齐 TUI 默认安装入口的 Skills Manager 场景选择；默认安装和自定义模式现在都能在写入 Skills Manager 前选择默认场景、自定义场景或跳过场景注册。
 - 2026-05-07 已修复非 Store winget 包默认搜索 `msstore` 源导致的安装 / 更新误失败；Git、Node.js、Python、VS Code 显式使用 `wingetSource: "winget"`，Codex Desktop 保持 `msstore`。
 - 2026-05-07 已增强应用安装失败可观测性：winget 退出码缺失时从输出提取 `0x...` HRESULT，fallback 失败会汇总 primary 与各 fallback 详情。
+- 2026-05-10 已修复自定义工作台执行入口：已有可执行选择后 `开始执行` 显示为第一项，选择后直接执行当前自定义计划，不再进入命令确认页；单项 Skill / MCP / CLI 会清理旧选择并通过 `BootstrapTuiResolved`、`SkipApps` 和对应名称参数在 UAC 管理员窗口续跑，避免退回默认模式。
 
 ## 当前未完成项
 
@@ -29,6 +30,7 @@
 - `git diff --check` 通过。
 - `Install-SkillBundle -SkillProfiles '中文办公自动化套件' -SkipSkillsManagerLaunch -DryRun` 已覆盖 external skill 分支，返回 `ok / 已导入 5 个 skill`。
 - `bootstrap.ps1` Parser 通过；`git diff --check -- bootstrap.ps1` 通过。
+- 自定义 UAC 参数序列化 smoke 通过：`-BootstrapTuiResolved -SkipApps -SkillName "skill-a,skill-b" -SkillsManagerScenarioMode "skip"`。
 - `manifest/apps.json` JSON 解析通过；`modules/common.psm1` Parser 与 `Import-Module` 通过。
 - 默认 / 命令模式 smoke 显示 `== 步骤一：获取依赖 ==` 和 `[bootstrap] 同步 ... 100% 2/2 个依赖已完成`。
 
@@ -41,7 +43,7 @@
 
 1. 如用户继续反馈 TUI / 默认模式进度异常，优先确认是否运行最新 `bootstrap.ps1` 与刷新后的 `modules/common.psm1`。
 2. 如果显示的 Skill / MCP / CLI 数量不符合 registry，优先检查公开 `bootstrap-assets/skills.zip` 与本地 `downloads/skills.zip` 缓存。
-3. 后续新增组件类型时，需要同时补状态检测、选择页详情、执行确认参数和文档进度说明。
+3. 后续新增组件类型时，需要同时补状态检测、选择页详情、开始执行结果写回参数和文档进度说明。
 4. 如再次遇到 `ImportedSkills` / `CopiedCount` 等结果属性缺失，优先排查 PowerShell success output stream 是否被 native stdout 或函数返回值污染。
 5. 如用户反馈 TUI 默认安装不应多一步场景确认，可考虑基于显式启动参数保留原始 `prompt` 行为，但当前共识是默认和自定义都应能选场景。
 6. 后续新增 winget 应用时必须判断源类型并显式写入 `wingetSource`，避免非 Store 应用被 `msstore` 源状态影响。

@@ -20,6 +20,7 @@
 - 先走公开主来源，失败后按 `bootstrap-assets` fallback。
 - 从公开 `skills.zip` 按 registry / Profile 导入 Skill；`-AllSkills` 代表 registry 全部 Skill，bundled 直接导入，external 按来源拉取。
 - 默认进入拟似 TUI，可在进入脚本后选择默认安装、自定义模式或安全演练。
+- 自定义模式已有可执行选择后，`开始执行` 会显示为工作台第一项；选择后直接执行当前自定义计划，不再展示命令确认页。
 - TUI 会尽量切换英文输入布局，Profile / 应用多选支持英文逗号、中文逗号和顿号。
 - `skills.zip` 不在 TUI 首屏预取；只有进入套件、Skill、MCP、CLI 相关入口或实际导入组件时才按需获取。
 - 应用安装前会并行检查本机是否已安装，并持续显示已完成检查数量；只有已安装项才查目标版本并判断是否需要更新。
@@ -100,7 +101,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 ## 当前状态
 
 - `main` 已包含按需装机器 Phase 1-4：私库 bundle 镜像、Profile 选择、Skill meta 透传、三态去重，以及 registry 驱动的全部 Skill / external Skill / prereq / MCP 写入。
-- 安装器已包含集成拟似 TUI 自定义模式、运行时套件 / Skill / MCP / CLI 复选、UAC 交接提示和统一 `[检查]` 组件进度展示。
+- 安装器已包含集成拟似 TUI 自定义模式、运行时套件 / Skill / MCP / CLI 复选、UAC 自定义参数续跑和统一 `[检查]` 组件进度展示。
 - Phase 5 飞书只读镜像在 `indieark/00000-model` 侧按计划推进。
 - 下一步安装器增强应优先围绕可观测、可校验、可回滚，而不是继续堆安装项。
 

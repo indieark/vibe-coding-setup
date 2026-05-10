@@ -2829,17 +2829,16 @@ function Show-TuiWorkbenchMenu {
     )
 
     $hasRunnableSelection = -not ($State.SkipApps -and $State.SkipSkills)
-    $actions = @(
+    $actions = @()
+    if ($hasRunnableSelection) {
+        $actions += New-TuiWorkbenchAction -Action 'review' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5byA5aeL5omn6KGM') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5oyJ5b2T5YmN6YCJ5oup55u05o6l5byA5aeL5omn6KGM77yb5aaC6ZyA6LCD5pW06K+36L+U5Zue5a+55bqU6aG16Z2i44CC')
+    }
+    $actions += @(
         New-TuiWorkbenchAction -Action 'software' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l5bm25a6J6KOFL+abtOaWsOi9r+S7tg==') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5YWI5qOA5p+l5pys5py654q25oCB77yM5YaN6YCJ5oup5pys5qyh6KaB5a6J6KOF5oiW5pu05paw55qE6L2v5Lu277yb6buY6K6k5YWo6YCJ5bu66K6u6aG577yM5Y+v55So56m65qC85Y676Zmk44CC')
         New-TuiWorkbenchAction -Action 'skill-install' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l5bm25a6J6KOFL+abtOaWsOWll+S7tg==') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5YWI6K+75Y+W5aWX5Lu254q25oCB77yM5YaN6YCJ5oup5pys5qyh6KaB5a6J6KOF5oiW5pu05paw55qE5aWX5Lu277yb5pSv5oyB5YWo6YOoIFNraWxs44CB5omA5pyJ5aWX5Lu25oiW5aSa5LiqIFByb2ZpbGXjgII=')
         New-TuiWorkbenchAction -Action 'skill-component-install' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l5bm25a6J6KOFL+abtOaWsCBTa2lsbA==') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5YWI6K+75Y+WIFNraWxsIOeKtuaAge+8jOWGjemAieaLqeacrOasoeimgeWuieijheaIluabtOaWsOeahCBTa2lsbO+8m+aUr+aMgSBidW5kbGVkIC8gZXh0ZXJuYWwgU2tpbGzjgII=')
         New-TuiWorkbenchAction -Action 'mcp-component-install' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l5bm25a6J6KOFL+abtOaWsCBNQ1A=') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5YWI6K+75Y+WIE1DUCDnirbmgIHvvIzlho3pgInmi6nmnKzmrKHopoHlronoo4XmiJbmm7TmlrDnmoQgTUNQ77yb5Lya6Ieq5Yqo5aSE55CG5YW2IENMSSDliY3nva7kvp3otZbjgII=')
         New-TuiWorkbenchAction -Action 'cli-component-install' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l5bm25a6J6KOFL+abtOaWsCBDTEk=') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5YWI6K+75Y+WIENMSSDnirbmgIHvvIzlho3pgInmi6nmnKzmrKHopoHlronoo4XmiJbmm7TmlrDnmoQgQ0xJIC8gcnVudGltZSDliY3nva7kvp3otZbjgII=')
-    )
-    if ($hasRunnableSelection) {
-        $actions += New-TuiWorkbenchAction -Action 'review' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5byA5aeL5omn6KGM') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6L+b5YWl5pyA57uI56Gu6K6k6aG177yM56Gu6K6k5ZCO5byA5aeL5omn6KGM44CC')
-    }
-    $actions += @(
         New-TuiWorkbenchAction -Action 'back' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '6L+U5Zue') -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5Zue5Yiw6L+Q6KGM5qih5byP6YCJ5oup44CC')
     )
 
@@ -3182,12 +3181,16 @@ function Invoke-BootstrapTuiWorkbench {
                     $scenarioSelection = Show-TuiSkillsManagerScenarioSelection -InitialMode $state.SkillsManagerScenarioMode -InitialName $state.SkillsManagerScenarioName
                     if ($scenarioSelection -eq 'quit') { return $null }
                     if ($null -eq $scenarioSelection) { continue }
+                    $state.AppKeys = @()
+                    $state.AppLabel = ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6YCJ5oup'
                     $state.SkipApps = $true
                     $state.SkipSkills = $false
                     $state.AllSkills = $false
                     $state.AllSuites = $false
                     $state.SkillProfiles = @()
                     $state.SkillNames = @($selection)
+                    $state.McpNames = @()
+                    $state.CliNames = @()
                     $state.SkillsManagerScenarioMode = $scenarioSelection.Mode
                     $state.SkillsManagerScenarioName = $scenarioSelection.Name
                 }
@@ -3218,12 +3221,16 @@ function Invoke-BootstrapTuiWorkbench {
                     $selection = Show-TuiComponentSelection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5qOA5p+l5bm25a6J6KOFL+abtOaWsCBNQ1A=') -TypeName 'MCP' -Entries $mcpEntries -SummaryLines $mcpSummaryLines
                     if ($selection -eq 'quit') { return $null }
                     if ($null -ne $selection) {
+                        $state.AppKeys = @()
+                        $state.AppLabel = ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6YCJ5oup'
                         $state.SkipApps = $true
                         $state.SkipSkills = $false
                         $state.AllSkills = $false
                         $state.AllSuites = $false
                         $state.SkillProfiles = @()
+                        $state.SkillNames = @()
                         $state.McpNames = @($selection)
+                        $state.CliNames = @()
                         $state.SkillsManagerScenarioMode = 'skip'
                         $state.SkillsManagerScenarioName = ''
                     }
@@ -3266,11 +3273,15 @@ function Invoke-BootstrapTuiWorkbench {
                 }
                 if ($selection -eq 'quit') { return $null }
                 if ($null -ne $selection) {
+                    $state.AppKeys = @()
+                    $state.AppLabel = ConvertFrom-BootstrapUtf8Base64String -Value '5pyq6YCJ5oup'
                     $state.SkipApps = $true
                     $state.SkipSkills = $false
                     $state.AllSkills = $false
                     $state.AllSuites = $false
                     $state.SkillProfiles = @()
+                    $state.SkillNames = @()
+                    $state.McpNames = @()
                     $state.CliNames = @($selection)
                     $state.SkillsManagerScenarioMode = 'skip'
                     $state.SkillsManagerScenarioName = ''
@@ -3285,22 +3296,9 @@ function Invoke-BootstrapTuiWorkbench {
                     continue
                 }
 
+                $selectedAppKeys = if ($state.SkipApps) { @() } else { @($state.AppKeys) }
                 $options = @(Get-TuiWorkbenchOptions -State $state)
-                $review = Show-TuiReview `
-                    -SelectedAppKeys @($state.AppKeys) `
-                    -Options $options `
-                    -SkillProfiles @($state.SkillProfiles) `
-                    -SkillNames @($state.SkillNames) `
-                    -McpNames @($state.McpNames) `
-                    -CliNames @($state.CliNames) `
-                    -SkillsManagerScenarioMode $state.SkillsManagerScenarioMode `
-                    -SkillsManagerScenarioName $state.SkillsManagerScenarioName `
-                    -ModeName (ConvertFrom-BootstrapUtf8Base64String -Value '6Ieq5a6a5LmJ5qih5byP') `
-                    -IncludeOnly:(!$state.SkipApps)
-                if ($review -eq 'quit') { return $null }
-                if ($null -eq $review) { continue }
-
-                return New-TuiBootstrapResult -Only @($state.AppKeys) -Options $review.Options -SkillProfiles @($state.SkillProfiles) -SkillNames @($state.SkillNames) -McpNames @($state.McpNames) -CliNames @($state.CliNames) -SkillsManagerScenarioMode $state.SkillsManagerScenarioMode -SkillsManagerScenarioName $state.SkillsManagerScenarioName
+                return New-TuiBootstrapResult -Only $selectedAppKeys -Options $options -SkillProfiles @($state.SkillProfiles) -SkillNames @($state.SkillNames) -McpNames @($state.McpNames) -CliNames @($state.CliNames) -SkillsManagerScenarioMode $state.SkillsManagerScenarioMode -SkillsManagerScenarioName $state.SkillsManagerScenarioName
             }
             'back' {
                 return 'back'

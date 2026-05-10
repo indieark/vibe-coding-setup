@@ -22,10 +22,10 @@
 - 当前“检查并安装/更新”是节能版本地检查，不是远程实时版本查询。Skill 的 `需更新` 基于当前 `skills.zip` 中 `.skill-meta.json` 的来源身份和 `source_revision` 与本机 `~/.skills-manager/skills/<name>/.skill-meta.json` 对比；如果公开 `skills.zip` 或本地缓存未刷新，检查结果只代表旧 bundle 视角。MCP 只检查本机是否已配置对应 server，不把用户自有 MCP 配置与 registry 做更新/同步判定。CLI 只执行 `prereqs.yaml` 的 `check` 命令判断是否检测到，当前不跑 `npm outdated`、`winget upgrade`、GitHub Release 查询等慢速/联网检查，因此已安装 CLI 会显示更新未知。
 - 后续如要做真实维护型更新检查，应先扩展 registry schema，例如为 prereq 增加 `version_check`、`target_version` / `min_version`、`package_manager`、`package_id` 或 `update_check` 字段，再按来源分层实现可缓存、可禁用、可超时的远程检查；不要直接在 TUI 状态页无条件调用包管理器远程查询。
 - Skill 入口只检查 Skill，MCP 入口只检查 MCP，CLI 入口只检查 CLI；套件入口才全量检查 Skill / MCP / CLI 并展示总览。
-- Skill / MCP / CLI 单项选择会按类型累积，选择某一类不会清空其它类型已选项，最终统一进入 `执行确认`。
+- Skill / MCP / CLI 单项选择会写回对应的 `-SkillName`、`-McpName` 或 `-CliName`；选择某一类单项组件会替换上一次单项组件计划并清理旧软件选择，避免 UAC 续跑时混入过期动作。已有可执行计划时，工作台第一项显示 `开始执行`，选择后直接执行。
 - “全部 Skill”导入可选 Skill 集合：TUI 展示时会合并 `BundleSkills + RegistrySkills` 后去重，bundle 内已有的 custom / vendored 直接导入，不在 bundle 内的 external 按来源自动拉取或复制；它不会自动写入所有 MCP 或安装所有 CLI。
 - “所有套件”按全部 Profile 的并集合并 Skill / MCP / CLI 前置依赖，并在终端显示套件数、Skill 数、MCP 数和 CLI 数。
-- TUI 中选择任意 Profile 后，会取消“全部 Skill”，并在确认页生成等价 `-SkillProfile` 命令。
+- TUI 中选择任意 Profile 后，会取消“全部 Skill”，并在开始执行时写回等价 `-SkillProfile` 参数。
 - 传 `-SkillProfile "名称"`：只导入指定 Profile 引用的 skill。
 - 多个 Profile 可用英文逗号、中文逗号或顿号分隔。
 - 传 `-AllSkills`：显式导入可选 Skill 集合；bundled 直接导入，external 按 `source` 自动拉取或复制。

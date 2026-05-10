@@ -331,6 +331,14 @@
 - 自定义模式的套件安装和单项 Skill 安装已有场景选择，本次保持原行为。
 - 验证通过：`bootstrap.ps1` Parser、`git diff --check -- bootstrap.ps1`。
 
+## 2026-05-10
+
+- 修复自定义工作台 `开始执行` 入口顺序：已有可执行选择后，`开始执行` 现在显示为第一项，而不是追加到动作列表末尾。
+- 选择 `开始执行` 后直接返回当前自定义计划并进入执行流程，不再展示命令确认页。
+- 修复自定义计划提权续跑语义：单项 Skill / MCP / CLI 选择会清理旧的软件和其它单项组件残留，最终写回 `SkipApps`、对应名称参数和 Skills Manager 场景参数；UAC 后依靠 `BootstrapTuiResolved` 直接执行这些自定义动作，不再回到默认模式。
+- 同步 README、`docs/installer-flow.md`、`docs/operations.md` 和 `.ai_memory`，把“执行确认页”和“跨类型累积”的旧说明收口到当前实现。
+- 验证通过：`bootstrap.ps1` Parser、`modules/common.psm1` Parser、旧命令模式 `-DryRun -SkipSkills -SkipCcSwitch -Only git`、`-BootstrapTuiResolved -DryRun -SkipApps -SkipSkills -SkipCcSwitch`、自定义 UAC 参数序列化 smoke、`git diff --check`。
+
 - 修复 VS Code 更新时 `winget install Microsoft.VisualStudioCode` 被 `msstore` 源超时误伤的问题：Git、Node.js、Python、VS Code 显式指定 `wingetSource: "winget"`，Codex Desktop 保持 `wingetSource: "msstore"`。
 - `Invoke-WingetAction` 在退出码缺失时会从 combined output 提取 `0x...` HRESULT，避免日志只显示 `unknown`。
 - 应用 fallback 链路统一读取 `$fallback` 对象，并把 winget / release / URI fallback 的失败原因汇总进最终错误，便于定位主来源和回退来源同时失败的场景。
