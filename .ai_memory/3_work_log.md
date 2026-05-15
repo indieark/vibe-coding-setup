@@ -342,3 +342,10 @@
 - 修复 VS Code 更新时 `winget install Microsoft.VisualStudioCode` 被 `msstore` 源超时误伤的问题：Git、Node.js、Python、VS Code 显式指定 `wingetSource: "winget"`，Codex Desktop 保持 `wingetSource: "msstore"`。
 - `Invoke-WingetAction` 在退出码缺失时会从 combined output 提取 `0x...` HRESULT，避免日志只显示 `unknown`。
 - 应用 fallback 链路统一读取 `$fallback` 对象，并把 winget / release / URI fallback 的失败原因汇总进最终错误，便于定位主来源和回退来源同时失败的场景。
+
+## 2026-05-15
+
+- 修复默认安装阶段重复播报单项预检查状态：主流程已完成并行预检查并传入 `InstallDecision` 时，`Install-AppFromDefinition` 不再输出第二轮“预检查 X：...”；直接调用且没有预检查结果时仍保留自检日志。
+- 修复 winget 已输出安装成功后仍因退出码缺失 / 异常被误判失败的问题：`Invoke-WingetAction` 统一识别成功输出，成功后退出码为 null 或非 0 时按成功收尾，避免误入 post-check 和 fallback。
+- 同步 README、`docs/installer-flow.md`、`docs/operations.md` 和 `.ai_memory`，记录安装阶段复用预检查结果和 winget 成功输出兜底语义。
+- 验证通过：`modules/common.psm1` Parser、`bootstrap.ps1` Parser、`git diff --check`、传入预检查决策的 `Install-AppFromDefinition` dry-run、`bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only git`。

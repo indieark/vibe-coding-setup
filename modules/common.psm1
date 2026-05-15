@@ -793,6 +793,7 @@ function Invoke-WingetAction {
     $lastWingetLine = $null
     $lastWingetProgressPercent = -1
     $sawSuccessfulInstallOutput = $false
+    $successfulInstallPattern = '(?i)Successfully installed|Installation successful|已成功安装|安装成功'
     $successSeenAt = $null
     $exitCode = $null
 
@@ -807,7 +808,7 @@ function Invoke-WingetAction {
                     @{ Path = $stderrPath; Offset = ([ref]$stderrOffset); Pending = ([ref]$stderrPending) }
                 )) {
                 $lines = @(Get-AppendedTextLines -Path $entry.Path -Offset $entry.Offset -PendingLine $entry.Pending)
-                if (($Action -eq 'install') -and (-not $sawSuccessfulInstallOutput) -and @($lines | Where-Object { $_ -match 'Successfully installed|Installation successful' }).Count -gt 0) {
+                if (($Action -eq 'install') -and (-not $sawSuccessfulInstallOutput) -and @($lines | Where-Object { $_ -match $successfulInstallPattern }).Count -gt 0) {
                     $sawSuccessfulInstallOutput = $true
                     $successSeenAt = Get-Date
                 }
@@ -850,6 +851,10 @@ function Invoke-WingetAction {
         if ($null -eq $exitCode) {
             $process.WaitForExit()
             $exitCode = $process.ExitCode
+        }
+
+        if ($Action -eq 'install' -and $sawSuccessfulInstallOutput -and ($null -eq $exitCode -or $exitCode -ne 0)) {
+            $exitCode = 0
         }
     }
     finally {
@@ -1772,34 +1777,37 @@ function Install-AppFromDefinition {
 
     $downloadsRoot = Join-Path $WorkspaceRoot 'downloads'
     Initialize-Directory -Path $downloadsRoot
-    $decision = if ($null -ne $InstallDecision) { $InstallDecision } else { Get-AppInstallDecision -Definition $Definition }
+    $hasPrecomputedDecision = $null -ne $InstallDecision
+    $decision = if ($hasPrecomputedDecision) { $InstallDecision } else { Get-AppInstallDecision -Definition $Definition }
 
-    switch ($decision.Reason) {
-        'missing' {
-            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muacquWuieijhe+8jOWwhuaJp+ihjOWuieijhQ==') -f $Definition.name)
-        }
-        'outdated' {
-            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muW3suWuieijhSB7MX3vvIznm67moIcgezJ977yM5bCG5pu05paw') -f $Definition.name, $decision.InstalledVersion, $decision.DesiredVersion)
-        }
-        'current' {
-            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muW3suWuieijhSB7MX3vvIznm67moIcgezJ977yM6Lez6L+H') -f $Definition.name, $decision.InstalledVersion, $decision.DesiredVersion)
-        }
-        'present' {
-            if ([string]::IsNullOrWhiteSpace([string]$decision.InstalledVersion)) {
-                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muajgOa1i+WIsOW3suWuieijhe+8jOS4lOWQr+eUqCBpbnN0YWxsSWZNaXNzaW5nT25see+8jOi3s+i/hw==') -f $Definition.name)
+    if (-not $hasPrecomputedDecision) {
+        switch ($decision.Reason) {
+            'missing' {
+                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muacquWuieijhe+8jOWwhuaJp+ihjOWuieijhQ==') -f $Definition.name)
             }
-            else {
-                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muW3suWuieijhSB7MX3vvIzkuJTlkK/nlKggaW5zdGFsbElmTWlzc2luZ09ubHnvvIzot7Pov4c=') -f $Definition.name, $decision.InstalledVersion)
+            'outdated' {
+                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muW3suWuieijhSB7MX3vvIznm67moIcgezJ977yM5bCG5pu05paw') -f $Definition.name, $decision.InstalledVersion, $decision.DesiredVersion)
             }
-        }
-        'unknown-target-version' {
-            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muW3suWuieijhSB7MX3vvIznm67moIfniYjmnKzkuI3lj6/nlKjvvIzkuqTnu5nlronoo4XmnaXmupDlpITnkIY=') -f $Definition.name, $decision.InstalledVersion)
-        }
-        'unknown-installed-version' {
-            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muW6lOeUqOWtmOWcqOS9huW3suWuieijheeJiOacrOacquefpe+8jOWwhumHjeaWsOWuieijheaIluabtOaWsA==') -f $Definition.name)
-        }
-        'non-comparable' {
-            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muW3suWuieijhSB7MX3vvIznm67moIcgezJ977yM54mI5pys5LiN5Y+v5q+U6L6D77yM5bCG6YeN5paw5a6J6KOF5oiW5pu05paw') -f $Definition.name, $decision.InstalledVersion, $decision.DesiredVersion)
+            'current' {
+                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muW3suWuieijhSB7MX3vvIznm67moIcgezJ977yM6Lez6L+H') -f $Definition.name, $decision.InstalledVersion, $decision.DesiredVersion)
+            }
+            'present' {
+                if ([string]::IsNullOrWhiteSpace([string]$decision.InstalledVersion)) {
+                    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muajgOa1i+WIsOW3suWuieijhe+8jOS4lOWQr+eUqCBpbnN0YWxsSWZNaXNzaW5nT25see+8jOi3s+i/hw==') -f $Definition.name)
+                }
+                else {
+                    Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muW3suWuieijhSB7MX3vvIzkuJTlkK/nlKggaW5zdGFsbElmTWlzc2luZ09ubHnvvIzot7Pov4c=') -f $Definition.name, $decision.InstalledVersion)
+                }
+            }
+            'unknown-target-version' {
+                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muW3suWuieijhSB7MX3vvIznm67moIfniYjmnKzkuI3lj6/nlKjvvIzkuqTnu5nlronoo4XmnaXmupDlpITnkIY=') -f $Definition.name, $decision.InstalledVersion)
+            }
+            'unknown-installed-version' {
+                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muW6lOeUqOWtmOWcqOS9huW3suWuieijheeJiOacrOacquefpe+8jOWwhumHjeaWsOWuieijheaIluabtOaWsA==') -f $Definition.name)
+            }
+            'non-comparable' {
+                Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '6aKE5qOA5p+lIHswfe+8muW3suWuieijhSB7MX3vvIznm67moIcgezJ977yM54mI5pys5LiN5Y+v5q+U6L6D77yM5bCG6YeN5paw5a6J6KOF5oiW5pu05paw') -f $Definition.name, $decision.InstalledVersion, $decision.DesiredVersion)
+            }
         }
     }
 

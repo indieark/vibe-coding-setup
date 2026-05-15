@@ -2,6 +2,8 @@
 
 ## 当前状态
 
+- 2026-05-15 已修复默认安装阶段重复播报单项预检查状态的问题：主流程传入 `InstallDecision` 时，`Install-AppFromDefinition` 直接复用前置并行预检查决策，不再输出第二轮“预检查 X：...”。
+- 2026-05-15 已修复 winget 明确输出安装成功后仍因退出码缺失 / 异常被误判失败的问题：`Invoke-WingetAction` 识别成功输出后按成功收尾，避免进入失败后复查和 fallback。
 - 默认模式的交互式套件输入区已接入节能版 Skill / MCP / CLI 状态扫描。
 - 默认 Profile 菜单中的 `全部 Skill`、`所有套件` 和各 Profile 行会显示已安装、部分安装、部分安装且需更新、需更新、更新未知或未安装；其中 MCP 只参与已配置 / 未配置判断，不产生需更新状态。
 - 默认模式进入套件输入区前会显示 `[检查] Skill`、`[检查] MCP`、`[检查] CLI` 进度。
@@ -25,6 +27,7 @@
 
 ## 最近验证
 
+- 2026-05-15 验证通过：`modules/common.psm1` Parser、`bootstrap.ps1` Parser、`git diff --check`、`Install-AppFromDefinition` 传入预检查决策的 dry-run、`bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only git`。
 - PowerShell Parser 检查通过：`bootstrap.ps1`、`modules/common.psm1`。
 - `Import-Module modules/common.psm1` 通过。
 - `git diff --check` 通过。

@@ -973,3 +973,38 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 1. 若用户反馈管理员窗口仍跑默认模式，先检查新窗口命令参数是否包含 `-BootstrapTuiResolved` 和当前自定义选择参数。
 2. 若未来新增自定义工作台动作，必须明确该动作是替换当前计划还是与软件 / 套件组合，并同步清理旧状态。
 3. 文档中不要再写“自定义模式最终执行确认页”，当前语义是 `开始执行` 直接执行。
+
+## 2026-05-15 — 安装阶段预检查播报与 winget 成功判定归档
+
+### 核心议题背景
+
+用户贴出默认安装真实日志：脚本已经在应用阶段开头做了并行安装状态检查，但进入每个安装项时又输出“预检查 Git / Node.js / Python：未安装，将执行安装”。同一段日志还显示 winget 已输出“安装完成”，随后包装层仍报 `退出码=unknown`，再依赖失败后复查判定安装成功。
+
+### Cognitive Evolution Path
+
+1. 先确认主流程在 `bootstrap.ps1` 中调用 `Get-AppInstallDecisionBatch`，并把结果按 key 保存到 `$appPrecheckByKey`。
+2. 再确认安装循环会把 `$installDecision` 传入 `Install-AppFromDefinition`，所以安装阶段理论上应消费预检查结果，而不是重新做用户可见的状态播报。
+3. 根因不是再次执行了完整批量检查，而是 `Install-AppFromDefinition` 无条件把传入的决策继续按“预检查 ...”日志输出，造成重复播报和用户误解。
+4. 最小修复是在 `Install-AppFromDefinition` 中区分 `$InstallDecision` 是否来自上游：有预计算结果时静默消费；没有结果、函数独立调用时才保留内部自检日志。
+5. 顺着用户日志继续检查 `Invoke-WingetAction`，发现成功输出只用于“成功后进程不退出”的兜底；如果最终 `ExitCode` 仍是 null 或异常，后续仍会按失败抛出。修复为已看到成功输出时将异常退出码归一为成功。
+
+### 关键决策
+
+- 前置并行 precheck 是默认 / 自定义软件入口的唯一用户可见状态扫描；安装阶段只显示“准备安装 / 准备更新”和实际安装进度。
+- `Install-AppFromDefinition` 仍兼容独立调用：未传入 `InstallDecision` 时会自行检测并输出对应日志。
+- winget 成功输出优先级高于包装层异常退出码；只有没有成功输出时，才按原始退出码或 HRESULT 失败处理。
+
+### 验证闭环
+
+- `modules/common.psm1` PowerShell Parser 通过。
+- `bootstrap.ps1` PowerShell Parser 通过。
+- 传入预检查决策的 `Install-AppFromDefinition` dry-run 只输出 `[演练] winget install ...`，不再输出“预检查 Fake App”。
+- 未传入预检查决策的 `Install-AppFromDefinition` dry-run 仍输出内部预检查日志，兼容直接调用。
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only git` 通过。
+- `git diff --check` 通过。
+
+### 后续行动指引
+
+1. 若用户再次看到安装阶段出现“预检查 X：...”，先确认运行窗口使用的是更新后的 `modules/common.psm1`。
+2. 如果 winget 已输出成功但后续仍进入 fallback，优先检查成功输出文案是否不在当前 `$successfulInstallPattern` 覆盖范围。
+3. 后续新增包管理器包装时，应分别处理“状态扫描日志”“安装进度日志”和“最终成功判定”，不要把同一决策在多个阶段重复播报。
