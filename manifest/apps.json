@@ -48,7 +48,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "node-v26.1.0-x64.msi",
+        "releaseAsset": "node-v26.2.0-x64.msi",
         "installerType": "msi",
         "silentArgs": []
       }
@@ -109,7 +109,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "VSCodeUserSetup-x64-1.120.0.exe",
+        "releaseAsset": "VSCodeUserSetup-x64-1.121.0.exe",
         "installerType": "exe",
         "silentArgs": [
           "/VERYSILENT",
