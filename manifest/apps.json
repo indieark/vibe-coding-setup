@@ -109,7 +109,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "VSCodeUserSetup-x64-1.122.0.exe",
+        "releaseAsset": "VSCodeUserSetup-x64-1.122.1.exe",
         "installerType": "exe",
         "silentArgs": [
           "/VERYSILENT",
@@ -171,7 +171,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "CC-Switch-v3.15.0-Windows.msi",
+        "releaseAsset": "CC-Switch-v3.16.0-Windows.msi",
         "installerType": "msi",
         "silentArgs": []
       }
@@ -208,7 +208,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "skills-manager_1.22.2_x64_en-US.msi",
+        "releaseAsset": "skills-manager_1.22.3_x64_en-US.msi",
         "installerType": "msi",
         "silentArgs": []
       }
