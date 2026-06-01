@@ -66,7 +66,7 @@ function ConvertTo-DisplaySource {
         '^direct-url$' { return (ConvertFrom-BootstrapUtf8Base64String -Value '55u06ZO+5LiL6L29') }
         '^local-zip$' { return (ConvertFrom-BootstrapUtf8Base64String -Value '5pys5ZywIHppcA==') }
         '^ccswitch-deeplink$' { return (ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIOWvvOWFpQ==') }
-        'postcheck$' { return (ConvertFrom-BootstrapUtf8Base64String -Value '6aKE5qOA5p+l5oGi5aSN') }
+        'postcheck$' { return (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5ZCO5aSN5p+l') }
         default {
             if ([string]::IsNullOrWhiteSpace($Source)) {
                 return (ConvertFrom-BootstrapUtf8Base64String -Value '5pyq55+l5p2l5rqQ')

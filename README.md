@@ -48,7 +48,7 @@
 - TUI 进入前 best-effort 切英文输入布局;Profile / 应用多选支持英文逗号、中文逗号和顿号。
 - `skills.zip` 不在 TUI 首屏预取;只有进入套件、Skill、MCP、CLI 相关入口或实际导入组件时才按需获取。
 - 应用安装前并行检查本机是否已安装并持续显示已完成检查数量;只有已安装项才查目标版本并判断是否需要更新。
-- Skill / MCP / CLI 状态读取分别显示统一 `[检查] Skill` / `[检查] MCP` / `[检查] CLI` 逐项进度:Skill 更新用低开销本地对比 `skills.zip` 与 `.skill-meta.json`,MCP 只检查是否已配置并保留用户自有配置语义,CLI 只检测是否存在并显示更新未知;winget 已报告安装完成但进程未退出或退出码异常时自动按成功收尾。
+- Skill / MCP / CLI 状态读取分别显示统一 `[检查] Skill` / `[检查] MCP` / `[检查] CLI` 逐项进度:Skill 更新用低开销本地对比 `skills.zip` 与 `.skill-meta.json`,MCP 只检查是否已配置并保留用户自有配置语义,CLI 只检测是否存在并显示更新未知;winget 已报告安装完成,或返回异常但安装后复查确认已安装时,自动按成功处理。
 - 对同名 Skill 做安全三态判定:已跟踪、旧孤儿、第三方同名。
 - 按 `00000-model` registry 自动处理全部 Skill、bundled / external 来源、MCP 配置和前置 CLI 依赖。
 

@@ -51,7 +51,7 @@
 - 自定义模式的组件“检查并安装/更新”是节能版本地状态检查：Skill 只比较当前 `skills.zip` 中 `.skill-meta.json` 的来源身份和 `source_revision` 与本机 Skill meta；MCP 只检查本机是否已配置对应 server，不把用户自有配置与 registry 做更新或同步判定；CLI 只执行 `prereqs.yaml` 的 `check` 命令判断是否存在，`UpdateKnown=false` 且不跑 `npm outdated`、`winget upgrade` 或 GitHub Release 查询。若未来要做真实维护型更新检查，应先扩展 registry schema 并设计缓存、超时和禁用策略。
 - 自定义模式中单项 Skill / MCP / CLI 选择会替换上一次单项组件计划并清理旧软件选择，避免 UAC 续跑时混入过期动作；套件安装仍可与软件选择组合。
 - 应用安装阶段复用前置并行 precheck 的决策，不再逐项重复播报“预检查 ...”；直接调用 `Install-AppFromDefinition` 且没有传入预检查结果时，仍保留函数内部自检日志。
-- winget 安装如果已经输出成功但进程迟迟不退出，脚本会短暂等待后结束卡住的 winget 外壳并继续后续检测；如果已经输出成功但最终退出码缺失或异常，也按成功收尾；没有成功输出时仍按原始退出码处理失败。
+- winget 安装如果已经输出成功但进程迟迟不退出，脚本会短暂等待后结束卡住的 winget 外壳并继续后续检测；如果已经输出成功但最终退出码缺失或异常，也按成功处理；如果没有成功输出但安装后复查确认应用已安装，同样按成功处理并在摘要显示“安装后复查”；复查仍未通过时才按原始退出码处理失败。
 - MCP 状态检查会一次性读取 Claude Code 的 `mcp list`，再在本轮状态循环里复用结果，避免每个 MCP 都调用一次 Claude Code 导致几十秒等待。
 - 当前 registry 中飞书 CLI 的历史检测命令是 `lark --version`，但 `@larksuite/cli` 实际提供 `lark-cli`；安装器对该别名做兼容检测，避免状态页误判 lark 未安装。
 - `-SkipApps` 可跳过应用安装阶段，支持命令模式或自定义模式只执行 Skill 导入。

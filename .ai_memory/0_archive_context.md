@@ -1008,3 +1008,37 @@ Skill 导入侧新增 Skills Manager 场景注册策略：`prompt/default/custom
 1. 若用户再次看到安装阶段出现“预检查 X：...”，先确认运行窗口使用的是更新后的 `modules/common.psm1`。
 2. 如果 winget 已输出成功但后续仍进入 fallback，优先检查成功输出文案是否不在当前 `$successfulInstallPattern` 覆盖范围。
 3. 后续新增包管理器包装时，应分别处理“状态扫描日志”“安装进度日志”和“最终成功判定”，不要把同一决策在多个阶段重复播报。
+
+## 2026-06-01 — winget unknown 退出码安装后复查归档
+
+### 核心议题背景
+
+用户贴出默认安装真实日志：Git、Node.js、Python、VS Code、Codex Desktop 的 `winget install` 都显示“退出码=unknown”，随后脚本又通过失败后复查确认应用已安装并最终标记成功。实际结果可用，但日志先打 warning，执行摘要显示“预检查恢复”，容易让用户误以为 winget 安装失败。
+
+### Cognitive Evolution Path
+
+1. 先读取用户贴出的日志，确认所有 winget 应用最终都是成功状态，问题集中在用户可见的异常提示和结果来源命名。
+2. 检查 `Invoke-WingetAction` 后发现已有“成功输出后进程不退出 / 退出码异常”的处理，但这次日志没有捕获到成功输出，所以仍走 `catch -> Resolve-PrimaryInstallFailure -> Test-InstallRecoveredAfterPrimaryFailure`。
+3. 继续检查 `Resolve-PrimaryInstallFailure`，发现它在复查前就先输出 warning；即使复查成功，也会留下“winget 路径处理 ... 出错”和“跳过 fallback”的噪音。
+4. 最小修复是调整顺序：主来源异常后先复查；复查确认已安装时输出普通信息日志并返回 `*-postcheck` 成功结果；只有复查失败时才输出原来的 warning 并进入 fallback。
+5. 执行摘要的 `postcheck` 显示文案同步改为“安装后复查”，避免把安装后的确认动作误读成前置预检查。
+
+### 关键决策
+
+- 不扩大 `$successfulInstallPattern`，因为这次问题不是某一条成功输出文案遗漏，而是 winget 外层进程没有给出可靠成功信号。
+- 不跳过安装后复查；复查是判断异常返回是否可视为成功的边界。
+- 只有安装后复查失败，才把主来源异常作为用户需要关注的 warning。
+
+### 验证记录
+
+- `bootstrap.ps1`、`modules/common.psm1`、`scripts/Update-BootstrapAssets.ps1` PowerShell Parser 通过。
+- `Import-Module .\modules\common.psm1 -Force` 通过。
+- 模拟 `winget install Git.Git 失败，退出码=unknown` 且复查成功，返回 `Status=ok`、`Source=winget-postcheck`。
+- `git diff --check` 通过。
+- 未运行真实 `winget install`，避免改变当前机器软件状态。
+
+### 后续行动指引
+
+1. 如果用户再贴出 winget `unknown` 日志，先看后续是否有“安装后复查已确认 ... 已安装”；有则不是安装失败。
+2. 如果安装后复查没有确认成功，优先检查对应应用的 `detect` 规则是否能在安装完成后识别命令、Appx 或注册表版本。
+3. 仍需保留 fallback：它只应在主来源异常且安装后复查失败时触发。

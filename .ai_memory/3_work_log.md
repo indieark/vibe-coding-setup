@@ -349,3 +349,10 @@
 - 修复 winget 已输出安装成功后仍因退出码缺失 / 异常被误判失败的问题：`Invoke-WingetAction` 统一识别成功输出，成功后退出码为 null 或非 0 时按成功收尾，避免误入 post-check 和 fallback。
 - 同步 README、`docs/installer-flow.md`、`docs/operations.md` 和 `.ai_memory`，记录安装阶段复用预检查结果和 winget 成功输出兜底语义。
 - 验证通过：`modules/common.psm1` Parser、`bootstrap.ps1` Parser、`git diff --check`、传入预检查决策的 `Install-AppFromDefinition` dry-run、`bootstrap.ps1 -DryRun -SkipSkills -SkipCcSwitch -Only git`。
+
+## 2026-06-01
+
+- 修复 winget 安装实际成功但外层返回 `退出码=unknown` 时的用户可见警告：主来源异常后先做安装后复查，复查确认已安装则按成功处理并输出信息日志。
+- 执行摘要中 `*-postcheck` 来源显示为“安装后复查”，不再显示“预检查恢复”。
+- 同步 README、`docs/installer-flow.md`、`docs/operations.md` 和 `.ai_memory`，记录新判定语义。
+- 验证通过：PowerShell Parser、`Import-Module`、模拟 `winget-postcheck` 恢复路径、`git diff --check`。

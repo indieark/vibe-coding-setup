@@ -1649,11 +1649,10 @@ function Resolve-PrimaryInstallFailure {
         [switch]$DryRun
     )
 
-    Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'ezB9IOi3r+W+hOWkhOeQhiB7MX0g5pe25Ye66ZSZ77yaezJ9') -f $PrimarySource, $Definition.name, $ErrorRecord.Exception.Message)
     if (-not $DryRun) {
         $recovered = Test-InstallRecoveredAfterPrimaryFailure -Definition $Definition -InitialDecision $InitialDecision
         if ($recovered.Recovered) {
-            Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'ezB9IOWcqOWksei0peWQjuWkjeafpeaXtueci+i1t+adpeW3suWuieijhe+8jOi3s+i/hyB7MX0gZmFsbGJhY2s=') -f $Definition.name, $PrimarySource)
+            Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5a6J6KOF5ZCO5aSN5p+l5bey56Gu6K6kIHswfSDlt7Llronoo4XvvJt7MX0g6L+U5Zue5byC5bi45L2G5oyJ5oiQ5Yqf5aSE55CG77yaezJ9') -f $Definition.name, $PrimarySource, $ErrorRecord.Exception.Message)
             return [pscustomobject]@{
                 Name   = $Definition.name
                 Key    = $Definition.key
@@ -1664,6 +1663,7 @@ function Resolve-PrimaryInstallFailure {
         }
     }
 
+    Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'ezB9IOi3r+W+hOWkhOeQhiB7MX0g5pe25Ye66ZSZ77yaezJ9') -f $PrimarySource, $Definition.name, $ErrorRecord.Exception.Message)
     Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '5Li76Lev5b6E5aSx6LSl77yM5pS555SoIHJlbGVhc2Ug5oiW5pys5Zyw5a6J6KOF5YyF77yaezB9IC8gezF9') -f $PrimarySource, $Definition.name)
     return $null
 }
