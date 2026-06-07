@@ -208,7 +208,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "skills-manager_1.22.5_x64_en-US.msi",
+        "releaseAsset": "skills-manager_1.23.0_x64_en-US.msi",
         "installerType": "msi",
         "silentArgs": []
       }
