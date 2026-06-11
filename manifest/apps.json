@@ -79,7 +79,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "python-3.13.13-amd64.exe",
+        "releaseAsset": "python-3.13.14-amd64.exe",
         "installerType": "exe",
         "silentArgs": [
           "/quiet",
@@ -109,7 +109,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "VSCodeUserSetup-x64-1.123.2.exe",
+        "releaseAsset": "VSCodeUserSetup-x64-1.124.0.exe",
         "installerType": "exe",
         "silentArgs": [
           "/VERYSILENT",
@@ -208,7 +208,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "skills-manager_1.23.0_x64_en-US.msi",
+        "releaseAsset": "skills-manager_1.23.1_x64_en-US.msi",
         "installerType": "msi",
         "silentArgs": []
       }
