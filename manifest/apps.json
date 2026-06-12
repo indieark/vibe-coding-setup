@@ -109,7 +109,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "VSCodeUserSetup-x64-1.124.0.exe",
+        "releaseAsset": "VSCodeUserSetup-x64-1.124.2.exe",
         "installerType": "exe",
         "silentArgs": [
           "/VERYSILENT",
