@@ -19,7 +19,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "Git-2.54.0-64-bit.exe",
+        "releaseAsset": "Git-2.55.0-64-bit.exe",
         "installerType": "exe",
         "silentArgs": [
           "/VERYSILENT",
