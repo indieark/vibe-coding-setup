@@ -19,7 +19,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "Git-2.55.0.2-64-bit.exe",
+        "releaseAsset": "Git-2.55.0.3-64-bit.exe",
         "installerType": "exe",
         "silentArgs": [
           "/VERYSILENT",
@@ -109,7 +109,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "VSCodeUserSetup-x64-1.128.0.exe",
+        "releaseAsset": "VSCodeUserSetup-x64-1.128.1.exe",
         "installerType": "exe",
         "silentArgs": [
           "/VERYSILENT",
