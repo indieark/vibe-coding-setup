@@ -109,7 +109,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "VSCodeUserSetup-x64-1.132.1.exe",
+        "releaseAsset": "VSCodeUserSetup-x64-1.133.0.exe",
         "installerType": "exe",
         "silentArgs": [
           "/VERYSILENT",
@@ -208,7 +208,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "skills-manager_1.33.0_x64_en-US.msi",
+        "releaseAsset": "skills-manager_1.33.1_x64_en-US.msi",
         "installerType": "msi",
         "silentArgs": []
       }
