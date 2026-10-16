@@ -171,7 +171,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "CC-Switch-v4.0.12-Windows.msi",
+        "releaseAsset": "CC-Switch-v4.0.13-Windows.msi",
         "installerType": "msi",
         "silentArgs": []
       }
