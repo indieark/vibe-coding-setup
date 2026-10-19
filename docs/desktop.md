@@ -8,7 +8,7 @@ Windows 桌面界面使用 Tauri 2、React 和 TypeScript。软件清单与安�
 
 ## 构建与启动
 
-开发机器需要 Node.js、Rust MSVC 工具链、Visual Studio C++ Build Tools；运行机器需要 Windows PowerShell 5.1 与 WebView2 Runtime。
+运行机器需要 Windows PowerShell 5.1 与 WebView2 Runtime；无需安装编译工具。本地源码目录缺少 exe 时，启动脚本自动下载已发布的 GUI。需要修改和构建界面时，开发机器才需要 Node.js、Rust MSVC 工具链、Visual Studio C++ Build Tools。
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Desktop.ps1

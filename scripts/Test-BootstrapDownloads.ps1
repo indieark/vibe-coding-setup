@@ -82,6 +82,27 @@ try {
         Assert-True (@(Get-ChildItem -LiteralPath $scratch -Filter '*.download').Count -eq 0) "$kind removes pending files"
     }
 
+    # A fresh source checkout gets the public GUI without requiring a compiler.
+    $localDesktopRoutes = & {
+        $BootstrapAssetsRepo = 'indieark/vibe-coding-setup'
+        $BootstrapAssetsTag = 'bootstrap-assets'
+        $reuseOnly = $false
+        function Copy-BootstrapReleaseAsset {
+            param($Repo,$Tag,$DestinationRoot,$RelativePath,$AssetName,$Refresh)
+            if ($reuseOnly) { throw 'Local GUI should reuse the existing executable' }
+            if ($AssetName -ne 'IndieArkSetup.exe') { throw 'Unexpected desktop asset' }
+            $path = Join-Path $DestinationRoot $RelativePath
+            [void](New-Item -ItemType Directory -Path (Split-Path -Parent $path) -Force)
+            [IO.File]::WriteAllBytes($path, [byte[]]@(77,90,0,0))
+        }
+        $localRoot = Join-Path $scratch 'fresh-source'
+        Start-BootstrapDesktop -Root $localRoot -SourceRoot $repoRoot -UserHome $scratch -CheckOnly -DryRunOnly | ConvertFrom-Json
+        $reuseOnly = $true
+        Start-BootstrapDesktop -Root $localRoot -SourceRoot $repoRoot -UserHome $scratch -CheckOnly -DryRunOnly | ConvertFrom-Json
+    }
+    Assert-True ($localDesktopRoutes.Count -eq 2 -and $localDesktopRoutes[0].Mode -eq 'gui') 'fresh source checkout downloads the public GUI'
+    Assert-True ($localDesktopRoutes[1].Mode -eq 'gui' -and $localDesktopRoutes[1].DryRunOnly) 'local GUI is reused without elevation or a window'
+
     # Execute the actual launcher command in a child with an isolated TEMP.
     $launcherLine = Get-Content -LiteralPath (Join-Path $repoRoot 'vibe-coding-setup.cmd') | Where-Object { $_ -match '-Command "' }
     if ($launcherLine -notmatch '-Command "(.*)"$') { throw 'Launcher command not found' }

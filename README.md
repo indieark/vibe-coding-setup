@@ -59,7 +59,7 @@
 
 ### 本地仓库运行
 
-本地桌面版本先运行 `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Desktop.ps1` 构建一次。随后双击 `bootstrap.cmd` 或仓库里的 `vibe-coding-setup.cmd` 即可打开界面。图形界面的架构、构建与验收见 [桌面安装器](docs/desktop.md)。
+双击 `bootstrap.cmd` 或仓库里的 `vibe-coding-setup.cmd` 即可打开界面；缺少桌面程序时自动下载已发布版本，无需安装编译工具。开发构建和验收见 [桌面安装器](docs/desktop.md)。
 
 ```powershell
 Set-Location "C:\Vibe_Coding\IndieArk\gadget\vibe-coding-setup"

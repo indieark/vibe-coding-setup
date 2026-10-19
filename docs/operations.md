@@ -2,7 +2,7 @@
 
 ## 本地仓库运行
 
-本地构建桌面可执行文件后，双击原有 `.cmd` 默认打开 Tauri 安装界面。界面可选择软件、填写 CC Switch Provider、检查环境、安全演练、安装并查看脱敏诊断。构建和验收入口见 [桌面安装器](desktop.md)。
+双击原有 `.cmd` 默认打开 Tauri 安装界面；源码目录缺少 exe 时自动下载已发布程序。界面可选择软件、填写 CC Switch Provider、检查环境、安全演练、安装并查看脱敏诊断。开发构建和验收入口见 [桌面安装器](desktop.md)。
 
 ```powershell
 Set-Location "C:\Vibe_Coding\IndieArk\gadget\vibe-coding-setup"
