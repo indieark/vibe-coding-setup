@@ -81,7 +81,7 @@ function Run-Worker([hashtable]$Plan,[string]$StopPath='') {
     [pscustomobject]@{ExitCode=$process.ExitCode;Raw=$raw;Events=$events;Error=$stderr.Result}
 }
 $describe = Run-Worker @{mode='describe'}
-Assert-True ($describe.ExitCode -eq 0) 'Describe should succeed'
+Assert-True ($describe.ExitCode -eq 0) ('Describe should succeed. Worker stdout: ' + $describe.Raw + '; stderr: ' + $describe.Error)
 $catalog = $describe.Events | Where-Object type -eq 'catalog'
 Assert-True ($catalog.apps.Count -eq 8) 'Catalog reads the real manifest'
 Assert-True ($catalog.provider.Model -eq 'gpt-6.1-sol') 'Catalog reuses provider defaults'

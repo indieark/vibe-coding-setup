@@ -49,6 +49,7 @@ jobs:
         run: |
           ./scripts/Test-Bootstrap.ps1
           ./scripts/Test-BootstrapDownloads.ps1
+          ./scripts/Test-Desktop.ps1 -SkipBinary
       - name: Build desktop executable
         shell: powershell
         run: ./scripts/Build-Desktop.ps1 -SkipInstall
