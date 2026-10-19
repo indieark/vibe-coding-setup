@@ -19,6 +19,8 @@ param(
     [string]$SkillsManagerScenarioMode = 'prompt',
     [string]$SkillsManagerScenarioName,
     [switch]$Tui,
+    [switch]$Gui,
+    [switch]$GuiCheck,
     [switch]$PauseOnExit,
     [switch]$KeepShellOpen,
     [string]$UserHomeOverride,
@@ -3450,6 +3452,27 @@ function ConvertTo-BootstrapNonEmptyStringArray {
     )
 }
 
+function Start-BootstrapDesktop {
+    param([string]$Root, [string]$SourceRoot, [string]$UserHome, [switch]$CheckOnly, [switch]$DryRunOnly)
+
+    Copy-BootstrapDependency -SourceRoot $SourceRoot -DestinationRoot $Root -RelativePath 'scripts/DesktopWorker.ps1' -Refresh:(Test-HttpSourceRoot -SourceRoot $SourceRoot)
+    $executable = Join-Path $Root 'desktop\bin\IndieArkSetup.exe'
+    if (Test-HttpSourceRoot -SourceRoot $SourceRoot) {
+        Copy-BootstrapReleaseAsset -Repo $BootstrapAssetsRepo -Tag $BootstrapAssetsTag -DestinationRoot $Root -RelativePath 'desktop/bin/IndieArkSetup.exe' -AssetName 'IndieArkSetup.exe' -Refresh $true
+    }
+    elseif (-not (Test-Path -LiteralPath $executable)) {
+        throw 'Desktop executable is missing. Run scripts/Build-Desktop.ps1 first, or use -Tui for the existing terminal interface.'
+    }
+    $stream = [IO.File]::OpenRead($executable)
+    try { if ($stream.ReadByte() -ne 77 -or $stream.ReadByte() -ne 90) { throw 'Invalid desktop executable. Download or rebuild IndieArkSetup.exe.' } }
+    finally { $stream.Dispose() }
+    if ($CheckOnly) { return ([pscustomobject]@{ Mode='gui'; Executable=$executable; UserHome=$UserHome; RequiresElevation=(-not $DryRunOnly -and -not (Test-IsAdministrator)); DryRunOnly=[bool]$DryRunOnly } | ConvertTo-Json -Compress) }
+    $arguments = @('--user-home', ('"{0}"' -f $UserHome), '--source-root', ('"{0}"' -f $Root))
+    if ($DryRunOnly) { $arguments += '--dry-run-only' }
+    if ($DryRunOnly -or (Test-IsAdministrator)) { Start-Process -FilePath $executable -ArgumentList $arguments -WindowStyle Normal | Out-Null }
+    else { Start-Process -FilePath $executable -ArgumentList $arguments -Verb RunAs -WindowStyle Normal | Out-Null }
+}
+
 function Test-BootstrapShouldUseTui {
     param(
         [Parameter(Mandatory)]
@@ -3538,6 +3561,12 @@ if (-not [string]::IsNullOrWhiteSpace($effectiveUserHome)) {
 $manifestPath = Join-Path $root 'manifest\apps.json'
 $manifest = Get-AppManifest -ManifestPath $manifestPath
 $skillBundlePath = Join-Path $root 'downloads\skills.zip'
+
+if ($Gui -and $Tui) { throw 'Choose either -Gui or -Tui.' }
+if ($Gui -or $GuiCheck -or ($shouldUseTui -and -not $Tui)) {
+    Start-BootstrapDesktop -Root $root -SourceRoot $BootstrapSourceRoot -UserHome $effectiveUserHome -CheckOnly:$GuiCheck -DryRunOnly:$DryRun
+    return
+}
 
 # Components are opt-in for both command mode and the TUI default path.
 $componentSelections = @(ConvertTo-BootstrapNonEmptyStringArray -Value @($SkillProfile; $SkillName; $McpName; $CliName))

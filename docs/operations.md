@@ -2,20 +2,20 @@
 
 ## 本地仓库运行
 
-本地手动装机直接进入拟似 TUI，可用方向键选择运行模式、工作台动作和 Skill Profile。运行模式首页会在标题下方显示核心功能、具体能力和仓库地址：
+本地构建桌面可执行文件后，双击原有 `.cmd` 默认打开 Tauri 安装界面。界面可选择软件、填写 CC Switch Provider、检查环境、安全演练、安装并查看脱敏诊断。构建和验收入口见 [桌面安装器](desktop.md)。
 
 ```powershell
 Set-Location "C:\Vibe_Coding\IndieArk\gadget\vibe-coding-setup"
 .\bootstrap.cmd
 ```
 
-无安装参数时会先进入 TUI；“默认安装”已经包含在 TUI 里，选择后不再改写为 `-Only`，而是按默认配置继续执行：安装默认应用并导入 CC Switch 配置，不创建工作目录、不安装 Skills Manager，也不下载或导入 Skill 包。
+无操作参数时进入 GUI，真实安装会通过启动脚本申请管理员权限。GUI 默认选中常用应用，Skills Manager 可选；套件、Skills、MCP 和 CLI 在“扩展组件”页选择和执行，使用方式见 [桌面安装器](desktop.md#扩展组件)。需要直接进入终端工作台时显式传入 `-Tui`：
 
 ```powershell
 .\bootstrap.cmd -Tui
 ```
 
-`-Tui` 可在已有参数场景下强制打开 TUI。自动化或旧式命令继续直接传参数，例如 `.\bootstrap.cmd -Only git,nodejs`。
+`-Gui` 可显式打开 GUI；`-GuiCheck` 只验证桌面入口、不启动窗口。`-Tui` 可在已有参数场景下强制打开 TUI。自动化或旧式命令继续直接传参数，例如 `.\bootstrap.cmd -Only git,nodejs`。
 
 TUI 首屏包含三类入口：
 
@@ -47,7 +47,7 @@ TUI 首屏包含三类入口：
 
 这个 PowerShell 单行命令先下载最新 `vibe-coding-setup.cmd`，再由启动器下载 `bootstrap.ps1`。每次远程启动都会刷新 `modules/common.psm1` 和 `manifest/apps.json`，避免只更新主脚本却复用旧依赖。启动器缓存位于 `%TEMP%/vibe-coding-setup/`。下载失败会立即停止，不执行上次残留的脚本。
 
-远程入口会传入 `BootstrapSourceRoot`、`BootstrapAssetsRepo`、`BootstrapAssetsTag`、`RefreshBootstrapDependencies` 等自举内部参数。这些参数不算安装选择；如果没有 `-Only`、`-DryRun`、`-SkipSkills` 等操作参数，脚本仍会进入 TUI。
+远程入口会传入 `BootstrapSourceRoot`、`BootstrapAssetsRepo`、`BootstrapAssetsTag`、`RefreshBootstrapDependencies` 等自举内部参数。这些参数不算安装选择；如果没有 `-Only`、`-DryRun`、`-SkipSkills` 等操作参数，默认打开 GUI。远程 GUI 启动还会刷新 Worker 与公开桌面程序；已打开的窗口需要关闭后重开才能使用更新。
 
 ## 如何确认使用新版
 
@@ -168,7 +168,7 @@ CC Switch 默认 Provider 为 `IndieArk API`，Base URL 为 `https://api.indiear
 
 ## 维护者回归检查
 
-以下检查不会安装软件或写入用户配置；下载检查仅使用本机回环 HTTP 服务和隔离的临时目录：
+图形界面集成检查另见 [桌面安装器](desktop.md#验证)。以下检查不会安装软件或写入用户配置；下载检查仅使用本机回环 HTTP 服务和隔离的临时目录：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-Bootstrap.ps1

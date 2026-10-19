@@ -3,3 +3,11 @@ logs/
 temp/
 .local/
 *.log
+desktop/node_modules/
+desktop/dist/
+desktop/bin/
+desktop/src-tauri/target/
+desktop/src-tauri/icons/*
+!desktop/src-tauri/icons/icon.ico
+!desktop/src-tauri/icons/icon.png
+desktop/src-tauri/gen/

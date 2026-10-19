@@ -4,7 +4,7 @@
 
 **面向 Windows 的 IndieArk 一键装机器 — 装好常用工具、配置 API，按需扩展 Skills。**
 
-`可审计 PowerShell 安装器` · `主来源 + 镜像 fallback` · `registry / Profile 驱动 Skill 导入` · `三态去重安全` · `拟似 TUI` — 把分散的装机步骤收敛成一个可审计、可回滚、可追更的安装器。
+`可审计 PowerShell 安装器` · `主来源 + 镜像 fallback` · `registry / Profile 驱动 Skill 导入` · `三态去重安全` · `Tauri 桌面界面` — 把分散的装机步骤收敛成一个可审计、可回滚、可追更的安装器。
 
 [![License](https://img.shields.io/badge/license-Proprietary-blue?style=flat-square)](#license)
 [![Stack](https://img.shields.io/badge/stack-PowerShell%20%2B%20winget-5391FE?style=flat-square)](#它做什么)
@@ -43,9 +43,9 @@
 
 - 安装常用 Windows 开发工具:Git、Node.js、Python、VS Code、Codex Desktop、ChatGPT、CC Switch。Skills Manager 仅供按需选装。
 - 先走公开主来源,失败后按 `bootstrap-assets` fallback。
-- 默认不创建工作目录、不安装 Skills Manager、不导入 Skill / MCP / CLI；需要时从自定义模式选择，或使用显式参数。
+- 默认不创建工作目录、不安装 Skills Manager、不导入 Skill / MCP / CLI；需要时从桌面的“扩展组件”页选择，或使用显式参数。
 - 按需从公开 `skills.zip` 按 registry / Profile 导入 Skill;`-AllSkills` 代表 registry 全部 Skill,bundled 直接导入,external 按来源拉取。
-- 默认进入拟似 TUI,可选默认安装、自定义模式或安全演练;自定义模式已有可执行选择后,「开始执行」显示为工作台第一项,选择后直接执行当前自定义计划,不再展示命令确认页。
+- 无参数双击默认打开 Tauri 安装界面；`-Tui` 保留终端工作台。自定义模式已有可执行选择后,「开始执行」显示为工作台第一项,选择后直接执行当前自定义计划,不再展示命令确认页。
 - TUI 进入前 best-effort 切英文输入布局;Profile / 应用多选支持英文逗号、中文逗号和顿号。
 - `skills.zip` 不在 TUI 首屏预取;只有进入套件、Skill、MCP、CLI 相关入口或实际导入组件时才按需获取。
 - 应用安装前并行检查本机是否已安装并持续显示已完成检查数量;只有已安装项才查目标版本并判断是否需要更新。
@@ -59,12 +59,16 @@
 
 ### 本地仓库运行
 
+本地桌面版本先运行 `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Desktop.ps1` 构建一次。随后双击 `bootstrap.cmd` 或仓库里的 `vibe-coding-setup.cmd` 即可打开界面。图形界面的架构、构建与验收见 [桌面安装器](docs/desktop.md)。
+
 ```powershell
 Set-Location "C:\Vibe_Coding\IndieArk\gadget\vibe-coding-setup"
 .\bootstrap.cmd
 ```
 
 ### 远程自举运行
+
+独立启动脚本和下面的远程命令获取 GitHub `main` 与公开桌面资产，无操作参数时打开 Tauri 界面；更新与发布方式见 [桌面安装器](docs/desktop.md#发布与更新)。
 
 在 PowerShell 中粘贴以下单行命令，获取最新启动器。远程入口每次刷新脚本、模块和安装清单；本地入口仅运行当前文件，更新方式见 [运行命令](docs/operations.md#如何确认使用新版)。
 
@@ -97,8 +101,8 @@ Set-Location "C:\Vibe_Coding\IndieArk\gadget\vibe-coding-setup"
 | 应用安装 | `manifest/apps.json` 驱动,默认跳过 `defaultInstall: false` 的可选应用,先并行 precheck;缺失则安装,已存在才查目标版本并决定更新或跳过 |
 | 失败回退 | 主来源失败后 post-check,仍失败才使用 fallback |
 | 资产镜像 | 私库资产只在 GitHub Actions 中读取,终端用户只访问公开 `bootstrap-assets` |
-| TUI 入口 | 无安装参数默认进入拟似 TUI;显式参数继续支持旧命令模式 |
-| Skill / MCP 导入 | `skills.zip` 内置 registry 和 Profile,TUI 与命令模式都支持全部 Skill、按 Profile、按单项导入 bundled / external Skill、前置 CLI 依赖和 MCP 配置,并可选 Skills Manager 场景注册方式 |
+| 桌面 / TUI 入口 | 无操作参数打开 Tauri GUI；`-Tui` 打开终端工作台，显式安装参数继续使用命令模式 |
+| Skill / MCP 导入 | 桌面“扩展组件”页支持套件、Skills、MCP、CLI 搜索、混选、依赖预览、检查、演练与安装；TUI 和命令模式继续保留 |
 | 输入兼容 | TUI 进入前 best-effort 切英文输入布局;多选分隔支持 `,`、`，`、`、` |
 | 去重安全 | `Tracked / Orphan / Foreign` 三态判定,默认备份不删除 |
 | 进度展示 | 应用 precheck、Skill / MCP / CLI 状态扫描、下载、winget 下载 / 安装和 Skill bundle 解压使用脚本自绘同一行进度;组件扫描统一显示 `[检查]` 标签,winget 输出过滤噪音并中文化常见状态 |
@@ -141,6 +145,7 @@ Set-Location "C:\Vibe_Coding\IndieArk\gadget\vibe-coding-setup"
 | 你想做什么 | 去哪里看 |
 |---|---|
 | 第一次使用安装器 | [运行命令](docs/operations.md) |
+| 构建、运行和验收 Tauri 界面 | [桌面安装器](docs/desktop.md) |
 | 理解完整执行顺序 | [安装执行顺序](docs/installer-flow.md) |
 | 理解 Skill/Profile/三态去重 | [Skill 导入契约](docs/skill-import.md) |
 | 维护 release asset、刷新 `skills.zip` 或排查旧缓存 | [资产刷新链路](docs/asset-refresh.md) |

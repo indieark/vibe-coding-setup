@@ -2,6 +2,12 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $script:OperationProgressLineActive = $false
 $script:OperationProgressLastLineLength = 0
+$script:InstallerEventSink = $null
+
+function Set-InstallerEventSink {
+    param([scriptblock]$Sink)
+    $script:InstallerEventSink = $Sink
+}
 
 function Write-Log {
     param(
@@ -10,6 +16,11 @@ function Write-Log {
         [ValidateSet('INFO', 'WARN', 'ERROR')]
         [string]$Level = 'INFO'
     )
+
+    if ($null -ne $script:InstallerEventSink) {
+        & $script:InstallerEventSink @{ type = 'log'; message = $Message; level = $Level }
+        return
+    }
 
     if ($script:OperationProgressLineActive) {
         Write-Host ''
@@ -45,6 +56,11 @@ function Write-OperationProgress {
         [switch]$Completed,
         [string]$Prefix = ''
     )
+
+    if ($null -ne $script:InstallerEventSink) {
+        & $script:InstallerEventSink @{ type = 'progress'; label = $Label; percent = $Percent; detail = $Detail; completed = [bool]$Completed }
+        return
+    }
 
     $barWidth = 20
     $canRenderInPlace = Test-ConsoleProgressRendering
@@ -2385,6 +2401,14 @@ limit 1;
     }
 }
 
+function Get-CodexProviderDefaults {
+    return [pscustomobject]@{
+        Name = if (-not [string]::IsNullOrWhiteSpace($env:VIBE_CODING_PROVIDER_NAME)) { $env:VIBE_CODING_PROVIDER_NAME } else { 'IndieArk API' }
+        BaseUrl = if (-not [string]::IsNullOrWhiteSpace($env:VIBE_CODING_BASE_URL)) { $env:VIBE_CODING_BASE_URL } else { 'https://api.indieark.tech/v1' }
+        Model = if (-not [string]::IsNullOrWhiteSpace($env:VIBE_CODING_MODEL)) { $env:VIBE_CODING_MODEL } else { 'gpt-6.1-sol' }
+    }
+}
+
 function Read-CodexProviderInput {
     param(
         [string]$PresetName,
@@ -2393,29 +2417,10 @@ function Read-CodexProviderInput {
         [string]$PresetApiKey
     )
 
-    $name = $PresetName
-    if ([string]::IsNullOrWhiteSpace($name)) {
-        $name = $env:VIBE_CODING_PROVIDER_NAME
-    }
-    if ([string]::IsNullOrWhiteSpace($name)) {
-        $name = 'IndieArk API'
-    }
-
-    $baseUrl = $PresetBaseUrl
-    if ([string]::IsNullOrWhiteSpace($baseUrl)) {
-        $baseUrl = $env:VIBE_CODING_BASE_URL
-    }
-    if ([string]::IsNullOrWhiteSpace($baseUrl)) {
-        $baseUrl = 'https://api.indieark.tech/v1'
-    }
-
-    $model = $PresetModel
-    if ([string]::IsNullOrWhiteSpace($model)) {
-        $model = $env:VIBE_CODING_MODEL
-    }
-    if ([string]::IsNullOrWhiteSpace($model)) {
-        $model = 'gpt-6.1-sol'
-    }
+    $defaults = Get-CodexProviderDefaults
+    $name = if ([string]::IsNullOrWhiteSpace($PresetName)) { $defaults.Name } else { $PresetName }
+    $baseUrl = if ([string]::IsNullOrWhiteSpace($PresetBaseUrl)) { $defaults.BaseUrl } else { $PresetBaseUrl }
+    $model = if ([string]::IsNullOrWhiteSpace($PresetModel)) { $defaults.Model } else { $PresetModel }
 
     Write-CodexProviderInputSection `
         -Title (ConvertFrom-Utf8Base64String -Value '6L6T5YWl5Yy6') `
@@ -3724,6 +3729,9 @@ function Get-SkillBundleInventory {
             }
             $registrySkills = @(Read-RegistrySkillEntries -RegistryRoot $registryRoot)
             $mcpEntries = @(Read-RegistryMcpEntries -RegistryRoot $registryRoot)
+            foreach ($entry in $mcpEntries) {
+                $entry | Add-Member -MemberType NoteProperty -Name Requires -Value @(Get-ProfilePrereqNames -RegistryRoot $registryRoot -McpNames @($entry.Name)) -Force
+            }
             $prereqEntries = @(Read-RegistryPrereqEntries -RegistryRoot $registryRoot)
             $mcpAssets = @(Get-RegistryMirrorAssetNames -RegistryRoot $registryRoot -RelativePath 'mcps')
             $prereqAssets = @(Get-RegistryMirrorAssetNames -RegistryRoot $registryRoot -RelativePath 'prereqs')
@@ -6345,6 +6353,8 @@ function Install-SkillBundle {
 }
 
 Export-ModuleMember -Function @(
+    'Set-InstallerEventSink',
+    'Get-CodexProviderDefaults',
     'Write-Log',
     'Test-IsAdministrator',
     'ConvertTo-ArgumentTokens',

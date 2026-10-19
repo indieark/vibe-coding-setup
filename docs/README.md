@@ -9,7 +9,7 @@
 你只想安装或验证本机行为：
 
 1. 先看 [运行命令](operations.md)。
-2. 如果要交互选择应用、套件、Skill、MCP、CLI 或 Skills Manager 场景，使用默认 TUI 入口。
+2. 常用装机使用 [桌面安装器](desktop.md)；套件、Skill、MCP、CLI 或 Skills Manager 场景使用 GUI 高级组件入口或显式 `-Tui`。
 3. 如果只想预览 Skill 导入风险，直接跑安全演练命令。
 4. 如果看到 Skill 被跳过或备份，再看 [Skill 导入契约](skill-import.md)。
 

@@ -1,0 +1,68 @@
+name: Publish desktop installer
+
+on:
+  push:
+    branches: ["release/desktop-*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-desktop
+  cancel-in-progress: false
+
+jobs:
+  desktop:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26.8.1"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Prepare Rust toolchain
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.98.0 --profile minimal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup default 1.98.0
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            desktop/src-tauri/target
+          key: desktop-windows-rust-1.98.0-${{ hashFiles('desktop/src-tauri/Cargo.lock') }}
+      - name: Install frontend dependencies and check state handling
+        working-directory: desktop
+        shell: pwsh
+        run: |
+          npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Check existing installation and download paths
+        shell: powershell
+        run: |
+          ./scripts/Test-Bootstrap.ps1
+          ./scripts/Test-BootstrapDownloads.ps1
+      - name: Build desktop executable
+        shell: powershell
+        run: ./scripts/Build-Desktop.ps1 -SkipInstall
+      - name: Verify packaged worker and both launchers
+        shell: powershell
+        run: ./scripts/Test-Desktop.ps1
+      - name: Publish verified desktop asset
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $asset = 'desktop/bin/IndieArkSetup.exe'
+          $checksum = (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$checksum  IndieArkSetup.exe" | Set-Content -Encoding ascii desktop/bin/IndieArkSetup.exe.sha256
+          gh release upload bootstrap-assets $asset desktop/bin/IndieArkSetup.exe.sha256 --repo '${{ github.repository }}' --clobber
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "Published commit: ${{ github.sha }}`nSHA256: $checksum" >> $env:GITHUB_STEP_SUMMARY

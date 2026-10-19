@@ -9,6 +9,7 @@
 ## 关键文件
 
 - `.github/workflows/refresh-bootstrap-assets.yml`
+- `.github/workflows/publish-desktop.yml`（桌面程序发布，见 [桌面安装器](desktop.md#发布与更新)）
 - `scripts/Update-BootstrapAssets.ps1`
 - `manifest/apps.json`
 - `README.md`
