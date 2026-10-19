@@ -3,7 +3,6 @@ param([string]$StopPath)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-[Console]::InputEncoding = [Text.UTF8Encoding]::new($false)
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $root = Split-Path -Parent $PSScriptRoot
 $runId = ''
@@ -103,7 +102,10 @@ function Get-DesktopExtensionItems {
 }
 
 try {
-    $plan = [Console]::In.ReadToEnd() | ConvertFrom-Json
+    # Read the pipe explicitly so UTF-8 input works with or without a writer's BOM.
+    $inputReader = [IO.StreamReader]::new([Console]::OpenStandardInput(), [Text.UTF8Encoding]::new($false), $true)
+    try { $plan = $inputReader.ReadToEnd() | ConvertFrom-Json }
+    finally { $inputReader.Dispose() }
     $runId = [string]$plan.runId
     $mode = [string]$plan.mode
     if ($mode -notin @('describe','check','install','extensions','install-components')) { throw 'Unsupported operation.' }

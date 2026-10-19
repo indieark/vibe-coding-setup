@@ -85,6 +85,13 @@ Assert-True ($describe.ExitCode -eq 0) ('Describe should succeed. Worker stdout:
 $catalog = $describe.Events | Where-Object type -eq 'catalog'
 Assert-True ($catalog.apps.Count -eq 8) 'Catalog reads the real manifest'
 Assert-True ($catalog.provider.Model -eq 'gpt-6.1-sol') 'Catalog reuses provider defaults'
+$previousInputEncoding = [Console]::InputEncoding
+try {
+    [Console]::InputEncoding = [Text.UTF8Encoding]::new($true)
+    $bomDescribe = Run-Worker @{mode='describe'}
+}
+finally { [Console]::InputEncoding = $previousInputEncoding }
+Assert-True ($bomDescribe.ExitCode -eq 0) 'Worker input remains valid when the parent console uses UTF-8 with BOM'
 if (-not $catalog.isAdmin) {
     $denied = Run-Worker @{mode='install';appKeys=@('nodejs');dryRun=$false;configureProvider=$false;provider=@{}}
     Assert-True ($denied.ExitCode -eq 1 -and @($denied.Events | Where-Object type -eq 'app-start').Count -eq 0) 'Unelevated real installations are rejected before execution'
