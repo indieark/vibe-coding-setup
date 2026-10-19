@@ -215,6 +215,11 @@ function Get-SelectedApps {
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
         ForEach-Object { $_.ToLowerInvariant() }
     )
+    $knownKeys = @($Apps | ForEach-Object { $_.key.ToLowerInvariant() })
+    $unknownKeys = @($lookup | Where-Object { $knownKeys -notcontains $_ } | Select-Object -Unique)
+    if ($unknownKeys.Count -gt 0) {
+        throw ('Unknown application key(s): {0}. Available keys: {1}' -f ($unknownKeys -join ', '), ($knownKeys -join ', '))
+    }
     $selected = @($Apps | Where-Object { $lookup -contains $_.key.ToLowerInvariant() })
 
     if ($selected.Count -eq 0) {
@@ -386,14 +391,17 @@ function Invoke-DownloadFile {
     $response = $null
     $inputStream = $null
     $outputStream = $null
+    $pendingPath = '{0}.{1}.download' -f $DestinationPath, [guid]::NewGuid().ToString('N')
     try {
         $request = [System.Net.HttpWebRequest]::Create($Url)
         $request.AllowAutoRedirect = $true
         $request.UserAgent = 'VibeCodingSetup/1.0'
+        $request.Timeout = 120000
+        $request.ReadWriteTimeout = 120000
         $response = $request.GetResponse()
         $totalBytes = [int64]$response.ContentLength
         $inputStream = $response.GetResponseStream()
-        $outputStream = [System.IO.File]::Open($DestinationPath, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+        $outputStream = [System.IO.File]::Open($pendingPath, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
         $buffer = New-Object byte[] 1048576
         $readBytes = 0
         $downloadedBytes = [int64]0
@@ -415,12 +423,19 @@ function Invoke-DownloadFile {
             }
         } while ($readBytes -gt 0)
 
+        if ($totalBytes -ge 0 -and $downloadedBytes -ne $totalBytes) {
+            throw ('Incomplete download: {0}; expected {1} bytes, received {2}.' -f $Url, $totalBytes, $downloadedBytes)
+        }
+        $outputStream.Dispose()
+        $outputStream = $null
+        Move-Item -LiteralPath $pendingPath -Destination $DestinationPath -Force
         Write-OperationProgress -Label (ConvertFrom-Utf8Base64String -Value '5LiL6L29') -Percent 100 -Detail (Split-Path -Leaf $DestinationPath) -Completed
     }
     finally {
         if ($outputStream) { $outputStream.Dispose() }
         if ($inputStream) { $inputStream.Dispose() }
         if ($response) { $response.Dispose() }
+        if (Test-Path -LiteralPath $pendingPath) { Remove-Item -LiteralPath $pendingPath -Force }
     }
     return $DestinationPath
 }

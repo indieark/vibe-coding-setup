@@ -444,14 +444,17 @@ function Invoke-BootstrapDownloadFile {
     $response = $null
     $inputStream = $null
     $outputStream = $null
+    $pendingPath = '{0}.{1}.download' -f $OutFile, [guid]::NewGuid().ToString('N')
     try {
         $request = [System.Net.HttpWebRequest]::Create($Uri)
         $request.AllowAutoRedirect = $true
         $request.UserAgent = 'VibeCodingSetup/1.0'
+        $request.Timeout = 120000
+        $request.ReadWriteTimeout = 120000
         $response = $request.GetResponse()
         $totalBytes = [int64]$response.ContentLength
         $inputStream = $response.GetResponseStream()
-        $outputStream = [System.IO.File]::Open($OutFile, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+        $outputStream = [System.IO.File]::Open($pendingPath, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
         $buffer = New-Object byte[] 1048576
         $downloadedBytes = [int64]0
         $lastProgressPercent = -1
@@ -474,12 +477,19 @@ function Invoke-BootstrapDownloadFile {
             }
         } while ($readBytes -gt 0)
 
+        if ($totalBytes -ge 0 -and $downloadedBytes -ne $totalBytes) {
+            throw ('Incomplete download: {0}; expected {1} bytes, received {2}.' -f $Uri, $totalBytes, $downloadedBytes)
+        }
+        $outputStream.Dispose()
+        $outputStream = $null
+        Move-Item -LiteralPath $pendingPath -Destination $OutFile -Force
         Write-BootstrapDownloadProgress -Label $downloadLabel -Percent 100 -Detail $detail -Completed
     }
     finally {
         if ($outputStream) { $outputStream.Dispose() }
         if ($inputStream) { $inputStream.Dispose() }
         if ($response) { $response.Dispose() }
+        if (Test-Path -LiteralPath $pendingPath) { Remove-Item -LiteralPath $pendingPath -Force }
     }
 }
 
@@ -3495,7 +3505,7 @@ $bootstrapDependencies = @(
     'manifest/apps.json'
 )
 
-$bootstrapDependenciesRefresh = $RefreshBootstrapDependencies.IsPresent
+$bootstrapDependenciesRefresh = $RefreshBootstrapDependencies.IsPresent -or (Test-HttpSourceRoot -SourceRoot $BootstrapSourceRoot)
 $bootstrapCommonModulePath = Join-Path $root 'modules\common.psm1'
 if ((-not $bootstrapDependenciesRefresh) -and (-not (Test-BootstrapCommonModuleTuiProgressSupport -Path $bootstrapCommonModulePath))) {
     $bootstrapDependenciesRefresh = $true
@@ -3801,7 +3811,12 @@ if ($shouldRunCcSwitchConfig) {
             Write-Log -Level 'WARN' -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIHByb3ZpZGVyIOmihOajgOafpeWksei0pe+8jOaUueS4uuS6pOS6kuW8j+i+k+WFpe+8mnswfQ==') -f $_.Exception.Message)
         }
 
-        if ($existingProvider) {
+        $hasProviderOverrides = (
+            -not [string]::IsNullOrWhiteSpace($CcSwitchBaseUrl) -or
+            -not [string]::IsNullOrWhiteSpace($CcSwitchModel) -or
+            -not [string]::IsNullOrWhiteSpace($CcSwitchApiKey)
+        )
+        if ($existingProvider -and -not $hasProviderOverrides) {
             Write-Log -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q0MgU3dpdGNoIOW3suWtmOWcqCBjb2RleCBwcm92aWRlciDigJx7MH3igJ3vvIzot7Pov4cgcHJvdmlkZXIg6L6T5YWl5ZKM5a+85YWl') -f $providerNameToCheck)
             $results.Add([pscustomobject]@{
                     Name   = (ConvertFrom-BootstrapUtf8Base64String -Value '6YWN572u5a+85YWl')
@@ -3889,7 +3904,9 @@ if (-not $SkipSkills) {
     }
 }
 
-Write-BootstrapSection -Title (ConvertFrom-BootstrapUtf8Base64String -Value '5oGt5Zac77ya5a6J6KOF5rWB56iL5a6M5oiQ')
+$failed = @($results | Where-Object { $_.Status -eq 'failed' })
+$completionTitle = if ($failed.Count -gt 0) { ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5rWB56iL57uT5p2f77ya5a2Y5Zyo5aSx6LSl6aG5' } else { ConvertFrom-BootstrapUtf8Base64String -Value '5oGt5Zac77ya5a6J6KOF5rWB56iL5a6M5oiQ' }
+Write-BootstrapSection -Title $completionTitle
 
 Write-Host ''
 Write-Host (ConvertFrom-BootstrapUtf8Base64String -Value '5omn6KGM5pGY6KaB')
@@ -3901,9 +3918,5 @@ Select-Object `
 @{ Name = (ConvertFrom-BootstrapUtf8Base64String -Value '6K+m5oOF'); Expression = { $_.Detail } } |
 Format-Table -AutoSize
 
-$failed = @($results | Where-Object { $_.Status -eq 'failed' })
-if ($failed.Count -gt 0) {
-    Invoke-BootstrapExit -Code 1
-}
-
-Invoke-BootstrapExit -Code 0
+$exitCode = if ($failed.Count -gt 0) { 1 } else { 0 }
+Invoke-BootstrapExit -Code $exitCode

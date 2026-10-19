@@ -66,8 +66,10 @@ Set-Location "C:\Vibe_Coding\IndieArk\gadget\vibe-coding-setup"
 
 ### 远程自举运行
 
+在 PowerShell 中粘贴以下单行命令，获取最新启动器。远程入口每次刷新脚本、模块和安装清单；本地入口仅运行当前文件，更新方式见 [运行命令](docs/operations.md#如何确认使用新版)。
+
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githubusercontent.com/indieark/vibe-coding-setup/main'; $script=Join-Path $env:TEMP 'vibe-bootstrap.ps1'; iwr ($root + '/bootstrap.ps1') -OutFile $script; & $script -BootstrapSourceRoot $root -RefreshBootstrapDependencies"
+& { $ErrorActionPreference='Stop'; $launcher=Join-Path $env:TEMP ('vibe-coding-setup-'+[guid]::NewGuid().ToString('N')+'.cmd'); Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/indieark/vibe-coding-setup/main/vibe-coding-setup.cmd' -OutFile $launcher; & $launcher }
 ```
 
 ### 安全演练默认安装

@@ -11,7 +11,7 @@
 ## 执行顺序
 
 1. 决定 `BootstrapSourceRoot`：本地仓库完整时使用本地文件，否则使用 GitHub raw `main`。
-2. 同步自举依赖：`modules/common.psm1` 和 `manifest/apps.json`。
+2. 同步自举依赖：`modules/common.psm1` 和 `manifest/apps.json`；HTTP 来源每次启动均刷新，本地完整仓库复用当前文件。远程启动器先成功下载临时脚本再替换入口文件，下载失败不执行旧脚本。
 3. 导入模块并读取 `manifest/apps.json`。
 4. 判断是否进入 TUI：无操作参数或显式 `-Tui` 时进入；`-Only`、`-DryRun`、`-SkipSkills` 等命令参数会沿用自动化命令模式。
 5. 如进入 TUI，先 best-effort 切换英文输入布局，并向前台终端窗口请求切换输入语言。
@@ -27,9 +27,9 @@
 15. 按 `order` 串行消费预检查结果；安装项显示“准备安装”，更新项显示“准备更新”，检查失败项直接进入失败摘要；实际安装阶段复用该预检查决策，不再逐项重复播报“预检查 ...”。
 16. 应用阶段结束后，如果本次选择了 `cc-switch` 且没有 `-SkipCcSwitch`，先执行配置导入。
 17. 仅显式选择 Skill / 套件 / MCP / CLI 且没有 `-SkipSkills` 时执行插件安装：获取 `skills.zip`，导入 Skill / 套件 / MCP / CLI 前置依赖；交互式组件导入在套件输入区前会先执行节能版 Skill / MCP / CLI 状态扫描，并把 `全部 Skill`、`所有套件` 和各 Profile 标记为已安装、部分安装、需更新、更新未知或未安装；其中 MCP 只参与已配置 / 未配置判断，不产生需更新状态。
-18. 输出 Summary；任一项失败则退出码为 `1`，否则为 `0`。
+18. 输出 Summary；任一项失败则显示存在失败项并返回退出码 `1`，全部成功才显示完成，退出码为 `0`。
 
-默认安装用 `步骤一：获取依赖`、`步骤二：应用安装`、`步骤三：配置导入` 承载阶段语义；显式选择组件后才增加 `步骤四：插件安装`，最终完成提示为 `恭喜：安装流程完成`；只有进入 TUI 首屏前的共同自举使用无编号 `获取依赖` 标题。配置导入和插件安装不再额外输出 `[当前/总数] 当前步骤` 阶段提示。主流程大区域之间保留两行空白，区域内的输入区 / 配置摘要等小分块保持一行空白。应用预检查、Skill / MCP / CLI 状态扫描和应用内部可量化进度才输出脚本自绘进度条；组件扫描统一显示 `[检查] Skill`、`[检查] MCP`、`[检查] CLI` 标签，下载、winget 下载 / 安装和 Skill bundle 解压继续使用各自进度文案。不再调用 `Write-Progress` 绘制宿主进度条，也不使用会触发宿主进度区域的 `Expand-Archive`。自举依赖会在复用本地缓存时显示同步完成进度，Release 资产下载同样使用脚本自绘进度条；如果服务器没有返回文件大小，则只显示完成状态。
+默认安装用 `步骤一：获取依赖`、`步骤二：应用安装`、`步骤三：配置导入` 承载阶段语义；显式选择组件后才增加 `步骤四：插件安装`，最终完成提示为 `恭喜：安装流程完成`；只有进入 TUI 首屏前的共同自举使用无编号 `获取依赖` 标题。配置导入和插件安装不再额外输出 `[当前/总数] 当前步骤` 阶段提示。主流程大区域之间保留两行空白，区域内的输入区 / 配置摘要等小分块保持一行空白。应用预检查、Skill / MCP / CLI 状态扫描和应用内部可量化进度才输出脚本自绘进度条；组件扫描统一显示 `[检查] Skill`、`[检查] MCP`、`[检查] CLI` 标签，下载、winget 下载 / 安装和 Skill bundle 解压继续使用各自进度文案。脚本下载和安装包下载先写独立临时文件，确认已知的 Content-Length 完整后才替换目标；失败保留已有缓存并清理临时文件，连接和读写空闲超时均为 120 秒。不再调用 `Write-Progress` 绘制宿主进度条，也不使用会触发宿主进度区域的 `Expand-Archive`。自举依赖会在复用本地缓存时显示同步完成进度，Release 资产下载同样使用脚本自绘进度条；如果服务器没有返回文件大小，则只显示完成状态。
 
 `PauseOnExit`、`KeepShellOpen`、`UserHomeOverride`、`BootstrapSourceRoot`、`BootstrapAssetsRepo`、`BootstrapAssetsTag`、`RefreshBootstrapDependencies` 属于启动或自举参数，不会单独触发命令模式。
 
@@ -85,7 +85,7 @@ Skill 文件复制完成后，`-SkillsManagerScenarioMode` 决定是否写入 Sk
 
 - `Codex Desktop` 和 `ChatGPT (Pake)` 当前按 presence-only 处理：检测到已安装即跳过。
 - `Python 3.13` 优先 `py -V`，失败后回退 `python --version`。
-- `CC Switch` Provider 导入只走 `ccswitch://v1/import` deep link，不写 SQLite。
+- `CC Switch` Provider 导入只走 `ccswitch://v1/import` deep link，不写 SQLite；已有同名 Provider 默认保留，显式地址、模型或 Key 参数会触发重新导入。
 - `Skills Manager` 是可选应用，仅显式选装时按上游 GitHub latest tag 判断是否需要升级。
 - 不创建固定的 Codex 工作目录；安装完成后可直接在客户端新建会话。
 

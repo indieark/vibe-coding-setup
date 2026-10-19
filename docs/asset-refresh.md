@@ -69,7 +69,7 @@ gh release view bootstrap-assets --repo indieark/vibe-coding-setup --json assets
 ```powershell
 Get-Item .\downloads\skills.zip
 Remove-Item .\downloads\skills.zip -Force
-.\bootstrap.cmd -RefreshSkillBundle
+.\bootstrap.cmd -Tui -RefreshBootstrapDependencies
 ```
 
 `Tauri 桌面开发套件` 当前在 registry 中是 `mcp: []`；如果 TUI 显示该套件有 MCP，通常说明正在读取旧 `skills.zip`。

@@ -42,12 +42,19 @@ TUI 首屏包含三类入口：
 ## 远程自举
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githubusercontent.com/indieark/vibe-coding-setup/main'; $script=Join-Path $env:TEMP 'vibe-bootstrap.ps1'; iwr ($root + '/bootstrap.ps1') -OutFile $script; & $script -BootstrapSourceRoot $root -RefreshBootstrapDependencies"
+& { $ErrorActionPreference='Stop'; $launcher=Join-Path $env:TEMP ('vibe-coding-setup-'+[guid]::NewGuid().ToString('N')+'.cmd'); Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/indieark/vibe-coding-setup/main/vibe-coding-setup.cmd' -OutFile $launcher; & $launcher }
 ```
 
-这个命令下载 `bootstrap.ps1`，再由脚本自己同步 `modules/common.psm1` 和 `manifest/apps.json`。
+这个 PowerShell 单行命令先下载最新 `vibe-coding-setup.cmd`，再由启动器下载 `bootstrap.ps1`。每次远程启动都会刷新 `modules/common.psm1` 和 `manifest/apps.json`，避免只更新主脚本却复用旧依赖。启动器缓存位于 `%TEMP%/vibe-coding-setup/`。下载失败会立即停止，不执行上次残留的脚本。
 
 远程入口会传入 `BootstrapSourceRoot`、`BootstrapAssetsRepo`、`BootstrapAssetsTag`、`RefreshBootstrapDependencies` 等自举内部参数。这些参数不算安装选择；如果没有 `-Only`、`-DryRun`、`-SkipSkills` 等操作参数，脚本仍会进入 TUI。
+
+## 如何确认使用新版
+
+- `vibe-coding-setup.cmd`：每次运行读取 GitHub `main`。为同时获取启动器本身的修复，首次更新请重新下载此文件，或使用上面的单行命令。
+- `bootstrap.cmd`：运行同目录中的 `bootstrap.ps1`；不会自动更新本地仓库。Git 克隆目录先执行 `git pull --ff-only`，下载的源码 ZIP 则需要重新下载。
+- 已打开的安装窗口不会自动更新，应关闭后重新运行。更新后的默认应用集合排除 Skills Manager 和 Codex Provider Sync，默认不会进入插件安装段。
+- `-RefreshBootstrapDependencies` 只刷新依赖，不会把正在运行的旧 `bootstrap.ps1` 自身升级。因此不能用它替代入口更新。
 
 ## 常用参数
 
@@ -136,7 +143,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 
 执行开始后，默认安装按 `获取依赖`、`应用安装`、`配置导入` 三段显示；显式选择组件后才增加 `插件安装` 段。应用 precheck 会先输出执行计划统计；只有存在安装或更新项时，才会列出“准备安装或更新的应用清单”。配置导入和插件安装不再额外输出 `[当前/总数]` 阶段提示，最终完成提示也使用同样的分区标题样式；主流程大区域之间保留两行空白，区域内的输入区 / 配置摘要等小分块保持一行空白，避免和分段标题重复。
 
-CC Switch 默认 Provider 为 `IndieArk API`，Base URL 为 `https://api.indieark.tech/v1`，模型为 `gpt-6.1-sol`。命令参数和 `VIBE_CODING_*` 环境变量仍可覆盖默认值。已有同名 Provider 时保留原配置；旧 Provider 的地址和模型需要在 CC Switch 中手动确认或修改。
+CC Switch 默认 Provider 为 `IndieArk API`，Base URL 为 `https://api.indieark.tech/v1`，模型为 `gpt-6.1-sol`。命令参数和 `VIBE_CODING_*` 环境变量仍可覆盖默认值。已有同名 Provider 且未指定覆盖参数时保留原配置。显式传入 `-CcSwitchBaseUrl`、`-CcSwitchModel` 或 `-CcSwitchApiKey` 会重新打开导入流程，最终配置由 CC Switch 导入界面确认；已有配置不会仅因安装器更新而自动修改。
 
 配置导入在交互式终端中按“输入区 / 配置摘要”分块显示。Provider 名称、Base URL 和模型会在输入区右侧以灰色默认值显示；直接回车保留默认值，输入新值会覆盖。API Key 在同一输入区内处理，输入时隐藏，摘要只显示是否已填写。
 
@@ -158,3 +165,12 @@ CC Switch 默认 Provider 为 `IndieArk API`，Base URL 为 `https://api.indiear
 ```
 
 详细语义见 [`skill-import.md`](skill-import.md)。
+
+## 维护者回归检查
+
+以下检查不会安装软件或写入用户配置；下载检查仅使用本机回环 HTTP 服务和隔离的临时目录：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-Bootstrap.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-BootstrapDownloads.ps1
+```
