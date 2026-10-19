@@ -9,7 +9,7 @@ Set-Location "C:\Vibe_Coding\IndieArk\gadget\vibe-coding-setup"
 .\bootstrap.cmd
 ```
 
-无安装参数时会先进入 TUI；“默认安装”已经包含在 TUI 里，选择后不再改写为 `-Only`，而是按默认配置继续执行：安装默认全量应用、导入 Skill 和 CC Switch。
+无安装参数时会先进入 TUI；“默认安装”已经包含在 TUI 里，选择后不再改写为 `-Only`，而是按默认配置继续执行：安装默认应用并导入 CC Switch 配置，不创建工作目录、不安装 Skills Manager，也不下载或导入 Skill 包。
 
 ```powershell
 .\bootstrap.cmd -Tui
@@ -25,13 +25,13 @@ TUI 首屏包含三类入口：
 
 自定义模式中，软件和行为以任务菜单表达；复选用于软件建议项去除、套件 Profile、单项 Skill、单项 MCP 和单项 CLI 选择。套件页标题为“套件复选项”，列表行只显示 `全部 Skill`、`所有套件`、`跳过 Skill 导入` 或套件名称；Bundle Skill、可选 Skill、本机已安装、可能新增以及当前项的 Skill / MCP / CLI 数量、说明、依赖都放在顶部总览和当前项详情中。单项 Skill 页会合并 `BundleSkills + RegistrySkills` 后去重展示，并在顶部显示 Skill 总数、已安装、未安装、bundle / external 统计，列表行标明已安装状态；MCP 页会在顶部显示 MCP 总数、已配置、未配置，并在列表行显示已配置目标或未配置；CLI 页会在顶部显示 CLI 总数、已检测到、未检测到，并在列表行显示检测结果。套件安装可与软件选择组合；单项 Skill、MCP、CLI 入口会替换上一次单项组件选择并清理旧的软件选择，避免提权后混入过期动作。安装 Skill 时会继续选择 Skills Manager 场景注册方式：默认场景、自定义场景，或跳过场景注册只复制 Skill 文件。检查并安装/更新 MCP 会写入 Codex、Claude Desktop、Claude Code、Cursor、Gemini CLI 和 Antigravity 的 MCP 配置；检查并安装/更新 CLI 会只处理 `prereqs.yaml` 中的前置依赖。TUI 首屏不会预先下载 `skills.zip`。只有进入 Skill / 套件 / MCP / CLI 相关入口，或后续安装 / 演练确实要导入 Skill / MCP / CLI 时，脚本才会按需获取 bundle；读取结果会在本轮自定义模式中复用，读取前会显示提示，状态扫描期间会分别以 `[检查] Skill`、`[检查] MCP`、`[检查] CLI` 标签同一行刷新完成数量，结束时只保留完成行，避免长时间无反馈。长列表选择页按当前光标分页显示，并在顶部保留已选数量和已选摘要；MCP 状态读取异常会停在 TUI 错误页并显示错误详情，再返回工作台。
 
-默认安装和自定义模式的软件入口都会在应用预检查期间同一行刷新已完成数量，并在结束时刷新为完成行；后续安装阶段复用这次预检查决策，不再逐项重复播报单项预检查状态。Skill、MCP、CLI 状态扫描也遵循同一规则，并分别显示 `[检查] Skill`、`[检查] MCP`、`[检查] CLI` 进度标签。默认安装的插件安装段在交互式套件输入区前也会执行这组节能版组件状态扫描，并在 `全部 Skill`、`所有套件` 和各 Profile 行上标记已安装、部分安装、需更新、更新未知或未安装；其中 MCP 只参与已配置 / 未配置判断，不产生需更新状态。winget 安装若已经报告安装完成但进程未退出或退出码异常，或返回异常后安装后复查确认已安装，脚本会按成功处理后继续，不再长期停在“仍在运行”，也不误入失败提示或 fallback。
+默认安装和自定义模式的软件入口都会在应用预检查期间同一行刷新已完成数量，并在结束时刷新为完成行；后续安装阶段复用这次预检查决策，不再逐项重复播报单项预检查状态。Skill、MCP、CLI 状态扫描也遵循同一规则，并分别显示 `[检查] Skill`、`[检查] MCP`、`[检查] CLI` 进度标签。显式启用组件导入后的插件安装段在交互式套件输入区前也会执行这组节能版组件状态扫描，并在 `全部 Skill`、`所有套件` 和各 Profile 行上标记已安装、部分安装、需更新、更新未知或未安装；其中 MCP 只参与已配置 / 未配置判断，不产生需更新状态。winget 安装若已经报告安装完成但进程未退出或退出码异常，或返回异常后安装后复查确认已安装，脚本会按成功处理后继续，不再长期停在“仍在运行”，也不误入失败提示或 fallback。
 
-默认安装的套件状态标记与自定义模式中的“检查并安装/更新”都优先保证快速、离线友好和少副作用。Skill 更新状态只比较当前 `skills.zip` 的 meta 与本机已安装 meta；MCP 只检查本机是否已配置对应 server，不把用户自有配置与 registry 做更新或同步判定；CLI 入口只运行 `prereqs.yaml` 中的本地 `check` 命令，不检查远程最新版，所以已检测到的 CLI 仍可能显示“更新未知”。如果需要真实联网更新维护，需先为 registry 增加明确版本字段和检查命令，并提供超时、缓存和禁用策略。
+组件导入的套件状态标记与自定义模式中的“检查并安装/更新”都优先保证快速、离线友好和少副作用。Skill 更新状态只比较当前 `skills.zip` 的 meta 与本机已安装 meta；MCP 只检查本机是否已配置对应 server，不把用户自有配置与 registry 做更新或同步判定；CLI 入口只运行 `prereqs.yaml` 中的本地 `check` 命令，不检查远程最新版，所以已检测到的 CLI 仍可能显示“更新未知”。如果需要真实联网更新维护，需先为 registry 增加明确版本字段和检查命令，并提供超时、缓存和禁用策略。
 
 `bootstrap.cmd` 使用 Windows PowerShell 5.1 启动。如果过程中触发 UAC 提权，当前窗口只提示已打开管理员窗口继续安装；脚本会优先用 Windows Terminal 承载管理员 PowerShell，避免经典蓝底 PowerShell 窗口。若系统没有 `wt.exe`，才回退到经典 PowerShell 窗口。新开的管理员终端会继续后续 TUI 或安装流程，并在执行完成后保持打开，方便查看 summary 或错误。
 
-默认安装主流程使用分段标题承载阶段语义；应用预检查、Skill / MCP / CLI 状态扫描、下载、winget 下载 / 安装和 Skill bundle 解压才使用自绘同一行进度，例如 `检查 ████████████████████ 100%  9/9 个应用已完成`、`[检查] Skill ████████████████████ 100%  105/105 个 Skill 已完成`。winget 的许可证、免责声明和重复进度行会被过滤，常见状态会翻译为中文，真实终端中下载进度只通过同一行刷新；在 Codex、CI、日志重定向这类捕获输出环境中，只保留完成行，避免把回车覆盖展开成多行刷屏。静默安装器无法读取真实百分比时，只显示运行中和耗时。脚本不调用 PowerShell `Write-Progress`，避免宿主额外绘制独立进度区域。
+默认安装主流程使用分段标题承载阶段语义；应用预检查、Skill / MCP / CLI 状态扫描、下载、winget 下载 / 安装和 Skill bundle 解压才使用自绘同一行进度，例如 `检查 ████████████████████ 100%  7/7 个应用已完成`、`[检查] Skill ████████████████████ 100%  105/105 个 Skill 已完成`。winget 的许可证、免责声明和重复进度行会被过滤，常见状态会翻译为中文，真实终端中下载进度只通过同一行刷新；在 Codex、CI、日志重定向这类捕获输出环境中，只保留完成行，避免把回车覆盖展开成多行刷屏。静默安装器无法读取真实百分比时，只显示运行中和耗时。脚本不调用 PowerShell `Write-Progress`，避免宿主额外绘制独立进度区域。
 
 自举依赖和 Release 资产下载也会显示自绘进度，例如 `同步 [████████████████████] 100% 2/2 个依赖已完成`、`下载 [########------------] 40% skills.zip`。自举依赖即使复用本地缓存也会显示同步完成进度；只有进入 TUI 首屏前使用无编号 `获取依赖` 标题，命令模式、默认安装、TUI 首屏选择默认安装后或 TUI 默认安装 UAC 续跑后的主流程使用 `步骤一：获取依赖`。如果服务器没有返回文件大小，则只在下载完成时显示完成状态。`skills.zip` 解压同样使用脚本自建的同一行进度，不再触发 PowerShell 原生蓝色进度区域。
 
@@ -57,7 +57,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 .\bootstrap.cmd -Only git,nodejs,python,vscode,codex
 ```
 
-跳过 Skill 导入：
+默认不导入 Skill / MCP / CLI；也可以显式跳过：
 
 ```powershell
 .\bootstrap.cmd -SkipSkills
@@ -127,14 +127,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 
 命令模式默认行为：
 
-- 未传 `-SkipSkills` 时会导入 Skill。
-- 未传 `-SkillProfile`、`-AllSkills`、`-AllSuites`、`-SkillName`、`-McpName`、`-CliName` 时，交互式终端会提示选择 Profile；输入 `0` 才导入 registry 全部 Skill，输入 `00` 导入所有套件，直接回车会跳过 Skill 导入，避免误装全部。非交互式环境默认导入全部 Skill，保持旧自动化兼容。
+- 默认只安装 manifest 中未标记 `defaultInstall: false` 的应用；Skills Manager 可在自定义模式的软件入口选装，或通过 `-Only skills-manager` 安装。
+- 未传 `-SkillProfile`、`-AllSkills`、`-AllSuites`、`-SkillName`、`-McpName`、`-CliName` 时，交互式和非交互式环境均跳过组件导入；旧自动化如需导入全部 Skill，必须显式增加 `-AllSkills`。
 - 传 `-SkipSkills` 会完全跳过 Skill 导入。
-- 传 `-SkipApps` 会跳过应用安装阶段，只保留工作区、Skill 和 CC Switch Provider 等其它被选中的阶段。
+- 传 `-SkipApps` 会跳过应用安装阶段，只保留显式选择的组件导入阶段；不创建工作目录。
 - 传 `-SkipCcSwitch` 会跳过 CC Switch Provider 导入。
 - `-SkillsManagerScenarioMode prompt|default|custom|skip` 控制导入后是否写入 Skills Manager 场景；默认 `prompt` 在交互式终端询问，非交互式环境跳过场景注册。
 
-执行开始后，默认安装按 `获取依赖`、`应用安装`、`配置导入`、`插件安装` 四段显示。应用 precheck 会先输出执行计划统计；只有存在安装或更新项时，才会列出“准备安装或更新的应用清单”。工作区准备、配置导入和插件安装不再额外输出 `[当前/总数]` 阶段提示，最终完成提示也使用同样的分区标题样式；主流程大区域之间保留两行空白，区域内的输入区 / 配置摘要等小分块保持一行空白，避免和四段标题重复。
+执行开始后，默认安装按 `获取依赖`、`应用安装`、`配置导入` 三段显示；显式选择组件后才增加 `插件安装` 段。应用 precheck 会先输出执行计划统计；只有存在安装或更新项时，才会列出“准备安装或更新的应用清单”。配置导入和插件安装不再额外输出 `[当前/总数]` 阶段提示，最终完成提示也使用同样的分区标题样式；主流程大区域之间保留两行空白，区域内的输入区 / 配置摘要等小分块保持一行空白，避免和分段标题重复。
+
+CC Switch 默认 Provider 为 `IndieArk API`，Base URL 为 `https://api.indieark.tech/v1`，模型为 `gpt-6.1-sol`。命令参数和 `VIBE_CODING_*` 环境变量仍可覆盖默认值。已有同名 Provider 时保留原配置；旧 Provider 的地址和模型需要在 CC Switch 中手动确认或修改。
 
 配置导入在交互式终端中按“输入区 / 配置摘要”分块显示。Provider 名称、Base URL 和模型会在输入区右侧以灰色默认值显示；直接回车保留默认值，输入新值会覆盖。API Key 在同一输入区内处理，输入时隐藏，摘要只显示是否已填写。
 

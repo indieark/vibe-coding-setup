@@ -35,10 +35,11 @@
 
 ## 当前私库镜像边界
 
-- `indieark/codex-provider-sync`：镜像安装包到当前仓库公开 Release。
 - `indieark/00000-model`：镜像 registry bundle 为公开 `skills.zip`；bundle 内包含 Skill 实体、registry yaml、Profile、MCP/prereq 镜像资产。
 
 Secret 名称、权限和轮换要求见 [PAT / Secret 规则](../.agent/rules/pat-secret-governance.md)。
+
+Codex Provider Sync 已退出安装清单和刷新任务。已有公开 Release 资产不会在本次精简中删除，以保留旧安装器的下载兼容。Skills Manager 和 `skills.zip` 继续作为可选功能的镜像资产维护，默认装机不会下载它们。
 
 ## 安装侧边界
 

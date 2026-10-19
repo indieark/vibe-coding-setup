@@ -177,24 +177,8 @@
       }
     },
     {
-      "key": "codex-provider-sync",
-      "name": "Codex Provider Sync",
-      "order": 75,
-      "strategy": "release-asset",
-      "repo": "indieark/vibe-coding-setup",
-      "tag": "bootstrap-assets",
-      "assetName": "Codex.Provider.Sync_0.3.0_x64-setup.exe",
-      "installerType": "exe",
-      "silentArgs": [
-        "/S"
-      ],
-      "detect": {
-        "registryDisplayName": "Codex Provider Sync",
-        "registryMatch": "contains"
-      }
-    },
-    {
       "key": "skills-manager",
+      "defaultInstall": false,
       "name": "Skills Manager",
       "order": 80,
       "installIfMissingOnly": false,

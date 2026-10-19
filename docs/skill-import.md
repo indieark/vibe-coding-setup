@@ -9,6 +9,8 @@
 3. 终端用户运行安装器时，只下载当前仓库公开 `skills.zip`。
 4. 用户机器不需要 `indieark/00000-model` 私库 PAT。
 
+默认安装不下载或导入组件；只有显式选择 Skill / 套件 / MCP / CLI 后才启用本契约。Skills Manager 不是复制 Skill 文件的前置依赖，可选择跳过场景注册。
+
 安装器不会在 TUI 首屏预取 `skills.zip`。只有进入自定义模式的 Skill / 套件 / MCP / CLI 相关入口，或后续安装 / 演练实际要导入 Skill、MCP 或 CLI 时，才会按需获取 bundle；同一轮自定义模式会复用已读取的 registry / 状态结果。
 
 `skills.zip` 是公开 release asset，不等于 `00000-model` 刚刚构建出的私库 bundle。改完 registry 后，必须等本仓库 `Refresh bootstrap release assets` workflow 镜像完成；本地 `downloads/skills.zip` 旧缓存也会导致 TUI 继续显示旧文案、旧 Skill 数量或旧 Profile 统计。排查和刷新步骤见 [资产刷新链路](asset-refresh.md)。
@@ -35,8 +37,8 @@
 - 传 `-CliName "名称"`：显式安装一个或多个 `prereqs.yaml` 前置依赖；这适合只安装 GitHub CLI、飞书 CLI、uv 等命令行工具。
 - 传 `-SkipSkills`：完全跳过 `skills.zip` 下载和 Skill 导入。
 - 传 `-SkipApps`：跳过软件安装阶段，可用于只导入 Skill 的命令模式或自定义模式路径。
-- 不传 Profile 且处于交互式终端：显示中文选择菜单；输入 `0` 导入全部 Skill，输入 `00` 导入所有套件，直接回车跳过 Skill 导入。
-- 非交互式且未传 Profile：自动回退为全部导入，保持自动化兼容。
+- 安装器未收到任何组件选择参数时，交互式和非交互式环境均跳过 `skills.zip` 下载与导入。
+- 需要导入全部 Skill 的自动化必须显式传入 `-AllSkills`，不再依赖非交互环境的全量回退。
 
 Profile 交互菜单会把 `0`、`00` 和每个套件展示为两行：第一行是名称和暗灰色括号说明，说明过长时按当前终端宽度截断为 `...`；第二行是带不同颜色的 Skill / MCP / CLI 数量摘要。`0` 会显示全部 Skill 的有效导入数量、MCP 0、CLI 0；该数量至少覆盖 registry 条目数、bundle 离线目录数和所有套件展开后的 Skill 并集，不能小于 `00` 的 Skill 数。`00` 会显示 Profile 并集 Skill 数、MCP 数和 CLI 数。TUI 复选页光标停在某个套件时，会临时展示该套件将写入的 MCP 和将处理的 CLI 前置依赖；默认交互菜单在用户输入后、执行前也会输出同样摘要。可输入序号/名称，多个可用英文逗号、中文逗号或顿号分隔；输入 `0` 安装全部 Skill，输入 `00` 安装所有套件。
 

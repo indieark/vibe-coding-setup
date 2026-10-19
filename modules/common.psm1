@@ -203,7 +203,9 @@ function Get-SelectedApps {
     )
 
     if (-not $Only -or $Only.Count -eq 0) {
-        return $Apps
+        return @($Apps | Where-Object {
+            -not $_.PSObject.Properties['defaultInstall'] -or $_.defaultInstall -ne $false
+        })
     }
 
     $lookup = @(
@@ -280,50 +282,6 @@ function Get-UserRoamingAppDataDirectory {
     }
 
     return $null
-}
-
-function Initialize-CodexWorkspaceDirectory {
-    param(
-        [switch]$DryRun
-    )
-
-    $candidateDrives = @('D:\', 'C:\')
-    $driveRoot = $candidateDrives | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-
-    if (-not $driveRoot) {
-        throw (ConvertFrom-Utf8Base64String -Value '5pyq5om+5YiwIEQ6IOaIliBDOiDnm5g=')
-    }
-
-    $workspaceRoot = Join-Path $driveRoot 'Vibe Coding'
-    $chatPath = Join-Path $workspaceRoot 'Chat'
-
-    if ($DryRun) {
-        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5Yib5bu6IENvZGV4IOW3peS9nOWMuuebruW9le+8mnswfQ==') -f $chatPath)
-        return [pscustomobject]@{
-            Name   = (ConvertFrom-Utf8Base64String -Value 'Q29kZXgg5bel5L2c5Yy6')
-            Key    = 'codex-workspace'
-            Status = 'ok'
-            Source = 'filesystem'
-            Detail = $chatPath
-        }
-    }
-
-    if (Test-Path -LiteralPath $chatPath -PathType Container) {
-        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'Q29kZXgg5bel5L2c5Yy655uu5b2V5bey5a2Y5Zyo77yM6Lez6L+H5Yib5bu677yaezB9') -f $chatPath)
-    }
-    else {
-        Initialize-Directory -Path $workspaceRoot
-        Initialize-Directory -Path $chatPath
-        Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5bey5Yib5bu6IENvZGV4IOW3peS9nOWMuuebruW9le+8mnswfQ==') -f $chatPath)
-    }
-
-    return [pscustomobject]@{
-        Name   = (ConvertFrom-Utf8Base64String -Value 'Q29kZXgg5bel5L2c5Yy6')
-        Key    = 'codex-workspace'
-        Status = 'ok'
-        Source = 'filesystem'
-        Detail = $chatPath
-    }
 }
 
 function Resolve-WorkspacePath {
@@ -2425,7 +2383,7 @@ function Read-CodexProviderInput {
         $name = $env:VIBE_CODING_PROVIDER_NAME
     }
     if ([string]::IsNullOrWhiteSpace($name)) {
-        $name = 'IndieArk API 2'
+        $name = 'IndieArk API'
     }
 
     $baseUrl = $PresetBaseUrl
@@ -2433,7 +2391,7 @@ function Read-CodexProviderInput {
         $baseUrl = $env:VIBE_CODING_BASE_URL
     }
     if ([string]::IsNullOrWhiteSpace($baseUrl)) {
-        $baseUrl = 'https://api2.indieark.tech/v1'
+        $baseUrl = 'https://api.indieark.tech/v1'
     }
 
     $model = $PresetModel
@@ -2441,7 +2399,7 @@ function Read-CodexProviderInput {
         $model = $env:VIBE_CODING_MODEL
     }
     if ([string]::IsNullOrWhiteSpace($model)) {
-        $model = 'gpt-5.5'
+        $model = 'gpt-6.1-sol'
     }
 
     Write-CodexProviderInputSection `
@@ -6379,7 +6337,6 @@ Export-ModuleMember -Function @(
     'Get-SelectedApps',
     'Get-AppInstallDecision',
     'Get-AppInstallDecisionBatch',
-    'Initialize-CodexWorkspaceDirectory',
     'Install-AppFromDefinition',
     'Get-CcSwitchProviderByName',
     'Read-CodexProviderInput',

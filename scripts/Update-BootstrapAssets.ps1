@@ -5,7 +5,6 @@ param(
     [string]$Repo = $env:GITHUB_REPOSITORY,
     [string]$ReleaseTag = 'bootstrap-assets',
     [string]$GitHubToken = $env:GITHUB_TOKEN,
-    [string]$SourceGitHubToken = $env:SOURCE_GITHUB_TOKEN,
     [string]$Model00000Token = $env:MODEL_00000_TOKEN,
     [switch]$DryRun
 )
@@ -468,12 +467,6 @@ $managedAssets = @(
         ManifestPath = 'fallback.releaseAsset'
         ExistingAssetPattern = '^CC-Switch-v?[0-9][0-9A-Za-z.\-]*-Windows\.msi$'
         Resolve = { Get-GitHubInstaller -SourceRepo 'farion1231/cc-switch' -AssetPattern '^CC-Switch-v?[0-9][0-9A-Za-z.\-]*-Windows\.msi$' }
-    },
-    @{
-        Key = 'codex-provider-sync'
-        ManifestPath = 'assetName'
-        ExistingAssetPattern = '^Codex\.Provider\.Sync_[0-9][0-9A-Za-z.\-]*_x64-setup\.exe$'
-        Resolve = { Get-GitHubInstaller -SourceRepo 'indieark/codex-provider-sync' -AssetPattern '^Codex\.Provider\.Sync_[0-9][0-9A-Za-z.\-]*_x64-setup\.exe$' -Token $SourceGitHubToken -AuthenticatedDownload }
     },
     @{
         Key = 'skills-bundle'

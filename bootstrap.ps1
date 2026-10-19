@@ -786,7 +786,7 @@ function Show-TuiModeSelection {
         New-TuiModeOption `
             -Mode 'original' `
             -Label (ConvertFrom-BootstrapUtf8Base64String -Value '6buY6K6k5a6J6KOF') `
-            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5oyJ6buY6K6k6YWN572u5a6J6KOF5bqU55So77yM5bm25a+85YWlIFNraWxsIOS4jiBDQyBTd2l0Y2jjgII=')
+            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5bi455So5bqU55So5bm26YWN572uIENDIFN3aXRjaO+8m1NraWxs44CBTUNQ44CBQ0xJIOWcqOiHquWumuS5ieaooeW8j+aMiemcgOmAieaLqeOAgg==')
         New-TuiModeOption `
             -Mode 'workbench' `
             -Label (ConvertFrom-BootstrapUtf8Base64String -Value '6Ieq5a6a5LmJ5qih5byP') `
@@ -794,7 +794,7 @@ function Show-TuiModeSelection {
         New-TuiModeOption `
             -Mode 'dryrun' `
             -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J5YWo5ryU57uD') `
-            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '5YWo6YeP5ryU57uD77yM5LiN5a+85YWlIENDIFN3aXRjaO+8jOS4jeabv+aNouaXpyBTa2lsbO+8jOS4jeWQr+WKqCBTa2lsbHMgTWFuYWdlcu+8jOW5tum7mOiupOmAieaLqeWFqOmDqCBTa2lsbOOAgg==')
+            -Detail (ConvertFrom-BootstrapUtf8Base64String -Value '6aKE6KeI6buY6K6k5bqU55So5a6J6KOF77yb5LiN5a+85YWlIENDIFN3aXRjaOOAgeS4jeS4i+i9vSBTa2lsbCDljIXjgIHkuI3lkK/liqjlpJbpg6jnlYzpnaLjgII=')
     )
 
     $index = 0
@@ -3317,6 +3317,9 @@ function Invoke-BootstrapTui {
         [object[]]$SkillProfiles = @(),
         [object[]]$InitialOptions = @(),
         [string[]]$InitialSkillProfiles = @(),
+        [string[]]$InitialSkillNames = @(),
+        [string[]]$InitialMcpNames = @(),
+        [string[]]$InitialCliNames = @(),
         [string]$InitialSkillsManagerScenarioMode = 'prompt',
         [string]$InitialSkillsManagerScenarioName,
         [Parameter(Mandatory)]
@@ -3329,7 +3332,7 @@ function Invoke-BootstrapTui {
         [bool]$RefreshSkillBundle
     )
 
-    $allAppKeys = @($Apps | ForEach-Object { $_.key })
+    $defaultAppKeys = @(Get-SelectedApps -Apps $Apps | ForEach-Object { $_.key })
     $availableSkillProfiles = @($SkillProfiles)
 
     while ($true) {
@@ -3353,19 +3356,19 @@ function Invoke-BootstrapTui {
 
             $scenarioMode = if ($null -ne $scenarioSelection) { $scenarioSelection.Mode } else { $InitialSkillsManagerScenarioMode }
             $scenarioName = if ($null -ne $scenarioSelection) { $scenarioSelection.Name } else { $InitialSkillsManagerScenarioName }
-            return New-TuiBootstrapResult -Only $null -Options $InitialOptions -SkillProfiles $InitialSkillProfiles -SkillsManagerScenarioMode $scenarioMode -SkillsManagerScenarioName $scenarioName -UseDefaultInstall
+            return New-TuiBootstrapResult -Only $null -Options $InitialOptions -SkillProfiles $InitialSkillProfiles -SkillNames $InitialSkillNames -McpNames $InitialMcpNames -CliNames $InitialCliNames -SkillsManagerScenarioMode $scenarioMode -SkillsManagerScenarioName $scenarioName -UseDefaultInstall
         }
 
         if ($selectedMode -eq 'dryrun') {
             $options = @(
                 New-TuiOption -Key 'dryrun' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5ryU57uD5qih5byP77yI5LiN55yf5q2j5a6J6KOF77yJ') -SwitchName 'DryRun' -Enabled $true
                 New-TuiOption -Key 'skipcc' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+HIENDIFN3aXRjaCBQcm92aWRlciDlr7zlhaU=') -SwitchName 'SkipCcSwitch' -Enabled $true
-                New-TuiOption -Key 'allskills' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J6KOF5YWo6YOoIFNraWxs') -SwitchName 'AllSkills' -Enabled $true
+                New-TuiOption -Key 'skipskills' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '6Lez6L+HIFNraWxsIOWvvOWFpQ==') -SwitchName 'SkipSkills' -Enabled $true
                 New-TuiOption -Key 'noorphan' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5penIFNraWxsIOebruW9leS4jeabv+aNou+8jOWPqui3s+i/hw==') -SwitchName 'NoReplaceOrphan' -Enabled $true
                 New-TuiOption -Key 'skipmanager' -Label (ConvertFrom-BootstrapUtf8Base64String -Value '5a+85YWlIFNraWxsIOWQjuS4jeiHquWKqOWQr+WKqCBTa2lsbHMgTWFuYWdlcg==') -SwitchName 'SkipSkillsManagerLaunch' -Enabled $true
             )
             $review = Show-TuiReview `
-                -SelectedAppKeys $allAppKeys `
+                -SelectedAppKeys $defaultAppKeys `
                 -Options $options `
                 -SkillsManagerScenarioMode 'skip' `
                 -ModeName (ConvertFrom-BootstrapUtf8Base64String -Value '5a6J5YWo5ryU57uD') `
@@ -3377,7 +3380,7 @@ function Invoke-BootstrapTui {
                 continue
             }
 
-            return New-TuiBootstrapResult -Only $allAppKeys -Options $options -SkillsManagerScenarioMode 'skip'
+            return New-TuiBootstrapResult -Only $defaultAppKeys -Options $options -SkillsManagerScenarioMode 'skip'
         }
 
         if ($selectedMode -ne 'workbench') {
@@ -3526,6 +3529,12 @@ $manifestPath = Join-Path $root 'manifest\apps.json'
 $manifest = Get-AppManifest -ManifestPath $manifestPath
 $skillBundlePath = Join-Path $root 'downloads\skills.zip'
 
+# Components are opt-in for both command mode and the TUI default path.
+$componentSelections = @(ConvertTo-BootstrapNonEmptyStringArray -Value @($SkillProfile; $SkillName; $McpName; $CliName))
+if (-not $AllSkills -and -not $AllSuites -and $componentSelections.Count -eq 0) {
+    $SkipSkills = [System.Management.Automation.SwitchParameter]$true
+}
+
 if ($shouldUseTui) {
     Set-BootstrapEnglishInputLayout
     $tuiInitialOptions = @(
@@ -3547,6 +3556,9 @@ if ($shouldUseTui) {
         -Apps $manifest.apps `
         -InitialOptions $tuiInitialOptions `
         -InitialSkillProfiles $initialSkillProfiles `
+        -InitialSkillNames @(ConvertTo-BootstrapNonEmptyStringArray -Value $SkillName) `
+        -InitialMcpNames @(ConvertTo-BootstrapNonEmptyStringArray -Value $McpName) `
+        -InitialCliNames @(ConvertTo-BootstrapNonEmptyStringArray -Value $CliName) `
         -InitialSkillsManagerScenarioMode $SkillsManagerScenarioMode `
         -InitialSkillsManagerScenarioName $SkillsManagerScenarioName `
         -BootstrapAssetsRepo $BootstrapAssetsRepo `
@@ -3724,7 +3736,7 @@ if (-not $SkipApps -and $appsToRun.Count -eq 0) {
     Write-Log -Message (ConvertFrom-BootstrapUtf8Base64String -Value '5rKh5pyJ6ZyA6KaB5a6J6KOF5oiW5pu05paw55qE5bqU55So44CC')
 }
 
-$progressTotalSteps = 1 + $appsToRun.Count
+$progressTotalSteps = $appsToRun.Count
 if (-not $SkipSkills) {
     $progressTotalSteps++
 }
@@ -3732,23 +3744,6 @@ if ($shouldRunCcSwitchConfig) {
     $progressTotalSteps++
 }
 $progressCompletedSteps = 0
-
-try {
-    $workspaceResult = Initialize-CodexWorkspaceDirectory -DryRun:$DryRun
-    $results.Add($workspaceResult)
-    $progressCompletedSteps++
-}
-catch {
-    $results.Add([pscustomobject]@{
-            Name   = (ConvertFrom-BootstrapUtf8Base64String -Value 'Q29kZXgg5bel5L2c5Yy6')
-            Key    = 'codex-workspace'
-            Status = 'failed'
-            Source = 'filesystem'
-            Detail = $_.Exception.Message
-        })
-    Write-Log -Level 'ERROR' -Message ((ConvertFrom-BootstrapUtf8Base64String -Value 'Q29kZXgg5bel5L2c5Yy66K6+572u5aSx6LSl77yaezB9') -f $_.Exception.Message)
-    $progressCompletedSteps++
-}
 
 $appInstallIndex = 0
 foreach ($app in $appsToRun) {
@@ -3795,7 +3790,7 @@ if ($shouldRunCcSwitchConfig) {
             $providerNameToCheck = $env:VIBE_CODING_PROVIDER_NAME
         }
         if ([string]::IsNullOrWhiteSpace($providerNameToCheck)) {
-            $providerNameToCheck = 'IndieArk API 2'
+            $providerNameToCheck = 'IndieArk API'
         }
 
         $existingProvider = $null

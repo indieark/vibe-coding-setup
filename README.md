@@ -2,7 +2,7 @@
 
 # Vibe Coding Setup
 
-**面向 Windows 的 IndieArk 一键装机器 — 装工具、同步公开镜像、按 Profile 导入可追更 Skills。**
+**面向 Windows 的 IndieArk 一键装机器 — 装好常用工具、配置 API，按需扩展 Skills。**
 
 `可审计 PowerShell 安装器` · `主来源 + 镜像 fallback` · `registry / Profile 驱动 Skill 导入` · `三态去重安全` · `拟似 TUI` — 把分散的装机步骤收敛成一个可审计、可回滚、可追更的安装器。
 
@@ -41,9 +41,10 @@
 
 ## 它做什么
 
-- 安装常用 Windows 开发工具:Git、Node.js、Python、VS Code、Codex Desktop、ChatGPT、CC Switch、Codex Provider Sync、Skills Manager。
+- 安装常用 Windows 开发工具:Git、Node.js、Python、VS Code、Codex Desktop、ChatGPT、CC Switch。Skills Manager 仅供按需选装。
 - 先走公开主来源,失败后按 `bootstrap-assets` fallback。
-- 从公开 `skills.zip` 按 registry / Profile 导入 Skill;`-AllSkills` 代表 registry 全部 Skill,bundled 直接导入,external 按来源拉取。
+- 默认不创建工作目录、不安装 Skills Manager、不导入 Skill / MCP / CLI；需要时从自定义模式选择，或使用显式参数。
+- 按需从公开 `skills.zip` 按 registry / Profile 导入 Skill;`-AllSkills` 代表 registry 全部 Skill,bundled 直接导入,external 按来源拉取。
 - 默认进入拟似 TUI,可选默认安装、自定义模式或安全演练;自定义模式已有可执行选择后,「开始执行」显示为工作台第一项,选择后直接执行当前自定义计划,不再展示命令确认页。
 - TUI 进入前 best-effort 切英文输入布局;Profile / 应用多选支持英文逗号、中文逗号和顿号。
 - `skills.zip` 不在 TUI 首屏预取;只有进入套件、Skill、MCP、CLI 相关入口或实际导入组件时才按需获取。
@@ -69,7 +70,13 @@ Set-Location "C:\Vibe_Coding\IndieArk\gadget\vibe-coding-setup"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githubusercontent.com/indieark/vibe-coding-setup/main'; $script=Join-Path $env:TEMP 'vibe-bootstrap.ps1'; iwr ($root + '/bootstrap.ps1') -OutFile $script; & $script -BootstrapSourceRoot $root -RefreshBootstrapDependencies"
 ```
 
-### 安全演练 Skill 导入
+### 安全演练默认安装
+
+```powershell
+.\bootstrap.cmd -DryRun -SkipCcSwitch
+```
+
+### 按需演练 Skill 导入
 
 先观察本机判定,不替换旧目录、不拉起 UI:
 
@@ -85,7 +92,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 
 | 能力 | 当前实现 |
 |---|---|
-| 应用安装 | `manifest/apps.json` 驱动,先并行 precheck;缺失则安装,已存在才查目标版本并决定更新或跳过 |
+| 应用安装 | `manifest/apps.json` 驱动,默认跳过 `defaultInstall: false` 的可选应用,先并行 precheck;缺失则安装,已存在才查目标版本并决定更新或跳过 |
 | 失败回退 | 主来源失败后 post-check,仍失败才使用 fallback |
 | 资产镜像 | 私库资产只在 GitHub Actions 中读取,终端用户只访问公开 `bootstrap-assets` |
 | TUI 入口 | 无安装参数默认进入拟似 TUI;显式参数继续支持旧命令模式 |
@@ -122,6 +129,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 - `main` 已包含按需装机器 Phase 1–4:私库 bundle 镜像、Profile 选择、Skill meta 透传、三态去重,以及 registry 驱动的全部 Skill / external Skill / prereq / MCP 写入。
 - 安装器已包含集成拟似 TUI 自定义模式、运行时套件 / Skill / MCP / CLI 复选、UAC 自定义参数续跑和统一 `[检查]` 组件进度展示。
 - Phase 5 飞书只读镜像在 `indieark/00000-model` 侧按计划推进。
+- 默认流程精简为常用应用与 CC Switch 配置；工作目录创建和 Codex Provider Sync 已移除，Skills Manager 与 Skill / MCP / CLI 保留按需入口。
 - 下一步安装器增强优先围绕可观测、可校验、可回滚,而不是继续堆安装项。
 
 ---
@@ -147,7 +155,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='https://raw.githu
 |---|---|
 | `indieark/00000-model` | 上游事实源:Skill / MCP / prereq / Profile / bundle 的 `registry/*.yaml` 与 bundle 构建结果 |
 | Skills Manager | 下游消费:`.skill-meta.json` 字段透传到其 DB,支持场景注册 |
-| `gadget/codex-provider-sync` / CC Switch | 安装项之一:由安装器统一装机 |
+| CC Switch | 默认安装并导入 Codex Provider |
 | `bootstrap-assets`(公开镜像) | 终端用户的 fallback 资产来源,私库 PAT 不下发到用户机器 |
 
 ---

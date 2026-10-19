@@ -17,7 +17,6 @@
 
 | Secret | 用途 | 最小权限 |
 |--------|------|----------|
-| `CODEX_PROVIDER_SYNC_TOKEN` | 读取 `indieark/codex-provider-sync` 私库 latest release asset | fine-grained PAT；仅该 repo；`Contents: Read-only` |
 | `MODEL_00000_TOKEN` | 读取 `indieark/00000-model` 私库 `bundle-v*` release asset | fine-grained PAT；仅该 repo；`Contents: Read-only` |
 | `GITHUB_TOKEN` | GitHub Actions 自动注入；写当前仓库 `bootstrap-assets` release、提交 manifest/README 更新 | workflow `permissions.contents: write` |
 
