@@ -4,7 +4,7 @@
 
 Windows 桌面界面使用 Tauri 2、React 和 TypeScript。软件清单与安装策略仍由 `manifest/apps.json` 和 `modules/common.psm1` 维护。无操作参数的启动脚本默认进入桌面界面。
 
-桌面界面支持软件选择、环境检查、安全演练、应用安装、CC Switch Provider 导入、逐项结果、失败重试、停止后续任务、亮暗主题和脱敏诊断导出。“扩展组件”页直接选择和安装套件、Skills、MCP、CLI，选择过程与执行结果都在 Tauri 内显示。
+桌面界面支持软件选择、环境检查、安全演练、应用安装、CC Switch Provider 导入、逐项结果、失败重试、停止后续任务、亮暗主题和脱敏诊断导出。“扩展组件”页直接选择和安装套件、Skills、MCP、CLI，并配置来源冲突策略及 Skills Manager 场景。软件、API 配置与扩展统一组成一次执行计划。
 
 ## 构建与启动
 
@@ -14,7 +14,7 @@ Windows 桌面界面使用 Tauri 2、React 和 TypeScript。软件清单与安�
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Desktop.ps1
 ```
 
-构建产物固定为 `desktop/bin/IndieArkSetup.exe`，不进入版本控制。再次构建可传 `-SkipInstall` 复用已安装的 npm 依赖；依赖变化时重新运行完整构建。
+当前构建产物为 `desktop/bin/IndieArkSetup-0.2.0.exe`，版本取自 `tauri.conf.json`，不进入版本控制。再次构建可传 `-SkipInstall` 复用已安装的 npm 依赖；依赖变化时重新运行完整构建。
 
 - 双击 `bootstrap.cmd`：无操作参数时打开本地 GUI，启动时申请管理员权限。
 - 双击仓库中的 `vibe-coding-setup.cmd`：检测到本地 GUI 后使用同目录主脚本；独立下载的启动器从 GitHub 获取已发布版本。
@@ -42,7 +42,23 @@ API Key 从界面经 stdin 传入 PowerShell Worker，Worker 启动参数和任�
 
 运行目录位于 `%LOCALAPPDATA%/IndieArk/Setup/runs/<本轮标识>/`，内含本轮脚本、应用下载缓存和用户主动导出的脱敏诊断。扩展包缓存在 `%LOCALAPPDATA%/IndieArk/Setup/cache/skills.zip`。没有后台服务。已运行的界面使用本轮文件，更新后需要重新打开。
 
-停止操作只阻止后续任务；当前下载、安装器或配置导入会继续完成。执行中阻止直接关闭窗口，避免失去任务状态。CC Switch 的 deep link 只能证明导入窗口已打开，最终保存由用户在 CC Switch 确认。
+停止操作只阻止后续任务；当前下载、安装器或配置步骤会继续完成。Skill、CLI 在单项之间响应停止，MCP 配置按一次客户端写入批次完成。执行中阻止直接关闭窗口，避免失去任务状态。CC Switch 的 deep link 只能证明导入窗口已打开，界面标为“待外部确认”，最终保存由用户在 CC Switch 确认。
+
+## 统一计划与功能覆盖
+
+底部“执行本次计划”或“安全演练”处理当前选择的软件、API 和扩展；执行前，后端先验证整个计划，再进行安装或配置写入。“计划与结果”页列出逐项状态、错误和备份路径，日志独立折叠。API 配置区的“仅处理 API 配置”不安装软件或扩展。
+
+| 原安装器操作 | 桌面入口 |
+|---|---|
+| 推荐安装、指定应用、不装应用 | 软件复选、恢复推荐、全选或清空 |
+| 检查已安装版本与目标版本 | 检查环境；版本注明为检查时的快照 |
+| 单独导入 API；已有同名 Provider 跳过 | 仅处理 API 配置；“已有则保留”或“重新导入” |
+| 全部 Skills、所有套件、单项组件 | 扩展分类、筛选结果全选、全部 Skills、全部套件 |
+| Orphan / Foreign 保留、替换、改名 | 扩展页“导入与场景设置”；替换前需明确勾选确认 |
+| Skills Manager 默认、自定义或跳过场景 | 扩展导入设置；可选择是否允许初始化并打开管理器 |
+| 安全演练、失败重试、停止、诊断 | 固定操作栏与逐项结果页 |
+
+默认保留已有同名 Provider，不回传数据库中的 Key。选择重新导入时使用用户填写的新参数；实际执行前再次查询，界面的检查快照不会替代后端判断。场景注册沿用内核及其 Python / Skills Manager 数据库前置条件；条件不满足时显示提示，不声称注册成功。
 
 ## 扩展组件
 
@@ -52,7 +68,7 @@ API Key 从界面经 stdin 传入 PowerShell Worker，Worker 启动参数和任�
 
 Skill 状态沿用本机中央目录与 bundle 元数据对比；MCP 的“已有配置”只表示某个支持的客户端存在配置，详情列出客户端，不代表连接成功；CLI 只检测本地命令，不推断版本最新。真实执行后将检查结果标为需要重新检查；演练不会把组件状态改为已安装。
 
-GUI 导入保留来源不明和其他来源的同名 Skill，更新继续使用内核的来源识别和备份策略。默认跳过 Skills Manager 场景注册且不启动它。扩展批次作为一个完整安装步骤，开始后停止请求不会中断批次内部正在执行的动作。内核产生的警告会显示提示数量，并在执行记录及诊断中保留。
+GUI 默认保留来源不明和其他来源的同名 Skill；可改为备份后替换，Foreign 还支持新版本改名导入。实际替换必须确认策略，安全演练不需要确认也不会写入目录。默认跳过 Skills Manager 场景注册且不启动它，可显式选择默认或自定义场景并允许初始化。来源识别、去重和备份仍由共享内核执行；真实备份路径和演练中的计划备份路径分别标注，失败、保留、需手动处理与成功不混用。
 
 ## 验证
 
@@ -60,6 +76,7 @@ GUI 导入保留来源不明和其他来源的同名 Skill，更新继续使用�
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-Bootstrap.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-BootstrapDownloads.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-Desktop.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-DesktopComponents.ps1
 ```
 
 桌面检查包含隔离安装函数的 Worker 协议验证、失效选择拦截、失败继续、停止边界、Key 脱敏、扩展清单、套件成员展开、混选去重、CLI 单独安装计划、空选择保护、两个旧 `.cmd` 的 GUI 路由，以及 exe 自带真实 Worker 的安全演练和原生扩展协议。验证不安装软件、不打开 GUI 或 CC Switch、不改用户配置。前端状态测试使用 `desktop` 下的 `npm test`。
@@ -70,17 +87,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-Desktop.ps1
 2. 推荐应用应选中，Skills Manager 默认不选中；检查环境后，软件状态应反映本机结果。
 3. 点击“安全演练”，应持续显示进度和结果，不执行真实安装，也不弹出 CC Switch。
 4. 点击“扩展组件”，应在同一窗口显示四类组件，不弹出终端；搜索并混选套件与单项，右侧应显示合并后的清单。点击“安全演练”，应显示扩展进度和结果，不写用户配置。
-5. 切换亮暗主题、缩放窗口、用键盘访问字段，检查布局、焦点和滚动。
-6. 实际安装与 CC Switch 最终保存由用户单独执行验收；自动检查不代替这一步。
+5. 清空软件和扩展，仅处理 API；已有同名 Provider 应保留且不要求 Key。选择重新导入后应允许填写新参数。
+6. 在扩展设置中选择不同冲突策略及场景，先演练；结果页应列出每项状态及计划备份。选择备份后替换但未确认时，真实执行应被拦截。
+7. 切换亮暗主题、缩放窗口、用键盘访问字段，检查字号、整行选择、折叠清单、焦点和内部滚动。视觉和真实操作由用户实机验收。
+8. 实际安装与 CC Switch 最终保存由用户单独执行验收；自动检查不代替这一步。
 
 ## 发布与更新
 
 旧的独立远程 `.cmd` 每次从 GitHub `main` 下载主脚本，并获取公开的 GUI 资产。桌面发布必须同时交付：
 
 - 新版 `bootstrap.ps1`、共享模块、`scripts/DesktopWorker.ps1`。
-- `bootstrap-assets/IndieArkSetup.exe` 公开资产。
+- `bootstrap-assets/IndieArkSetup-0.2.0.exe` 及对应 SHA256 公开资产。
 
-发布 workflow 为 `.github/workflows/publish-desktop.yml`。推送 `release/desktop-*` 分支，或手动运行该 workflow 后，Windows runner 使用锁定依赖构建、检查两种旧启动脚本与打包 Worker，再用 Actions 的 `GITHUB_TOKEN` 上传 `IndieArkSetup.exe` 及 SHA256 文件。它只更新这两个资产，保留其它旧安装包。
+发布 workflow 为 `.github/workflows/publish-desktop.yml`。推送 `release/desktop-*` 分支，或手动运行该 workflow 后，Windows runner 使用锁定依赖构建、检查两种旧启动脚本与打包 Worker，再用 Actions 的 `GITHUB_TOKEN` 上传带版本的 exe 和 SHA256 文件。它只更新该版本的两个资产，保留其它旧安装包，包括原来的 0.1 GUI。
+
+入口固定引用匹配协议的 GUI 版本；0.2 使用 Worker 协议 2。先发布新版本资产，再更新 `main` 的脚本与 Worker，避免发布期间旧 Worker 配到新界面。构建目录也按版本隔离，不覆盖仍在运行的旧 exe。
 
 首次切换默认入口时，先推送发布分支并确认 workflow 成功，再核验公开下载与安全演练，最后把同一提交快进到 `main`。后续桌面更新也先验证发布资产，再推进入口代码；远程资产下载失败时明确报错，不静默使用残留文件。完整资产管理规则见 [资产刷新链路](asset-refresh.md)。
 

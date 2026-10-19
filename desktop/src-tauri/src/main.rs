@@ -35,6 +35,8 @@ struct Plan {
     #[serde(default)]
     refresh_bundle: bool,
     #[serde(default)]
+    options: Value,
+    #[serde(default)]
     run_id: String,
 }
 
@@ -207,6 +209,7 @@ fn empty_plan(mode: &str) -> Plan {
         provider: json!({}),
         component_ids: vec![],
         refresh_bundle: false,
+        options: json!({}),
         run_id: nonce(),
     }
 }
@@ -220,10 +223,35 @@ async fn get_catalog(engine: State<'_, Engine>) -> Result<Value, String> {
         let mut catalog = None;
         worker(&root, &home, &empty_plan("describe"), &root.join("describe.stop"), |event| { if event["type"] == "catalog" {catalog=Some(event);} })?;
         let mut catalog = catalog.ok_or("Catalog unavailable")?;
-        if catalog["protocolVersion"] != 1 { return Err("Installer worker protocol is incompatible. Update the desktop program and restart.".into()); }
+        if catalog["protocolVersion"] != 2 { return Err("Installer worker protocol is incompatible. Update the desktop program and restart.".into()); }
         catalog["dryRunOnly"] = json!(dry_run_only);
         Ok(catalog)
     }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn get_provider(engine: State<'_, Engine>, name: String) -> Result<Value, String> {
+    let root = engine.root.clone();
+    let home = engine.home.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut plan = empty_plan("provider-check");
+        plan.provider = json!({"name":name});
+        let mut state = None;
+        worker(
+            &root,
+            &home,
+            &plan,
+            &root.join("provider-check.stop"),
+            |event| {
+                if event["type"] == "catalog" {
+                    state = Some(event["providerState"].clone());
+                }
+            },
+        )?;
+        state.ok_or("Provider state unavailable".into())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -234,7 +262,7 @@ fn start_run(
 ) -> Result<String, String> {
     if !matches!(
         plan.mode.as_str(),
-        "check" | "install" | "extensions" | "install-components"
+        "check" | "install" | "extensions" | "install-components" | "execute"
     ) {
         return Err("Unsupported operation".into());
     }
@@ -304,7 +332,8 @@ fn export_report(engine: State<'_, Engine>) -> Result<String, String> {
 
 fn smoke(engine: &Engine, path: &str) -> Result<(), String> {
     let mut events = Vec::new();
-    let components = std::env::args().any(|arg| arg == "--smoke-components");
+    let combined = std::env::args().any(|arg| arg == "--smoke-combined");
+    let components = combined || std::env::args().any(|arg| arg == "--smoke-components");
     worker(
         &engine.root,
         &engine.home,
@@ -335,6 +364,13 @@ fn smoke(engine: &Engine, path: &str) -> Result<(), String> {
         plan.app_keys = vec!["codex".into()];
         plan
     };
+    if combined {
+        plan.mode = "execute".into();
+        plan.app_keys = vec!["codex".into()];
+        plan.configure_provider = true;
+        plan.provider = json!({"name":"Existing","baseUrl":"https://api.indieark.tech/v1","model":"gpt-6.1-sol","apiKey":""});
+        plan.options = json!({"providerMode":"reuse","orphanPolicy":"preserve","foreignPolicy":"preserve","scenarioMode":"custom","scenarioName":"Smoke","launchSkillsManager":false});
+    }
     if engine.dry_run_only {
         plan.dry_run = false;
     }
@@ -376,6 +412,7 @@ fn main() {
         .manage(engine)
         .invoke_handler(tauri::generate_handler![
             get_catalog,
+            get_provider,
             start_run,
             stop_after_current,
             export_report

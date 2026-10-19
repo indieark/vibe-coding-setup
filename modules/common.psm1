@@ -3,10 +3,25 @@ $ErrorActionPreference = 'Stop'
 $script:OperationProgressLineActive = $false
 $script:OperationProgressLastLineLength = 0
 $script:InstallerEventSink = $null
+$script:InstallerBackups = [Collections.Generic.List[string]]::new()
+$script:InstallerStopPath = ''
 
 function Set-InstallerEventSink {
-    param([scriptblock]$Sink)
+    param([scriptblock]$Sink,[string]$StopPath='')
     $script:InstallerEventSink = $Sink
+    $script:InstallerStopPath = $StopPath
+    $script:InstallerBackups.Clear()
+}
+
+function Test-InstallerStopRequested {
+    return ($null -ne $script:InstallerEventSink -and $script:InstallerStopPath -and (Test-Path -LiteralPath $script:InstallerStopPath))
+}
+
+function Write-InstallerComponentResult {
+    param([string]$Kind,[string]$Name,[string]$Status,[string]$Detail='',[object[]]$Backups=@())
+    if ($null -ne $script:InstallerEventSink) {
+        & $script:InstallerEventSink @{type='component-result';key=($Kind + ':' + $Name);result=@{Key=($Kind + ':' + $Name);Name=$Name;Kind=$Kind;Status=$Status;Detail=$Detail;Backups=@($Backups)}}
+    }
 }
 
 function Write-Log {
@@ -2305,6 +2320,9 @@ public static class WinSqliteInterop
     public static extern int sqlite3_prepare_v2(IntPtr db, byte[] sql, int numBytes, out IntPtr stmt, IntPtr pzTail);
 
     [DllImport("winsqlite3", CallingConvention = CallingConvention.Cdecl)]
+    public static extern int sqlite3_bind_text(IntPtr stmt, int index, byte[] value, int length, IntPtr destructor);
+
+    [DllImport("winsqlite3", CallingConvention = CallingConvention.Cdecl)]
     public static extern int sqlite3_step(IntPtr stmt);
 
     [DllImport("winsqlite3", CallingConvention = CallingConvention.Cdecl)]
@@ -2363,13 +2381,11 @@ function Get-CcSwitchProviderByName {
             throw ((ConvertFrom-Utf8Base64String -Value '5omT5byAIENDIFN3aXRjaCDmlbDmja7lupPlpLHotKXvvJp7MH0=') -f $openError)
         }
 
-        $escapedProviderName = $ProviderName.Replace("'", "''")
-        $escapedAppType = $AppType.Replace("'", "''")
         $sql = @"
 select id, name
 from providers
-where app_type = '$escapedAppType'
-  and name = '$escapedProviderName'
+where app_type = ?1
+  and name = ?2
 limit 1;
 "@
 
@@ -2380,6 +2396,9 @@ limit 1;
             throw ((ConvertFrom-Utf8Base64String -Value '5p+l6K+iIENDIFN3aXRjaCDmlbDmja7lupPlpLHotKXvvJp7MH0=') -f $prepareError)
         }
 
+        $appTypeBytes = [Text.Encoding]::UTF8.GetBytes($AppType)
+        $nameBytes = [Text.Encoding]::UTF8.GetBytes($ProviderName)
+        if ([WinSqliteInterop]::sqlite3_bind_text($stmt,1,$appTypeBytes,$appTypeBytes.Length,[IntPtr](-1)) -ne 0 -or [WinSqliteInterop]::sqlite3_bind_text($stmt,2,$nameBytes,$nameBytes.Length,[IntPtr](-1)) -ne 0) { throw 'Unable to bind provider lookup parameters.' }
         $stepResult = [WinSqliteInterop]::sqlite3_step($stmt)
         if ($stepResult -ne $sqliteRow) {
             return $null
@@ -3830,10 +3849,13 @@ function Install-RegistryPrereqs {
 
     $entries = @(Read-RegistryPrereqEntries -RegistryRoot $RegistryRoot)
     foreach ($name in $names) {
+        if (Test-InstallerStopRequested) { break }
+        Write-InstallerComponentResult -Kind cli -Name $name -Status running
         $entry = $entries | Where-Object { $_.Name -eq $name } | Select-Object -First 1
         if (-not $entry) {
             Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '5YmN572u5L6d6LWW5pyq5ZyoIHByZXJlcXMueWFtbCDkuK3lr7vliLDvvJp7MH0=') -f $name)
             $result.Missing += $name
+            Write-InstallerComponentResult -Kind cli -Name $name -Status failed -Detail 'No installation definition available'
             continue
         }
 
@@ -3844,6 +3866,7 @@ function Install-RegistryPrereqs {
         if ((-not $DryRun) -and $alreadyInstalled) {
             Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5YmN572u5L6d6LWW5bey5a6J6KOF77yaezB9') -f $name)
             $result.Already += $name
+            Write-InstallerComponentResult -Kind cli -Name $name -Status skipped -Detail 'Already installed'
             continue
         }
 
@@ -3851,6 +3874,7 @@ function Install-RegistryPrereqs {
         if ($install.ContainsKey('manual') -and [string]$install['manual'] -eq 'true') {
             Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '5YmN572u5L6d6LWW6ZyA6KaB5omL5Yqo5a6J6KOF77yaezB9') -f $name)
             $result.Manual += $name
+            Write-InstallerComponentResult -Kind cli -Name $name -Status manual -Detail 'Manual installation required'
             continue
         }
 
@@ -3859,6 +3883,7 @@ function Install-RegistryPrereqs {
         if ([string]::IsNullOrWhiteSpace($commandText)) {
             Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '5YmN572u5L6d6LWW57y65bCR5Y+v5omT6KGM5a6J6KOF5ZG95Luk77yaezB9') -f $name)
             $result.Missing += $name
+            Write-InstallerComponentResult -Kind cli -Name $name -Status failed -Detail 'No installation definition available'
             continue
         }
 
@@ -3866,10 +3891,12 @@ function Install-RegistryPrereqs {
             Write-Log -Message ((ConvertFrom-Utf8Base64String -Value '5q2j5Zyo5a6J6KOF5YmN572u5L6d6LWW77yaezB9') -f $name)
             Invoke-PrereqInstallCommand -CommandText $commandText -DryRun:$DryRun
             $result.Installed += $name
+            Write-InstallerComponentResult -Kind cli -Name $name -Status $(if ($DryRun) {'preview'} else {'ok'}) -Detail 'Installation command completed'
         }
         catch {
             Write-Log -Level 'WARN' -Message ('Prereq install failed: {0}; {1}' -f $name, $_.Exception.Message)
             $result.Failed += $name
+            Write-InstallerComponentResult -Kind cli -Name $name -Status failed -Detail 'Installation failed; see execution log'
         }
     }
 
@@ -4076,6 +4103,7 @@ function Set-JsonMcpServerConfig {
     if (Test-Path -LiteralPath $ConfigPath) {
         $backupPath = '{0}.bak.{1}' -f $ConfigPath, (Get-Date -Format 'yyyyMMdd-HHmmss')
         Copy-Item -LiteralPath $ConfigPath -Destination $backupPath -Force
+        if ($null -ne $script:InstallerEventSink) { $script:InstallerBackups.Add($backupPath) }
     }
 
     $json = $config | ConvertTo-Json -Depth 24
@@ -4279,6 +4307,7 @@ function Sync-CodexMcpServers {
     if (Test-Path -LiteralPath $configPath) {
         $backupPath = '{0}.bak.{1}' -f $configPath, (Get-Date -Format 'yyyyMMdd-HHmmss')
         Copy-Item -LiteralPath $configPath -Destination $backupPath -Force
+        if ($null -ne $script:InstallerEventSink) { $script:InstallerBackups.Add($backupPath) }
     }
 
     $newContent = ($content.TrimEnd() + "`r`n`r`n" + ($blocks.ToArray() -join "`r`n`r`n") + "`r`n")
@@ -4303,6 +4332,7 @@ function Sync-RegistryMcpServers {
         [switch]$DryRun
     )
 
+    if (Test-InstallerStopRequested) { return }
     $names = @($McpNames | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
     if ($names.Count -eq 0) {
         return
@@ -4311,6 +4341,7 @@ function Sync-RegistryMcpServers {
     $entries = @(Read-RegistryMcpEntries -RegistryRoot $RegistryRoot | Where-Object { $names -contains $_.Name })
     $missingNames = @($names | Where-Object { $entries.Name -notcontains $_ })
     foreach ($name in $missingNames) {
+        Write-InstallerComponentResult -Kind mcp -Name $name -Status failed -Detail 'MCP definition not found'
         Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'TUNQIOacquWcqCBtY3AueWFtbCDkuK3lr7vliLDvvJp7MH0=') -f $name)
     }
 
@@ -4318,8 +4349,18 @@ function Sync-RegistryMcpServers {
         return
     }
 
-    Sync-CodexMcpServers -RegistryRoot $RegistryRoot -McpNames $names -DryRun:$DryRun
-    Sync-JsonMcpClientConfigs -Entries $entries -DryRun:$DryRun
+    $backupOffset = $script:InstallerBackups.Count
+    foreach ($entry in $entries) { Write-InstallerComponentResult -Kind mcp -Name $entry.Name -Status running }
+    try {
+        Sync-CodexMcpServers -RegistryRoot $RegistryRoot -McpNames $names -DryRun:$DryRun
+        Sync-JsonMcpClientConfigs -Entries $entries -DryRun:$DryRun
+        $backups = @($script:InstallerBackups.ToArray() | Select-Object -Skip $backupOffset)
+        foreach ($entry in $entries) { Write-InstallerComponentResult -Kind mcp -Name $entry.Name -Status $(if ($DryRun) {'preview'} else {'ok'}) -Detail 'Client configuration processed; connection not verified' -Backups $backups }
+    }
+    catch {
+        foreach ($entry in $entries) { Write-InstallerComponentResult -Kind mcp -Name $entry.Name -Status failed -Detail $_.Exception.Message -Backups @($script:InstallerBackups.ToArray() | Select-Object -Skip $backupOffset) }
+        throw
+    }
 }
 
 function Test-JsonMcpConfigHasServer {
@@ -5776,6 +5817,9 @@ function Import-SkillDirectoryToTargets {
         [switch]$DryRun
     )
 
+    Write-InstallerComponentResult -Kind skill -Name $SkillName -Status running
+    $backups = [Collections.Generic.List[string]]::new()
+    $preserved = [Collections.Generic.List[string]]::new()
     $centralPath = Join-Path $CentralRoot $SkillName
     $centralDecision = Get-SkillImportDecision `
         -SourcePath $SourcePath `
@@ -5785,11 +5829,14 @@ function Import-SkillDirectoryToTargets {
         -ReplaceForeign:$ReplaceForeign `
         -RenameForeign:$RenameForeign
 
-    [void](Invoke-SkillImportDecision -Decision $centralDecision -SourcePath $SourcePath -DryRun:$DryRun -Quiet)
+    $backup = Invoke-SkillImportDecision -Decision $centralDecision -SourcePath $SourcePath -DryRun:$DryRun -Quiet
+    if ($backup) { $backups.Add([string]$backup) }
 
     if ($centralDecision.Action -eq 'Skip' -and $centralDecision.State -in @('Orphan', 'Foreign')) {
         Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value '6Lez6L+HIHNraWxs77ya546w5pyJ55uu5b2V54q25oCB5Li6IHswfe+8mnsxfQ==') -f $centralDecision.State, $centralDecision.FinalPath)
+        Write-InstallerComponentResult -Kind skill -Name $SkillName -Status skipped -Detail ($centralDecision.State + ': ' + $centralDecision.FinalPath)
         return [pscustomobject]@{
+            Action = 'Skip'
             Imported      = $false
             Copied        = $false
             Metadata      = $null
@@ -5813,7 +5860,9 @@ function Import-SkillDirectoryToTargets {
             -NoReplaceOrphan:$NoReplaceOrphan `
             -ReplaceForeign:$ReplaceForeign `
             -RenameForeign:$false
-        [void](Invoke-SkillImportDecision -Decision $targetDecision -SourcePath $copySourcePath -DryRun:$DryRun -Quiet)
+        $backup = Invoke-SkillImportDecision -Decision $targetDecision -SourcePath $copySourcePath -DryRun:$DryRun -Quiet
+        if ($backup) { $backups.Add([string]$backup) }
+        if ($targetDecision.Action -eq 'Skip' -and $targetDecision.State -in @('Foreign','Orphan')) { $preserved.Add($targetDecision.FinalPath) }
 
         if ($targetDecision.Action -ne 'Skip' -or $targetDecision.State -eq 'Tracked') {
             $skillTargets.Add([pscustomobject]@{
@@ -5830,6 +5879,8 @@ function Import-SkillDirectoryToTargets {
     $skillMetadata = Read-SkillMetadata -SkillPath $SourcePath -SkillName $effectiveSkillName -CentralPath $effectiveCentralPath
     $skillMetadata | Add-Member -MemberType NoteProperty -Name 'Targets' -Value $skillTargets -Force
 
+    $status = if ($DryRun) {'preview'} elseif ($preserved.Count) {'warning'} elseif ($centralDecision.Action -eq 'Skip' -and -not $targetChanged) {'skipped'} else {'ok'}
+    Write-InstallerComponentResult -Kind skill -Name $SkillName -Status $status -Detail ($centralDecision.Action + ': ' + $effectiveCentralPath + $(if ($preserved.Count) {'; preserved targets: ' + ($preserved -join ', ')})) -Backups $backups.ToArray()
     return [pscustomobject]@{
         Imported      = $true
         Copied        = -not ($centralDecision.Action -eq 'Skip' -and -not $targetChanged)
@@ -6028,6 +6079,7 @@ function Import-ExternalSkillsFromSelection {
     }
 
     foreach ($entry in $externalEntries) {
+        if (Test-InstallerStopRequested) { break }
         foreach ($required in @($entry.Requires)) {
             if (-not [string]::IsNullOrWhiteSpace($required)) {
                 $requiredPrereqs.Add($required)
@@ -6041,11 +6093,13 @@ function Import-ExternalSkillsFromSelection {
         (-not [string]::IsNullOrWhiteSpace($entry.LocalPath))
 
         if (-not $hasAutoSource) {
+            Write-InstallerComponentResult -Kind skill -Name $entry.Name -Status manual -Detail 'No automatic source; install manually'
             Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'ZXh0ZXJuYWwgc2tpbGwg57y65bCRIHJlcG/vvIzml6Dms5Xoh6rliqjlronoo4XvvJp7MH0=') -f $entry.Name)
             continue
         }
 
         if ($DryRun) {
+            Write-InstallerComponentResult -Kind skill -Name $entry.Name -Status preview -Detail $sourceLabel
             Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'W+a8lOe7g10g5a6J6KOFIGV4dGVybmFsIHNraWxs77yaezB9IC0+IHsxfQ==') -f $entry.Name, $sourceLabel)
             $copiedCount++
             continue
@@ -6126,6 +6180,7 @@ function Import-ExternalSkillsFromSelection {
             Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'ZXh0ZXJuYWwgc2tpbGwg5bey5ZCM5q2l77yaezB977yb5Yqo5L2cPXsxfe+8m+ebruaghz17Mn0g5Liq') -f $entry.Name, $importResult.Action, $importResult.TargetCount)
         }
         catch {
+            Write-InstallerComponentResult -Kind skill -Name $entry.Name -Status failed -Detail $_.Exception.Message
             $failedCount++
             Write-Log -Level 'WARN' -Message ('external skill install failed: {0}; {1}' -f $entry.Name, $_.Exception.Message)
         }
@@ -6138,6 +6193,7 @@ function Import-ExternalSkillsFromSelection {
 
     $unknownMissing = @($missingNames | Where-Object { $externalEntries.Name -notcontains $_ })
     foreach ($name in $unknownMissing) {
+        Write-InstallerComponentResult -Kind skill -Name $name -Status failed -Detail 'Skill not found in bundle or external registry'
         Write-Log -Level 'WARN' -Message ((ConvertFrom-Utf8Base64String -Value 'cHJvZmlsZSDlvJXnlKjnmoQgc2tpbGwg5peg5rOV5Yy56YWNIGJ1bmRsZSDmiJYgZXh0ZXJuYWzvvJp7MH0=') -f $name)
     }
 
@@ -6183,6 +6239,7 @@ function Install-SkillBundle {
     $targets = Get-OptionalSkillTargets
     $importedSkills = New-Object System.Collections.Generic.List[object]
     $copiedSkillCount = 0
+    $componentFailed = 0
 
     try {
         Write-Log -Message ((ConvertFrom-Utf8Base64String -Value 'U2tpbGwg5ZSv5LiA5p2l5rqQ55uu5b2V77yaezB9') -f $centralRoot)
@@ -6252,17 +6309,20 @@ function Install-SkillBundle {
                     }
                 }
             }
-            $null = Install-RegistryPrereqs -RegistryRoot $selection.RegistryRoot -PrereqNames $featurePrereqs -DryRun:$DryRun
+            $prereqResult = Install-RegistryPrereqs -RegistryRoot $selection.RegistryRoot -PrereqNames $featurePrereqs -DryRun:$DryRun
+            $componentFailed += @($prereqResult.Failed).Count
         }
 
         $skillImportIndex = 0
         $skillImportTotal = @($skillDirs).Count
         foreach ($skillDir in $skillDirs) {
+            if (Test-InstallerStopRequested) { break }
             $skillImportIndex++
             $skillName = Split-Path -Leaf $skillDir
             $skillImportPercent = if ($skillImportTotal -gt 0) { [int](($skillImportIndex * 100) / $skillImportTotal) } else { 100 }
             $skillImportDetail = (ConvertFrom-Utf8Base64String -Value 'ezB9L3sxfSDkuKogU2tpbGwg5bey5a6M5oiQ') -f $skillImportIndex, $skillImportTotal
             Write-OperationProgress -Label 'Skill' -Percent $skillImportPercent -Detail $skillImportDetail -Completed:($skillImportIndex -ge $skillImportTotal)
+            try {
             $importResult = Import-SkillDirectoryToTargets `
                 -SourcePath $skillDir `
                 -SkillName $skillName `
@@ -6272,6 +6332,7 @@ function Install-SkillBundle {
                 -ReplaceForeign:$ReplaceForeign `
                 -RenameForeign:$RenameForeign `
                 -DryRun:$DryRun
+            } catch { $componentFailed++; Write-InstallerComponentResult -Kind skill -Name $skillName -Status failed -Detail $_.Exception.Message; Write-Log -Level WARN -Message $_.Exception.Message; continue }
 
             if ($importResult.Imported) {
                 $importedSkills.Add($importResult.Metadata)
@@ -6301,6 +6362,7 @@ function Install-SkillBundle {
                 throw 'external skill import did not return a structured result'
             }
             $externalResult = $externalResult[0]
+            $componentFailed += [int]$externalResult.FailedCount
 
             foreach ($metadata in @($externalResult.ImportedSkills)) {
                 $importedSkills.Add($metadata)
@@ -6311,8 +6373,12 @@ function Install-SkillBundle {
         }
 
         $registrySyncResult = $null
-        if ($importedSkills.Count -gt 0) {
+        if ($importedSkills.Count -gt 0 -and -not (Test-InstallerStopRequested)) {
             $registrySyncResult = Sync-SkillsManagerRegistry -ImportedSkills $importedSkills -SkipSkillsManagerLaunch:$SkipSkillsManagerLaunch -ScenarioMode $SkillsManagerScenarioMode -ScenarioName $SkillsManagerScenarioName -DryRun:$DryRun
+            if ($SkillsManagerScenarioMode -ne 'skip') {
+                $scenarioStatus = if ($DryRun) {'preview'} elseif ($registrySyncResult -and $registrySyncResult.Synchronized) {'ok'} else {'warning'}
+                Write-InstallerComponentResult -Kind scenario -Name 'skills-manager' -Status $scenarioStatus -Detail ($SkillsManagerScenarioMode + ': ' + $SkillsManagerScenarioName)
+            }
         }
 
         if (-not $DryRun -and -not $SkipSkillsManagerLaunch -and $importedSkills.Count -gt 0 -and $registrySyncResult -and $registrySyncResult.Synchronized) {
@@ -6340,7 +6406,7 @@ function Install-SkillBundle {
         return [pscustomobject]@{
             Name   = 'skills.zip'
             Key    = 'skills-bundle'
-            Status = 'ok'
+            Status = if ($componentFailed -gt 0) {'failed'} else {'ok'}
             Source = 'local-zip'
             Detail = $detail
         }

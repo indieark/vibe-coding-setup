@@ -9,9 +9,12 @@ export const initialRun = () => ({
   cancelled: false,
   dryRun: false,
   checkedOnly: false,
+  componentRows: {},
 });
 export function reduceEvent(state, event) {
   const next = { ...state };
+  if (event.type === "component-result")
+    next.componentRows = { ...state.componentRows, [event.key]: event.result };
   if (event.type === "log")
     next.logs = [
       ...state.logs,
@@ -41,6 +44,7 @@ export function reduceEvent(state, event) {
     next.rows = {
       ...state.rows,
       [event.key]: {
+        ...state.rows[event.key],
         status:
           event.result.Status === "failed"
             ? "failed"
@@ -76,6 +80,7 @@ export function describeRow(row) {
   if (row.status === "running") return ["running", "处理中"];
   if (row.status === "failed") return ["failed", "失败"];
   if (row.status === "skipped") return ["ok", "已安装，跳过"];
+  if (row.result?.Preview) return ["preview", "演练完成"];
   if (row.status === "ok") return ["ok", "已完成"];
   if (row.status === "checked" && row.error) return ["failed", "检查失败"];
   if (row.decision?.Action === "skip") return ["ok", "已安装"];

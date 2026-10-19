@@ -102,7 +102,7 @@ Set-Location "C:\Vibe_Coding\IndieArk\gadget\vibe-coding-setup"
 | 失败回退 | 主来源失败后 post-check,仍失败才使用 fallback |
 | 资产镜像 | 私库资产只在 GitHub Actions 中读取,终端用户只访问公开 `bootstrap-assets` |
 | 桌面 / TUI 入口 | 无操作参数打开 Tauri GUI；`-Tui` 打开终端工作台，显式安装参数继续使用命令模式 |
-| Skill / MCP 导入 | 桌面“扩展组件”页支持套件、Skills、MCP、CLI 搜索、混选、依赖预览、检查、演练与安装；TUI 和命令模式继续保留 |
+| Skill / MCP 导入 | 桌面支持套件、Skills、MCP、CLI 搜索、全选、混选、依赖预览、冲突策略与场景注册；和软件、API 组成统一计划，逐项显示结果和备份 |
 | 输入兼容 | TUI 进入前 best-effort 切英文输入布局;多选分隔支持 `,`、`，`、`、` |
 | 去重安全 | `Tracked / Orphan / Foreign` 三态判定,默认备份不删除 |
 | 进度展示 | 应用 precheck、Skill / MCP / CLI 状态扫描、下载、winget 下载 / 安装和 Skill bundle 解压使用脚本自绘同一行进度;组件扫描统一显示 `[检查]` 标签,winget 输出过滤噪音并中文化常见状态 |

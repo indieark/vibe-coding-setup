@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { ImportOptions, type ImportPolicy } from "./ImportOptions";
 import { Boxes, CheckCircle2, Circle, RefreshCw, Search } from "lucide-react";
 import { Toggle } from "./Toggle";
 import {
@@ -31,16 +31,31 @@ export function Extensions({
   onSelect,
   busy,
   reload,
+  policy,
+  onPolicy,
+  view,
+  onView,
+  componentRows,
 }: {
   catalog: ExtensionCatalog | null;
   selected: string[];
   onSelect: (ids: string[]) => void;
   busy: boolean;
   reload: (refresh?: boolean) => void;
+  policy: ImportPolicy;
+  onPolicy: (policy: ImportPolicy) => void;
+  view: { kind: ExtensionItem["kind"]; search: string; focus: string };
+  onView: (view: {
+    kind: ExtensionItem["kind"];
+    search: string;
+    focus: string;
+  }) => void;
+  componentRows: Record<string, any>;
 }) {
-  const [kind, setKind] = useState<ExtensionItem["kind"]>("profile");
-  const [search, setSearch] = useState("");
-  const [focus, setFocus] = useState("");
+  const { kind, search, focus } = view;
+  const setKind = (kind: ExtensionItem["kind"]) => onView({ ...view, kind });
+  const setSearch = (search: string) => onView({ ...view, search });
+  const setFocus = (focus: string) => onView({ ...view, focus });
   const items = catalog?.items || [];
   const resolved = resolveComponents(items, selected);
   const rows = items.filter(
@@ -92,6 +107,51 @@ export function Extensions({
             />
           </label>
         </div>
+        <div className="selection-actions">
+          <button
+            className="text-button"
+            disabled={busy || !rows.length}
+            onClick={() =>
+              onSelect([
+                ...new Set([...selected, ...rows.map((item) => item.id)]),
+              ])
+            }
+          >
+            选择筛选结果（{rows.length}）
+          </button>
+          <button
+            className="text-button"
+            disabled={busy || !catalog}
+            onClick={() =>
+              onSelect([
+                ...new Set([
+                  ...selected,
+                  ...items
+                    .filter((item) => item.kind === "skill")
+                    .map((item) => item.id),
+                ]),
+              ])
+            }
+          >
+            全部 Skills
+          </button>
+          <button
+            className="text-button"
+            disabled={busy || !catalog}
+            onClick={() =>
+              onSelect([
+                ...new Set([
+                  ...selected,
+                  ...items
+                    .filter((item) => item.kind === "profile")
+                    .map((item) => item.id),
+                ]),
+              ])
+            }
+          >
+            全部套件
+          </button>
+        </div>
         <div className="table-scroll">
           <table>
             <thead>
@@ -107,11 +167,40 @@ export function Extensions({
                 const included =
                   item.kind !== "profile" &&
                   resolved[item.kind].includes(item.name);
-                const [status, label] = componentStatus(item, catalog?.stale);
+                const result = componentRows[item.id];
+                const resultLabels: Record<string, string> = {
+                  ok: "已完成",
+                  preview: "演练完成",
+                  failed: "失败",
+                  skipped: "已跳过",
+                  warning: "有提示",
+                  manual: "需手动处理",
+                  running: "处理中",
+                };
+                const [status, label] = result
+                  ? [
+                      result.Status,
+                      resultLabels[result.Status] || result.Status,
+                    ]
+                  : componentStatus(item, catalog?.stale);
                 return (
                   <tr
                     key={item.id}
-                    className={focus === item.id ? "focused-row" : ""}
+                    className={
+                      "selectable-row " +
+                      (focus === item.id ? "focused-row" : "")
+                    }
+                    onClick={(event) => {
+                      if (!(event.target as Element).closest("button")) {
+                        setFocus(item.id);
+                        if (!busy && (!included || explicit))
+                          onSelect(
+                            explicit
+                              ? selected.filter((id) => id !== item.id)
+                              : [...selected, item.id],
+                          );
+                      }
+                    }}
                   >
                     <td>
                       <Toggle
@@ -130,7 +219,17 @@ export function Extensions({
                     <td>
                       <button
                         className="component-name"
-                        onClick={() => setFocus(item.id)}
+                        aria-pressed={explicit || included}
+                        disabled={busy}
+                        onClick={() => {
+                          setFocus(item.id);
+                          if (!included || explicit)
+                            onSelect(
+                              explicit
+                                ? selected.filter((id) => id !== item.id)
+                                : [...selected, item.id],
+                            );
+                        }}
                       >
                         {item.name}
                       </button>
@@ -139,7 +238,7 @@ export function Extensions({
                         {item.description ||
                           (item.kind === "skill"
                             ? "按需扩展 AI 工作能力"
-                            : "点击名称查看详情")}
+                            : "按需安装")}
                       </div>
                     </td>
                     <td>
@@ -151,6 +250,13 @@ export function Extensions({
                         )}
                         {label}
                       </span>
+                      <button
+                        className="text-button detail-button"
+                        onClick={() => setFocus(item.id)}
+                        aria-label={"查看 " + item.name + " 详情"}
+                      >
+                        详情
+                      </button>
                     </td>
                   </tr>
                 );
@@ -208,55 +314,66 @@ export function Extensions({
           </button>
         </div>
         <div className="extension-detail-scroll">
+          {detail && (
+            <section className="component-detail">
+              <h3>{detail.name}</h3>
+              <p>{detail.description || "按需安装的扩展组件"}</p>
+              {detail.skills.length > 0 && (
+                <details>
+                  <summary>包含 {detail.skills.length} 个 Skills</summary>
+                  <ul className="name-list">
+                    {detail.skills.map((name) => (
+                      <li key={name}>{name}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              {detail.mcp.length > 0 && <p>MCP：{detail.mcp.join("、")}</p>}
+              <p>CLI 依赖：{detail.requires.join("、") || "无"}</p>
+              {detail.targets.length > 0 && (
+                <p>已有配置：{detail.targets.join("、")}</p>
+              )}
+            </section>
+          )}
           {!selected.length && (
             <p className="field-note">
-              扩展项默认不安装。可选择一个套件，也可逐项选择 Skills、MCP 或
-              CLI。
+              选择套件或单项组件；所需依赖会自动合并。
             </p>
           )}
           {(["skill", "mcp", "cli"] as const).map((key) => (
-            <div className="selection-group" key={key}>
-              <h3>
-                {extensionKinds[key]}
+            <details
+              className="selection-group"
+              key={key}
+              open={resolved[key].length > 0 && resolved[key].length <= 6}
+            >
+              <summary>
+                {extensionKinds[key]}{" "}
                 <span className="count">{resolved[key].length}</span>
-              </h3>
-              <p>{resolved[key].join("、") || "未选择"}</p>
-            </div>
+              </summary>
+              <ul className="name-list">
+                {resolved[key].map((name: string) => (
+                  <li key={name}>
+                    <span>{name}</span>
+                    {selected.includes(`${key}:${name}`) && (
+                      <button
+                        className="remove-choice"
+                        disabled={busy}
+                        aria-label={"移除 " + name}
+                        onClick={() =>
+                          onSelect(
+                            selected.filter((id) => id !== `${key}:${name}`),
+                          )
+                        }
+                      >
+                        ×
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </details>
           ))}
-          <p className="field-note">
-            包含套件成员与所需 CLI。Skills 同步到 Codex
-            和已存在的其他工具目录；MCP 写入支持的客户端配置。
-          </p>
-          <p className="field-note">
-            保留来源不明或其他来源的同名
-            Skill；更新继续使用原有备份逻辑。无需打开 Skills Manager。
-          </p>
-          {detail && (
-            <div className="component-detail">
-              <h3>{detail.name}</h3>
-              <p>{detail.description}</p>
-              {(detail.kind === "profile" || detail.skills.length > 0) && (
-                <>
-                  <h4>Skills</h4>
-                  <p>{detail.skills.join("、") || "无"}</p>
-                </>
-              )}
-              {detail.kind === "profile" && (
-                <>
-                  <h4>MCP</h4>
-                  <p>{detail.mcp.join("、") || "无"}</p>
-                </>
-              )}
-              <h4>CLI 依赖</h4>
-              <p>{detail.requires.join("、") || "无"}</p>
-              {detail.targets.length > 0 && (
-                <>
-                  <h4>已有配置的客户端</h4>
-                  <p>{detail.targets.join("、")}</p>
-                </>
-              )}
-            </div>
-          )}
+          <ImportOptions policy={policy} change={onPolicy} disabled={busy} />
         </div>
       </aside>
     </div>

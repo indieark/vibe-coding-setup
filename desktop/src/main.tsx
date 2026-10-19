@@ -25,6 +25,9 @@ import {
 import { describeRow, initialRun, reduceEvent } from "./state.mjs";
 import { Toggle } from "./Toggle";
 import { Extensions, type ExtensionCatalog } from "./Extensions";
+import { defaultPolicy, type ImportPolicy } from "./ImportOptions";
+import { resolveComponents } from "./extension-state.mjs";
+import { Results, type PlannedItem } from "./Results";
 import "./style.css";
 
 type App = { key: string; name: string; defaultInstall?: boolean };
@@ -58,6 +61,23 @@ function Setup() {
     baseUrl: "",
     model: "",
     apiKey: "",
+  });
+  const [policy, setPolicy] = useState<ImportPolicy>(defaultPolicy);
+  const [providerState, setProviderState] = useState<{
+    status: string;
+    name: string;
+    message?: string;
+  }>({ status: "unknown", name: "" });
+  const [extensionView, setExtensionView] = useState<{
+    kind: "profile" | "skill" | "mcp" | "cli";
+    search: string;
+    focus: string;
+  }>({ kind: "profile", search: "", focus: "" });
+  const [planned, setPlanned] = useState<PlannedItem[]>([]);
+  const lastSelection = useRef({
+    keys: [] as string[],
+    ids: [] as string[],
+    configure: false,
   });
   const [configure, setConfigure] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -103,7 +123,7 @@ function Setup() {
           }
           if (
             event.type === "done" &&
-            taskRef.current === "components" &&
+            event.results?.some((r: any) => r.Key === "skills-bundle") &&
             !event.dryRun &&
             event.results?.length
           ) {
@@ -144,52 +164,172 @@ function Setup() {
       cleanups.forEach((fn) => fn());
     };
   }, []);
+  const reuseExisting =
+    policy.providerMode === "reuse" &&
+    providerState.name === provider.name &&
+    providerState.status === "exists";
+  async function inspectProvider() {
+    if (!provider.name.trim() || !isTauri()) return;
+    const name = provider.name;
+    setProviderState({ status: "loading", name });
+    try {
+      const result = await invoke<{
+        status: string;
+        name: string;
+        message?: string;
+      }>("get_provider", { name });
+      setProviderState(result);
+    } catch {
+      setProviderState({
+        status: "unknown",
+        name,
+        message: "读取失败，可重新检查或选择重新导入",
+      });
+    }
+  }
+  useEffect(() => {
+    if (!catalog || !provider.name.trim()) return;
+    const timer = setTimeout(() => void inspectProvider(), 350);
+    return () => clearTimeout(timer);
+  }, [catalog, provider.name]);
+  const planItems = (
+    keys = selected,
+    ids = components,
+    includeProvider = configure,
+  ) => {
+    const resolved = resolveComponents(extensions?.items || [], ids);
+    const items: PlannedItem[] = keys.map((key) => ({
+      Key: key,
+      Name: catalog?.apps.find((a) => a.key === key)?.name || key,
+      Kind: "app",
+    }));
+    if (includeProvider)
+      items.push({
+        Key: "cc-switch-provider",
+        Name: "CC Switch Provider",
+        Kind: "provider",
+      });
+    for (const kind of ["skill", "mcp", "cli"] as const)
+      for (const name of resolved[kind])
+        items.push({ Key: `${kind}:${name}`, Name: name, Kind: kind });
+    if (ids.length && policy.scenarioMode !== "skip")
+      items.push({
+        Key: "scenario:skills-manager",
+        Name: "Skills Manager 场景",
+        Kind: "scenario",
+      });
+    return items;
+  };
+  async function execute(
+    dryRun = false,
+    keys = selected,
+    ids = components,
+    includeProvider = configure,
+  ) {
+    if (busy || !catalog) return;
+    dryRun = dryRun || catalog.dryRunOnly;
+    setNotice("");
+    if (!keys.length && !ids.length && !includeProvider) {
+      setNotice("请选择软件、扩展或 API 配置。");
+      return;
+    }
+    if (includeProvider && !reuseExisting) {
+      if (
+        !provider.name.trim() ||
+        !provider.model.trim() ||
+        !/^https?:\/\//i.test(provider.baseUrl)
+      ) {
+        setNotice("请填写 Provider 名称、API 地址和模型。");
+        return;
+      }
+      if (
+        !dryRun &&
+        !provider.apiKey.trim() &&
+        (policy.providerMode === "import" ||
+          (providerState.name === provider.name &&
+            providerState.status === "missing"))
+      ) {
+        setNotice("请输入 API Key，或选择复用已有配置。");
+        return;
+      }
+    }
+    if (
+      ids.length &&
+      policy.scenarioMode === "custom" &&
+      !policy.scenarioName.trim()
+    ) {
+      setNotice("请输入 Skills Manager 场景名称。");
+      return;
+    }
+    if (
+      ids.length &&
+      !dryRun &&
+      (policy.orphanPolicy === "backup" ||
+        policy.foreignPolicy === "replace") &&
+      !policy.replacementConfirmed
+    ) {
+      setNotice("请在扩展导入设置中确认备份与替换策略。");
+      setTab("extensions");
+      return;
+    }
+    if (!dryRun && !catalog.isAdmin) {
+      setNotice("真实执行需要管理员权限，请通过启动脚本重新打开。");
+      return;
+    }
+    setBusy(true);
+    setStopping(false);
+    setLastTask("execute");
+    taskRef.current = "execute";
+    lastSelection.current = {
+      keys: [...keys],
+      ids: [...ids],
+      configure: includeProvider,
+    };
+    setPlanned(planItems(keys, ids, includeProvider));
+    dispatch({ type: "reset" });
+    setTab("logs");
+    try {
+      await invoke("start_run", {
+        plan: {
+          mode: "execute",
+          appKeys: keys,
+          componentIds: ids,
+          dryRun,
+          configureProvider: includeProvider,
+          provider,
+          options: policy,
+        },
+      });
+    } catch (error) {
+      setBusy(false);
+      dispatch({ type: "fatal", message: String(error) });
+    }
+  }
   async function start(
     mode: "check" | "install",
     dryRun = false,
     keys = selected,
     retryProvider = configure,
   ) {
-    dryRun = dryRun || !!catalog?.dryRunOnly;
-    setNotice("");
-    if (!keys.length) {
-      setNotice("请至少选择一个软件。");
+    if (mode === "install") {
+      await execute(dryRun, keys, [], retryProvider);
       return;
     }
-    if (mode === "install" && retryProvider) {
-      if (
-        !provider.name.trim() ||
-        !provider.model.trim() ||
-        !/^https?:\/\//i.test(provider.baseUrl)
-      ) {
-        setNotice("请填写完整的 Provider 名称、API 地址和模型。");
-        return;
-      }
-      if (!dryRun && !provider.apiKey.trim()) {
-        setNotice("请填写 API Key，或关闭“导入 CC Switch 配置”。");
-        return;
-      }
-    }
-    if (mode === "install" && !dryRun && !catalog?.isAdmin) {
-      setNotice(
-        "真实安装需要管理员权限。请关闭后通过启动脚本重新打开，并允许权限请求。",
-      );
-      return;
-    }
+    if (busy || !catalog || !keys.length) return;
     setBusy(true);
-    setLastTask("setup");
-    taskRef.current = "setup";
-    if (mode === "install") setSelected(keys);
     setStopping(false);
+    setLastTask("check");
+    taskRef.current = "check";
     dispatch({ type: "reset" });
+    setPlanned([]);
     try {
       await invoke("start_run", {
         plan: {
-          mode,
+          mode: "check",
           appKeys: keys,
-          dryRun,
-          configureProvider: mode === "install" && retryProvider,
-          provider,
+          dryRun: true,
+          configureProvider: false,
+          provider: {},
         },
       });
     } catch (error) {
@@ -202,31 +342,27 @@ function Setup() {
     dryRun = false,
     refreshBundle = false,
   ) {
+    if (mode === "install-components") {
+      await execute(dryRun, [], components, false);
+      return;
+    }
     if (busy || !catalog) return;
-    dryRun = dryRun || catalog.dryRunOnly;
     setNotice("");
-    if (mode === "install-components" && !components.length) {
-      setNotice("请至少选择一个扩展组件。");
-      return;
-    }
-    if (mode === "install-components" && !dryRun && !catalog.isAdmin) {
-      setNotice("真实安装需要管理员权限，请通过启动脚本重新打开。");
-      return;
-    }
     setBusy(true);
     setStopping(false);
-    setLastTask(mode === "extensions" ? "extension-check" : "components");
-    taskRef.current = mode === "extensions" ? "extension-check" : "components";
+    setLastTask("extension-check");
+    taskRef.current = "extension-check";
     dispatch({ type: "reset" });
+    setPlanned([]);
     try {
       await invoke("start_run", {
         plan: {
           mode,
           appKeys: [],
-          dryRun,
+          componentIds: [],
+          dryRun: true,
           configureProvider: false,
           provider: {},
-          componentIds: components,
           refreshBundle,
         },
       });
@@ -238,6 +374,23 @@ function Setup() {
   function showExtensions() {
     setTab("extensions");
     if (!extensions && !busy && catalog) void extensionRun("extensions");
+  }
+  async function retryFailed() {
+    const previous = lastSelection.current;
+    await execute(
+      run.dryRun,
+      previous.keys.filter((key) =>
+        run.results.some((r: any) => r.Key === key && r.Status === "failed"),
+      ),
+      run.results.some(
+        (r: any) => r.Key === "skills-bundle" && r.Status === "failed",
+      )
+        ? previous.ids
+        : [],
+      run.results.some(
+        (r: any) => r.Key === "cc-switch-provider" && r.Status === "failed",
+      ),
+    );
   }
   async function stop() {
     try {
@@ -256,12 +409,8 @@ function Setup() {
   }
   const failed = run.results.filter((r: any) => r.Status === "failed");
   const warnings = run.results.flatMap((r: any) => r.Warnings || []);
-  const appFailures = failed
-    .filter((r: any) => r.Key !== "cc-switch-provider")
-    .map((r: any) => r.Key);
+  const needsConfirmation = run.results.some((r: any) => r.NeedsConfirmation);
   const done = run.phase === "done";
-  const extensionContext =
-    tab === "extensions" || (tab === "logs" && lastTask !== "setup");
   const title = busy
     ? {
         check: "正在检查环境",
@@ -278,13 +427,15 @@ function Setup() {
           ? "已停止后续任务"
           : failed.length
             ? "部分任务需要处理"
-            : warnings.length
-              ? "任务完成，有提示需要查看"
-              : run.checkedOnly
-                ? "环境检查完成"
-                : run.dryRun
-                  ? "安全演练完成"
-                  : "本次任务已完成"
+            : needsConfirmation
+              ? "请在 CC Switch 中确认导入"
+              : warnings.length
+                ? "任务完成，有提示需要查看"
+                : run.checkedOnly
+                  ? "环境检查完成"
+                  : run.dryRun
+                    ? "安全演练完成"
+                    : "本次任务已完成"
         : "准备好你的工作环境";
   return (
     <div className="shell">
@@ -298,7 +449,7 @@ function Setup() {
           <span>环境安装</span>
         </div>
         <div className="top-actions">
-          <span className="version">Desktop 0.1</span>
+          <span className="version">Desktop 0.2</span>
           <button
             className="icon-button"
             aria-label="切换亮暗主题"
@@ -329,7 +480,7 @@ function Setup() {
             onClick={() => setTab("logs")}
           >
             <Terminal size={17} />
-            执行记录
+            计划与结果
             {run.logs.length > 0 && (
               <span className="count">{run.logs.length}</span>
             )}
@@ -403,7 +554,23 @@ function Setup() {
                   <table>
                     <thead>
                       <tr>
-                        <th className="check-col" />
+                        <th className="check-col">
+                          <Toggle
+                            label="全选软件"
+                            disabled={busy || !catalog}
+                            checked={
+                              !!catalog &&
+                              selected.length === catalog.apps.length
+                            }
+                            onChange={() =>
+                              setSelected(
+                                selected.length === catalog?.apps.length
+                                  ? []
+                                  : catalog!.apps.map((a) => a.key),
+                              )
+                            }
+                          />
+                        </th>
                         <th>软件</th>
                         <th>本机状态</th>
                       </tr>
@@ -415,8 +582,20 @@ function Setup() {
                         return (
                           <tr
                             key={app.key}
+                            onClick={(event) => {
+                              if (
+                                !busy &&
+                                !(event.target as Element).closest("button")
+                              )
+                                setSelected((s) =>
+                                  s.includes(app.key)
+                                    ? s.filter((key) => key !== app.key)
+                                    : [...s, app.key],
+                                );
+                            }}
                             className={
-                              selected.includes(app.key) ? "" : "unselected"
+                              "selectable-row " +
+                              (selected.includes(app.key) ? "" : "unselected")
                             }
                           >
                             <td>
@@ -434,12 +613,24 @@ function Setup() {
                               />
                             </td>
                             <td>
-                              <div className="app-name">
+                              <button
+                                type="button"
+                                className="app-name app-toggle"
+                                disabled={busy}
+                                aria-pressed={selected.includes(app.key)}
+                                onClick={() =>
+                                  setSelected((s) =>
+                                    s.includes(app.key)
+                                      ? s.filter((key) => key !== app.key)
+                                      : [...s, app.key],
+                                  )
+                                }
+                              >
                                 {app.name}
                                 {app.defaultInstall === false && (
                                   <span className="optional">可选</span>
                                 )}
-                              </div>
+                              </button>
                               <div className="app-purpose">
                                 {purpose[app.key]}
                               </div>
@@ -457,6 +648,18 @@ function Setup() {
                                 )}{" "}
                                 {label}
                               </span>
+                              {row?.decision && (
+                                <div className="version-detail">
+                                  检查时：
+                                  {row.decision.InstalledVersion ||
+                                    (row.decision.Reason === "missing"
+                                      ? "未安装"
+                                      : "版本未知")}{" "}
+                                  →{" "}
+                                  {row.decision.DesiredVersion ||
+                                    "由安装源提供"}
+                                </div>
+                              )}
                             </td>
                           </tr>
                         );
@@ -476,7 +679,7 @@ function Setup() {
                   <span>默认安装不包含 Skills</span>
                   <button
                     className="button secondary compact"
-                    disabled={busy || !catalog}
+                    disabled={busy || !catalog || !selected.length}
                     onClick={() => start("check")}
                   >
                     <RefreshCw size={14} />
@@ -514,55 +717,124 @@ function Setup() {
                       autoComplete="off"
                     />
                   </label>
-                  <label>
-                    API 地址
-                    <input
-                      name="baseUrl"
+                  <div className="provider-state" role="status">
+                    <span>
+                      {providerState.name !== provider.name
+                        ? "等待检查"
+                        : (
+                            {
+                              loading: "正在检查已有配置…",
+                              exists: "已找到同名 Provider",
+                              missing: "未找到同名 Provider",
+                              unknown: "已有配置状态未知",
+                            } as Record<string, string>
+                          )[providerState.status]}
+                    </span>
+                    <button
+                      className="text-button"
+                      disabled={busy || !provider.name.trim()}
+                      onClick={() => void inspectProvider()}
+                    >
+                      重新检查
+                    </button>
+                  </div>
+                  <div className="policy-choices">
+                    <button
                       disabled={busy || !configure}
-                      value={provider.baseUrl}
-                      onChange={(e) =>
-                        setProvider({ ...provider, baseUrl: e.target.value })
+                      aria-pressed={policy.providerMode === "reuse"}
+                      className={
+                        policy.providerMode === "reuse" ? "chosen" : ""
                       }
-                      spellCheck={false}
-                      autoComplete="off"
-                    />
-                  </label>
-                  <label>
-                    默认模型
-                    <input
-                      name="model"
+                      onClick={() =>
+                        setPolicy({ ...policy, providerMode: "reuse" })
+                      }
+                    >
+                      已有则保留
+                    </button>
+                    <button
                       disabled={busy || !configure}
-                      value={provider.model}
-                      onChange={(e) =>
-                        setProvider({ ...provider, model: e.target.value })
+                      aria-pressed={policy.providerMode === "import"}
+                      className={
+                        policy.providerMode === "import" ? "chosen" : ""
                       }
-                      spellCheck={false}
-                      autoComplete="off"
-                    />
-                  </label>
-                  <label>
-                    API Key
-                    <input
-                      type="password"
-                      name="apiKey"
-                      disabled={busy || !configure}
-                      value={provider.apiKey}
-                      onChange={(e) =>
-                        setProvider({ ...provider, apiKey: e.target.value })
+                      onClick={() =>
+                        setPolicy({ ...policy, providerMode: "import" })
                       }
-                      placeholder="输入你的 API Key"
-                      autoComplete="off"
-                      spellCheck={false}
-                    />
-                  </label>
-                  <p className="field-note">
-                    Key 仅用于本次导入，不写入诊断报告。
-                  </p>
+                    >
+                      重新导入
+                    </button>
+                  </div>
+                  {!reuseExisting ? (
+                    <>
+                      <label>
+                        API 地址
+                        <input
+                          name="baseUrl"
+                          disabled={busy || !configure || reuseExisting}
+                          value={provider.baseUrl}
+                          onChange={(e) =>
+                            setProvider({
+                              ...provider,
+                              baseUrl: e.target.value,
+                            })
+                          }
+                          spellCheck={false}
+                          autoComplete="off"
+                        />
+                      </label>
+                      <label>
+                        默认模型
+                        <input
+                          name="model"
+                          disabled={busy || !configure || reuseExisting}
+                          value={provider.model}
+                          onChange={(e) =>
+                            setProvider({ ...provider, model: e.target.value })
+                          }
+                          spellCheck={false}
+                          autoComplete="off"
+                        />
+                      </label>
+                      <label>
+                        API Key
+                        <input
+                          type="password"
+                          name="apiKey"
+                          disabled={busy || !configure || reuseExisting}
+                          value={provider.apiKey}
+                          onChange={(e) =>
+                            setProvider({ ...provider, apiKey: e.target.value })
+                          }
+                          placeholder="输入你的 API Key"
+                          autoComplete="off"
+                          spellCheck={false}
+                        />
+                      </label>
+                      <p className="field-note">
+                        Key 仅用于本次导入，不写入诊断报告。
+                      </p>
+                    </>
+                  ) : (
+                    <p className="field-note">
+                      保留已有地址、模型和 API Key；选择“重新导入”才使用新参数。
+                    </p>
+                  )}
                 </div>
                 <div className="config-footer">
-                  {configure
-                    ? "安装后打开 CC Switch，由你确认导入。"
-                    : "本次保留现有 API 配置。"}
+                  <span>
+                    {!configure
+                      ? "本次保留 API 配置。"
+                      : reuseExisting
+                        ? "执行时会再次检查，并保留已有 Provider。"
+                        : "导入后需在 CC Switch 中确认。"}
+                  </span>
+                  <button
+                    className="button secondary compact"
+                    disabled={busy || !catalog || !configure}
+                    onClick={() => void execute(false, [], [], true)}
+                  >
+                    仅处理 API 配置
+                  </button>
                 </div>
               </section>
             </div>
@@ -572,6 +844,11 @@ function Setup() {
               selected={components}
               onSelect={setComponents}
               busy={busy}
+              policy={policy}
+              onPolicy={setPolicy}
+              view={extensionView}
+              onView={setExtensionView}
+              componentRows={run.componentRows}
               reload={(refresh = false) =>
                 void extensionRun("extensions", true, refresh)
               }
@@ -592,20 +869,28 @@ function Setup() {
                   导出诊断
                 </button>
               </div>
-              <div className="log-scroll">
-                {run.logs.length ? (
-                  run.logs.map((line: string, i: number) => (
-                    <div key={i} className="log-line">
-                      {line}
+              <Results
+                run={run}
+                planned={planned.length ? planned : planItems()}
+                busy={busy}
+              />
+              <details className="execution-logs">
+                <summary>执行日志（{run.logs.length}）</summary>
+                <div className="log-scroll">
+                  {run.logs.length ? (
+                    run.logs.map((line: string, i: number) => (
+                      <div key={i} className="log-line">
+                        {line}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="empty">
+                      <Terminal size={30} />
+                      <p>执行任务后，这里会显示日志。</p>
                     </div>
-                  ))
-                ) : (
-                  <div className="empty">
-                    <Terminal size={30} />
-                    <p>执行任务后，这里会显示日志。</p>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              </details>
             </section>
           )}
           {(done || run.phase === "error") && (
@@ -615,41 +900,25 @@ function Setup() {
                   ? "未执行的任务保持原状。"
                   : run.checkedOnly
                     ? "本机状态已更新，可选择需要处理的项目。"
-                    : lastTask === "components" &&
-                        !failed.length &&
-                        run.results.length
-                      ? (run.dryRun
-                          ? "扩展演练完成，未写入用户配置。"
-                          : run.results[0].Detail) +
-                        (warnings.length
-                          ? `（${warnings.length} 条提示，见执行记录）`
-                          : "")
-                      : `${run.results.filter((r: any) => r.Status !== "failed").length} 项已处理${failed.length ? `，${failed.length} 项失败` : ""}`}
+                    : run.phase === "error"
+                      ? "任务未完整完成，请查看错误原因和逐项结果。"
+                      : failed.length
+                        ? `${failed.length} 个步骤失败，请查看逐项结果。`
+                        : run.dryRun
+                          ? "演练结束，未写入用户配置；逐项结果见计划与结果页。"
+                          : needsConfirmation
+                            ? "配置导入窗口已打开，仍需在 CC Switch 中确认。"
+                            : "执行结束，成功、跳过、提示及备份路径见计划与结果页。"}
               </span>
               <div>
                 {failed.length > 0 && (
                   <button
                     className="text-button"
                     disabled={busy}
-                    onClick={() =>
-                      lastTask === "components"
-                        ? extensionRun("install-components", run.dryRun)
-                        : start(
-                            "install",
-                            run.dryRun,
-                            appFailures.length ? appFailures : ["cc-switch"],
-                            failed.some(
-                              (r: any) => r.Key === "cc-switch-provider",
-                            ),
-                          )
-                    }
+                    onClick={() => void retryFailed()}
                   >
                     <RotateCcw size={14} />
-                    {lastTask === "components"
-                      ? "重试所选扩展"
-                      : appFailures.length
-                        ? "重试失败项"
-                        : "重试配置导入"}
+                    重试失败步骤
                   </button>
                 )}
                 <button className="text-button" onClick={exportReport}>
@@ -685,16 +954,14 @@ function Setup() {
                 ? stopping
                   ? "等待当前步骤完成"
                   : run.detail || "正在执行"
-                : "按需安装，现有软件会先检查"}
+                : `${selected.length} 个软件 · ${components.length} 项扩展选择 · ${configure ? "含 API 配置" : "保留 API 配置"}`}
             </strong>
             <span>
               {busy && run.percent !== null
                 ? `${run.percent}%`
                 : busy
                   ? "请保持窗口打开"
-                  : tab === "extensions"
-                    ? "选择、演练和安装都在当前窗口完成"
-                    : "Skills / MCP / CLI 可从扩展组件进入"}
+                  : "软件、API 与扩展按同一计划执行；可在计划与结果页查看明细"}
             </span>
           </div>
           {busy && run.percent !== null && (
@@ -717,13 +984,9 @@ function Setup() {
                 className="button secondary"
                 disabled={
                   !catalog ||
-                  (extensionContext && (!extensions || !components.length))
+                  (!selected.length && !components.length && !configure)
                 }
-                onClick={() =>
-                  extensionContext
-                    ? extensionRun("install-components", true)
-                    : start("install", true)
-                }
+                onClick={() => void execute(true)}
               >
                 <Play size={15} />
                 安全演练
@@ -732,22 +995,12 @@ function Setup() {
                 className="button primary"
                 disabled={
                   !catalog ||
-                  (extensionContext
-                    ? !extensions || !components.length
-                    : !selected.length)
+                  (!selected.length && !components.length && !configure)
                 }
-                onClick={() =>
-                  extensionContext
-                    ? extensionRun("install-components")
-                    : start("install")
-                }
+                onClick={() => void execute()}
               >
                 <Download size={16} />
-                {catalog?.dryRunOnly
-                  ? "开始演练"
-                  : extensionContext
-                    ? "安装所选扩展"
-                    : "开始安装"}
+                {catalog?.dryRunOnly ? "执行演练计划" : "执行本次计划"}
               </button>
             </>
           )}

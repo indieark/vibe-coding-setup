@@ -11,7 +11,8 @@ try {
     $targetRoot = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { Join-Path $PWD 'src-tauri\target' }
     $source = Join-Path $targetRoot 'release\indieark-setup.exe'
     if (-not (Test-Path -LiteralPath $source)) { throw ('Built executable not found: ' + $source) }
-    $output = Join-Path $PWD 'bin\IndieArkSetup.exe'
+    $version = (Get-Content -Raw (Join-Path $PWD 'src-tauri/tauri.conf.json') | ConvertFrom-Json).version
+    $output = Join-Path $PWD ('bin\IndieArkSetup-' + $version + '.exe')
     New-Item -ItemType Directory -Path (Split-Path -Parent $output) -Force | Out-Null
     Copy-Item -LiteralPath $source -Destination $output -Force
     Write-Output ('Desktop executable: ' + $output)

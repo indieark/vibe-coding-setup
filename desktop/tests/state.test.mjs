@@ -47,3 +47,33 @@ test("unknown progress stays indeterminate and logs remain bounded", () => {
   assert.equal(state.logs.length, 500);
   assert.equal(state.logs[0], "100");
 });
+test("component outcomes retain failures, skipped items and backup paths independently", () => {
+  let state = reduceEvent(initialRun(), {
+    type: "component-result",
+    key: "skill:a",
+    result: { Key: "skill:a", Status: "failed", Backups: ["fixture-backup"] },
+  });
+  state = reduceEvent(state, {
+    type: "component-result",
+    key: "cli:b",
+    result: { Key: "cli:b", Status: "skipped" },
+  });
+  state = reduceEvent(state, { type: "done", results: [], success: false });
+  assert.equal(state.componentRows["skill:a"].Status, "failed");
+  assert.deepEqual(state.componentRows["skill:a"].Backups, ["fixture-backup"]);
+  assert.equal(state.componentRows["cli:b"].Status, "skipped");
+});
+test("application preview is distinct from installation and retains detected versions", () => {
+  let state = reduceEvent(initialRun(), {
+    type: "checked",
+    key: "git",
+    decision: { InstalledVersion: "1", DesiredVersion: "2" },
+  });
+  state = reduceEvent(state, {
+    type: "app-result",
+    key: "git",
+    result: { Key: "git", Status: "ok", Preview: true },
+  });
+  assert.deepEqual(describeRow(state.rows.git), ["preview", "演练完成"]);
+  assert.equal(state.rows.git.decision.InstalledVersion, "1");
+});

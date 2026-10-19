@@ -6,6 +6,11 @@ set "BOOTSTRAP_ASSETS_REPO=indieark/vibe-coding-setup"
 set "BOOTSTRAP_ASSETS_TAG=bootstrap-assets"
 set "PS_EXE=powershell.exe"
 
+if exist "%~dp0desktop\bin\IndieArkSetup-0.2.0.exe" if exist "%~dp0bootstrap.ps1" (
+  "%PS_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%~dp0bootstrap.ps1" -PauseOnExit %*
+  exit /b
+)
+
 if exist "%~dp0desktop\bin\IndieArkSetup.exe" if exist "%~dp0bootstrap.ps1" (
   "%PS_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%~dp0bootstrap.ps1" -PauseOnExit %*
   exit /b

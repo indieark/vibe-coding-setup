@@ -3456,9 +3456,10 @@ function Start-BootstrapDesktop {
     param([string]$Root, [string]$SourceRoot, [string]$UserHome, [switch]$CheckOnly, [switch]$DryRunOnly)
 
     Copy-BootstrapDependency -SourceRoot $SourceRoot -DestinationRoot $Root -RelativePath 'scripts/DesktopWorker.ps1' -Refresh:(Test-HttpSourceRoot -SourceRoot $SourceRoot)
-    $executable = Join-Path $Root 'desktop\bin\IndieArkSetup.exe'
+    $releaseAsset = 'IndieArkSetup-0.2.0.exe'
+    $executable = Join-Path $Root ('desktop\bin\' + $releaseAsset)
     if ((Test-HttpSourceRoot -SourceRoot $SourceRoot) -or -not (Test-Path -LiteralPath $executable)) {
-        Copy-BootstrapReleaseAsset -Repo $BootstrapAssetsRepo -Tag $BootstrapAssetsTag -DestinationRoot $Root -RelativePath 'desktop/bin/IndieArkSetup.exe' -AssetName 'IndieArkSetup.exe' -Refresh $true
+        Copy-BootstrapReleaseAsset -Repo $BootstrapAssetsRepo -Tag $BootstrapAssetsTag -DestinationRoot $Root -RelativePath ('desktop/bin/' + $releaseAsset) -AssetName $releaseAsset -Refresh $true
     }
     $stream = [IO.File]::OpenRead($executable)
     try { if ($stream.ReadByte() -ne 77 -or $stream.ReadByte() -ne 90) { throw 'Invalid desktop executable. Download or rebuild IndieArkSetup.exe.' } }

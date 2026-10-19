@@ -45,13 +45,16 @@ function Get-SkillBundleComponentStatus {
     [pscustomobject]@{Skills=@([pscustomobject]@{Name='design';Installed=$false;UpdateAvailable=$false});Mcp=@([pscustomobject]@{Name='browser';Configured=$true;Targets=@('Codex')});Prereqs=@([pscustomobject]@{Name='node';Installed=$true})}
 }
 function Install-SkillBundle {
-    param($ZipPath,$SkillNames,$McpNames,$PrereqNames,[switch]$NoReplaceOrphan,[switch]$SkipSkillsManagerLaunch,$SkillsManagerScenarioMode,[switch]$DryRun)
+    param($ZipPath,$SkillNames,$McpNames,$PrereqNames,[switch]$NoReplaceOrphan,[switch]$ReplaceForeign,[switch]$RenameForeign,[switch]$SkipSkillsManagerLaunch,$SkillsManagerScenarioMode,$SkillsManagerScenarioName,[switch]$DryRun)
     if (-not $DryRun) { throw 'Real extension installs forbidden in tests' }
-    if (-not $NoReplaceOrphan -or -not $SkipSkillsManagerLaunch -or $SkillsManagerScenarioMode -ne 'skip') { throw 'Unsafe GUI extension policy' }
     if ('detail' -in $SkillNames) { Write-Log -Level WARN -Message 'Kept an existing fixture skill' }
-    [pscustomobject]@{Name='Extensions';Key='skills-bundle';Status='ok';Source='test';Detail=(@{Skills=@($SkillNames);Mcp=@($McpNames);Cli=@($PrereqNames)} | ConvertTo-Json -Compress)}
+    foreach ($name in $SkillNames) { Write-InstallerComponentResult -Kind skill -Name $name -Status preview -Detail 'Fixture preview' -Backups @('fixture-backup') }
+    foreach ($name in $McpNames) { Write-InstallerComponentResult -Kind mcp -Name $name -Status preview }
+    foreach ($name in $PrereqNames) { Write-InstallerComponentResult -Kind cli -Name $name -Status preview }
+    [pscustomobject]@{Name='Extensions';Key='skills-bundle';Status='ok';Source='test';Detail=(@{Skills=@($SkillNames);Mcp=@($McpNames);Cli=@($PrereqNames);NoReplaceOrphan=[bool]$NoReplaceOrphan;ReplaceForeign=[bool]$ReplaceForeign;RenameForeign=[bool]$RenameForeign;SkipLaunch=[bool]$SkipSkillsManagerLaunch;ScenarioMode=$SkillsManagerScenarioMode;ScenarioName=$SkillsManagerScenarioName} | ConvertTo-Json -Compress)}
 }
-Export-ModuleMember -Function Get-AppInstallDecisionBatch,Install-AppFromDefinition,Import-CcSwitchCodexProvider,Get-SkillBundleInventory,Get-SkillBundleComponentStatus,Install-SkillBundle
+function Get-CcSwitchProviderByName { param($ProviderName); if ($ProviderName -eq 'Existing') { [pscustomobject]@{Id='fixture';Name='Existing'} } }
+Export-ModuleMember -Function Get-AppInstallDecisionBatch,Install-AppFromDefinition,Import-CcSwitchCodexProvider,Get-SkillBundleInventory,Get-SkillBundleComponentStatus,Install-SkillBundle,Get-CcSwitchProviderByName
 '@
 [IO.File]::WriteAllText((Join-Path $scratch 'modules\common.psm1'),$common + "`r`n" + $mocks,[Text.UTF8Encoding]::new($false))
 $assertions = 0
@@ -137,6 +140,24 @@ foreach ($ids in @(@(),@('profile:web','skill:unknown'))) {
 }
 $stoppedExtensions = Run-Worker @{mode='install-components';dryRun=$true;refreshBundle=$false;componentIds=@('cli:node')} $stopPath
 Assert-True (($stoppedExtensions.Events | Where-Object type -eq 'done').cancelled -and @($stoppedExtensions.Events | Where-Object type -eq 'app-start').Count -eq 0) 'Stop prevents the selected extension transaction from starting'
+$providerOnly = Run-Worker @{mode='execute';appKeys=@();componentIds=@();dryRun=$true;configureProvider=$true;provider=@{name='Existing'};options=@{providerMode='reuse'}}
+Assert-True ($providerOnly.ExitCode -eq 0 -and ($providerOnly.Events | Where-Object type -eq 'app-result').result.Status -eq 'skipped') 'Existing provider can be preserved without app selection or API Key'
+Assert-True (@($providerOnly.Events | Where-Object type -eq 'app-start').Count -eq 0) 'Provider-only operation never installs an application'
+$providerState = Run-Worker @{mode='provider-check';provider=@{name='Existing'}}
+Assert-True (($providerState.Events | Where-Object type -eq 'catalog').providerState.status -eq 'exists') 'Provider inspection exposes existence without credentials'
+$combined = Run-Worker @{mode='execute';appKeys=@('nodejs');componentIds=@('profile:web');dryRun=$true;configureProvider=$true;provider=@{name='Existing'};options=@{providerMode='reuse'}}
+Assert-True ($combined.ExitCode -eq 0 -and @($combined.Events | Where-Object type -eq 'app-result').Count -eq 3) 'Applications, provider and extensions execute in one plan'
+Assert-True (@($combined.Events | Where-Object type -eq 'component-result').Count -eq 4) 'Component outcomes are structured per skill, MCP and CLI'
+Assert-True (($combined.Events | Where-Object { $_.type -eq 'component-result' -and $_.key -eq 'skill:design' }).result.Backups.Count -eq 1) 'Backup paths survive the worker protocol'
+$invalidCombined = Run-Worker @{mode='execute';appKeys=@('nodejs');componentIds=@('skill:unknown');dryRun=$true;configureProvider=$false;provider=@{}}
+Assert-True ($invalidCombined.ExitCode -eq 1 -and @($invalidCombined.Events | Where-Object type -eq 'app-start').Count -eq 0) 'Entire combined plan is validated before app side effects'
+$advanced = Run-Worker @{mode='execute';appKeys=@();componentIds=@('skill:design');dryRun=$true;configureProvider=$false;provider=@{};options=@{orphanPolicy='backup';foreignPolicy='rename';scenarioMode='custom';scenarioName='Work';launchSkillsManager=$true}}
+$advancedPlan = ($advanced.Events | Where-Object type -eq 'app-result').result.Detail | ConvertFrom-Json
+Assert-True ($advanced.ExitCode -eq 0 -and -not $advancedPlan.NoReplaceOrphan -and $advancedPlan.RenameForeign -and $advancedPlan.ScenarioMode -eq 'custom' -and $advancedPlan.ScenarioName -eq 'Work' -and -not $advancedPlan.SkipLaunch) 'Advanced replacement, rename and custom scenario options reach the shared installer'
+$unsafe = Run-Worker @{mode='execute';appKeys=@('nodejs');componentIds=@('skill:design');dryRun=$false;configureProvider=$false;provider=@{};options=@{orphanPolicy='backup';replacementConfirmed=$false}}
+Assert-True ($unsafe.ExitCode -eq 1 -and @($unsafe.Events | Where-Object type -eq 'app-start').Count -eq 0) 'Unconfirmed real replacement is rejected before execution'
+$malformedConsent=Run-Worker @{mode='execute';appKeys=@('nodejs');componentIds=@('skill:design');dryRun=$true;configureProvider=$false;provider=@{};options=@{orphanPolicy='backup';replacementConfirmed='false'}}
+Assert-True ($malformedConsent.ExitCode -eq 1 -and @($malformedConsent.Events | Where-Object type -eq 'app-start').Count -eq 0) 'String values cannot masquerade as boolean replacement consent'
 $routeResults = & {
     $tokens = $null; $errors = $null
     $ast = [Management.Automation.Language.Parser]::ParseFile((Join-Path $root 'bootstrap.ps1'),[ref]$tokens,[ref]$errors)
@@ -159,12 +180,12 @@ Assert-True $routeResults[1].DryRunOnly 'Explicit GUI dry-run forwards the enfor
 if (-not $SkipBinary) {
     foreach ($launcher in @('bootstrap.cmd','vibe-coding-setup.cmd')) {
         $output = & (Join-Path $root $launcher) -GuiCheck | Out-String
-        Assert-True ($LASTEXITCODE -eq 0 -and $output.Contains('IndieArkSetup.exe')) ($launcher + ' resolves to the local GUI')
+        Assert-True ($LASTEXITCODE -eq 0 -and $output.Contains('IndieArkSetup-0.2.0.exe')) ($launcher + ' resolves to the local GUI')
     }
     $safeOutput = & (Join-Path $root 'bootstrap.cmd') -GuiCheck -DryRun | Out-String
     $safeMetadata = ($safeOutput -split "`r?`n" | Where-Object { $_.StartsWith('{') } | Select-Object -Last 1) | ConvertFrom-Json
     Assert-True ($safeMetadata.DryRunOnly -and -not $safeMetadata.RequiresElevation) 'Safe GUI routing never requests installation privileges'
-    $exe = Join-Path $root 'desktop\bin\IndieArkSetup.exe'
+    $exe = Join-Path $root 'desktop\bin\IndieArkSetup-0.2.0.exe'
     $report = Join-Path $scratch 'binary-smoke.json'
     $process = Start-Process -FilePath $exe -ArgumentList @('--smoke-test',('"' + $report + '"')) -WindowStyle Hidden -PassThru
     if (-not $process.WaitForExit(60000)) { $process.Kill(); throw 'Binary smoke test timed out' }
@@ -189,5 +210,17 @@ if (-not $SkipBinary) {
     Assert-True (@($componentEvents | Where-Object type -eq 'extensions-catalog').Count -eq 1) 'Native host forwards the extension catalog without a terminal'
     $componentDone = @($componentEvents | Where-Object type -eq 'done' | Select-Object -Last 1)[0]
     Assert-True ($componentDone.success -and $componentDone.dryRun -and $componentDone.results[0].Key -eq 'skills-bundle') 'Native host serializes component selection and enforces safe-mode policy'
+    $combinedReport=Join-Path $scratch 'native-combined.json'
+    $previousLocalAppData=$env:LOCALAPPDATA
+    try {
+        $env:LOCALAPPDATA=Join-Path $scratch 'native-appdata'
+        $combinedProcess=Start-Process -FilePath $exe -ArgumentList @('--source-root',('"'+$scratch+'"'),'--dry-run-only','--smoke-combined','--smoke-test',('"'+$combinedReport+'"')) -WindowStyle Hidden -PassThru
+    } finally { $env:LOCALAPPDATA=$previousLocalAppData }
+    if(-not $combinedProcess.WaitForExit(30000)){$combinedProcess.Kill();throw 'Native combined smoke timed out'}
+    $combinedEvents=Get-Content -LiteralPath $combinedReport -Raw -Encoding UTF8 | ConvertFrom-Json
+    $nativeDone=@($combinedEvents | Where-Object type -eq 'done' | Select-Object -Last 1)[0]
+    Assert-True ($nativeDone.success -and $nativeDone.dryRun -and $nativeDone.results.Count -eq 3) 'Native host executes application, provider and components in one safe plan'
+    $nativeOptions=($nativeDone.results | Where-Object Key -eq 'skills-bundle').Detail | ConvertFrom-Json
+    Assert-True ($nativeOptions.ScenarioMode -eq 'custom' -and $nativeOptions.ScenarioName -eq 'Smoke') 'Native host preserves advanced import options'
 }
 Write-Output ("PASS: $assertions desktop integration assertions; no software installed, no GUI opened")
