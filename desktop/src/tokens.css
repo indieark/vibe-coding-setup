@@ -27,6 +27,9 @@
   --highlight: rgba(225, 238, 255, 0.05);
   --dot: rgba(112, 155, 203, 0.06);
   --scrollbar: #455267;
+  --mono-icon-filter: invert(1);
+  --window-close: #c42b1c;
+  --window-close-text: #fff;
 }
 [data-theme="light"] {
   color-scheme: light;
@@ -57,4 +60,5 @@
   --highlight: #fff;
   --dot: rgba(47, 71, 103, 0.065);
   --scrollbar: #bec9d6;
+  --mono-icon-filter: none;
 }

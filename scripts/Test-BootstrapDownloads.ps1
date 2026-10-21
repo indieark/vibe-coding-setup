@@ -90,7 +90,7 @@ try {
         function Copy-BootstrapReleaseAsset {
             param($Repo,$Tag,$DestinationRoot,$RelativePath,$AssetName,$Refresh)
             if ($reuseOnly) { throw 'Local GUI should reuse the existing executable' }
-            if ($AssetName -ne 'IndieArkSetup-0.2.0.exe') { throw 'Unexpected desktop asset' }
+            if ($AssetName -ne 'IndieArkSetup-0.2.1.exe') { throw 'Unexpected desktop asset' }
             $path = Join-Path $DestinationRoot $RelativePath
             [void](New-Item -ItemType Directory -Path (Split-Path -Parent $path) -Force)
             [IO.File]::WriteAllBytes($path, [byte[]]@(77,90,0,0))
@@ -99,8 +99,17 @@ try {
         Start-BootstrapDesktop -Root $localRoot -SourceRoot $repoRoot -UserHome $scratch -CheckOnly -DryRunOnly | ConvertFrom-Json
         $reuseOnly = $true
         Start-BootstrapDesktop -Root $localRoot -SourceRoot $repoRoot -UserHome $scratch -CheckOnly -DryRunOnly | ConvertFrom-Json
+        $reuseOnly = $false
+        $renamedRoot = Join-Path $scratch 'renamed-entry'
+        [void](New-Item -ItemType Directory -Path $renamedRoot)
+        $renamedEntry = Join-Path $renamedRoot 'vibe-bootstrap.ps1'
+        Copy-Item -LiteralPath (Join-Path $repoRoot 'bootstrap.ps1') -Destination $renamedEntry
+        Start-BootstrapDesktop -Root $renamedRoot -SourceRoot $repoRoot -UserHome $scratch -EntryPath $renamedEntry -CheckOnly -DryRunOnly | ConvertFrom-Json
+        $canonicalEntry = Join-Path $renamedRoot 'bootstrap.ps1'
+        Assert-True (Test-Path -LiteralPath $canonicalEntry) 'renamed legacy entry provides the desktop source contract'
+        Assert-True ((Get-FileHash -LiteralPath $canonicalEntry).Hash -eq (Get-FileHash -LiteralPath $renamedEntry).Hash) 'canonical entry preserves the running legacy script bytes'
     }
-    Assert-True ($localDesktopRoutes.Count -eq 2 -and $localDesktopRoutes[0].Mode -eq 'gui') 'fresh source checkout downloads the public GUI'
+    Assert-True ($localDesktopRoutes.Count -eq 3 -and $localDesktopRoutes[0].Mode -eq 'gui') 'fresh source checkout downloads the public GUI'
     Assert-True ($localDesktopRoutes[1].Mode -eq 'gui' -and $localDesktopRoutes[1].DryRunOnly) 'local GUI is reused without elevation or a window'
 
     # Execute the actual launcher command in a child with an isolated TEMP.

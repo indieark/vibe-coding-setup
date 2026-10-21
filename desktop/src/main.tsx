@@ -11,19 +11,19 @@ import {
   KeyRound,
   LoaderCircle,
   Monitor,
-  Moon,
   Play,
   RefreshCw,
   RotateCcw,
   Settings2,
   ShieldCheck,
   Square,
-  Sun,
   Terminal,
   XCircle,
 } from "lucide-react";
 import { describeRow, initialRun, reduceEvent } from "./state.mjs";
 import { Toggle } from "./Toggle";
+import { TitleBar } from "./TitleBar";
+import { AppIcon } from "./AppIcon";
 import { Extensions, type ExtensionCatalog } from "./Extensions";
 import { defaultPolicy, type ImportPolicy } from "./ImportOptions";
 import { resolveComponents } from "./extension-state.mjs";
@@ -439,26 +439,7 @@ function Setup() {
         : "准备好你的工作环境";
   return (
     <div className="shell">
-      <header className="topbar">
-        <div className="brand">
-          <span className="brand-icon">
-            <Boxes size={21} />
-          </span>
-          <strong>IndieArk</strong>
-          <span className="brand-divider" />
-          <span>环境安装</span>
-        </div>
-        <div className="top-actions">
-          <span className="version">Desktop 0.2</span>
-          <button
-            className="icon-button"
-            aria-label="切换亮暗主题"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          >
-            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-        </div>
-      </header>
+      <TitleBar theme={theme} onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} onError={setNotice} />
       <div className="workspace">
         <nav className="navigation" aria-label="安装器导航">
           <button
@@ -626,14 +607,17 @@ function Setup() {
                                   )
                                 }
                               >
-                                {app.name}
-                                {app.defaultInstall === false && (
-                                  <span className="optional">可选</span>
-                                )}
+                                  <AppIcon appKey={app.key} />
+                                  <span className="app-copy">
+                                    <span className="app-label">
+                                      {app.name}
+                                      {app.defaultInstall === false && (
+                                        <span className="optional">可选</span>
+                                      )}
+                                    </span>
+                                    <span className="app-purpose">{purpose[app.key]}</span>
+                                  </span>
                               </button>
-                              <div className="app-purpose">
-                                {purpose[app.key]}
-                              </div>
                             </td>
                             <td>
                               <span className={"status " + kind}>

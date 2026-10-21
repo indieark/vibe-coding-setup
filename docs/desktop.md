@@ -4,6 +4,8 @@
 
 Windows 桌面界面使用 Tauri 2、React 和 TypeScript。软件清单与安装策略仍由 `manifest/apps.json` 和 `modules/common.psm1` 维护。无操作参数的启动脚本默认进入桌面界面。
 
+窗口使用一体化顶栏，支持拖动、双击最大化或还原、主题切换、最小化和关闭；执行中关闭仍由宿主拦截。软件列表采用紧凑双行布局，图标随程序打包，来源与许可见 [软件图标](../desktop/src/assets/apps/README.md)。
+
 桌面界面支持软件选择、环境检查、安全演练、应用安装、CC Switch Provider 导入、逐项结果、失败重试、停止后续任务、亮暗主题和脱敏诊断导出。“扩展组件”页直接选择和安装套件、Skills、MCP、CLI，并配置来源冲突策略及 Skills Manager 场景。软件、API 配置与扩展统一组成一次执行计划。
 
 ## 构建与启动
@@ -14,7 +16,11 @@ Windows 桌面界面使用 Tauri 2、React 和 TypeScript。软件清单与安�
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Desktop.ps1
 ```
 
-当前构建产物为 `desktop/bin/IndieArkSetup-0.2.0.exe`，版本取自 `tauri.conf.json`，不进入版本控制。再次构建可传 `-SkipInstall` 复用已安装的 npm 依赖；依赖变化时重新运行完整构建。
+当前构建产物为 `desktop/bin/IndieArkSetup-0.2.1.exe`，版本取自 `tauri.conf.json`，不进入版本控制。再次构建可传 `-SkipInstall` 复用已安装的 npm 依赖；依赖变化时重新运行完整构建。
+
+构建同时生成本地 `desktop/bin/IndieArkSetup.exe` 兼容副本，供内容固定的旧 `.cmd` 识别本地仓库，再由主脚本选择当前版本。发布只上传带版本的 exe 与 SHA256，不覆盖公开 Release 中原有的未版本化安装包。
+
+更早的远程启动器把主脚本保存为 `vibe-bootstrap.ps1`；进入桌面界面前，主脚本会同步一份 `bootstrap.ps1`，保证交给宿主的目录含有完整运行资源。旧 `.cmd` 无需更新。
 
 - 双击 `bootstrap.cmd`：无操作参数时打开本地 GUI，启动时申请管理员权限。
 - 双击仓库中的 `vibe-coding-setup.cmd`：检测到本地 GUI 后使用同目录主脚本；独立下载的启动器从 GitHub 获取已发布版本。
@@ -90,6 +96,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-DesktopCompon
 5. 清空软件和扩展，仅处理 API；已有同名 Provider 应保留且不要求 Key。选择重新导入后应允许填写新参数。
 6. 在扩展设置中选择不同冲突策略及场景，先演练；结果页应列出每项状态及计划备份。选择备份后替换但未确认时，真实执行应被拦截。
 7. 切换亮暗主题、缩放窗口、用键盘访问字段，检查字号、整行选择、折叠清单、焦点和内部滚动。视觉和真实操作由用户实机验收。
+   拖动顶栏空白或品牌区、双击顶栏，并测试最小化、最大化、还原和关闭；应只有一层顶栏，主题和窗口按钮可独立点击，软件图标在两种主题下清晰可见。
 8. 实际安装与 CC Switch 最终保存由用户单独执行验收；自动检查不代替这一步。
 
 ## 发布与更新
@@ -97,7 +104,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-DesktopCompon
 旧的独立远程 `.cmd` 每次从 GitHub `main` 下载主脚本，并获取公开的 GUI 资产。桌面发布必须同时交付：
 
 - 新版 `bootstrap.ps1`、共享模块、`scripts/DesktopWorker.ps1`。
-- `bootstrap-assets/IndieArkSetup-0.2.0.exe` 及对应 SHA256 公开资产。
+- `bootstrap-assets/IndieArkSetup-0.2.1.exe` 及对应 SHA256 公开资产。
 
 发布 workflow 为 `.github/workflows/publish-desktop.yml`。推送 `release/desktop-*` 分支，或手动运行该 workflow 后，Windows runner 使用锁定依赖构建、检查两种旧启动脚本与打包 Worker，再用 Actions 的 `GITHUB_TOKEN` 上传带版本的 exe 和 SHA256 文件。它只更新该版本的两个资产，保留其它旧安装包，包括原来的 0.1 GUI。
 

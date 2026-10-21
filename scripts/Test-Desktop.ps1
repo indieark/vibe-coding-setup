@@ -165,7 +165,7 @@ $routeResults = & {
         if ($node -is [Management.Automation.Language.FunctionDefinitionAst]) { . ([scriptblock]::Create($node.Extent.Text)) }
     }
     function Start-BootstrapDesktop {
-        param($Root,$SourceRoot,$UserHome,[switch]$CheckOnly,[switch]$DryRunOnly)
+        param($Root,$SourceRoot,$UserHome,[switch]$CheckOnly,[switch]$DryRunOnly,$EntryPath)
         [pscustomobject]@{Mode='gui';DryRunOnly=[bool]$DryRunOnly}
     }
     $prefix = '$shouldUseTui = Test-BootstrapShouldUseTui -BoundParameters $PSBoundParameters -TuiSwitch:$Tui'
@@ -180,12 +180,12 @@ Assert-True $routeResults[1].DryRunOnly 'Explicit GUI dry-run forwards the enfor
 if (-not $SkipBinary) {
     foreach ($launcher in @('bootstrap.cmd','vibe-coding-setup.cmd')) {
         $output = & (Join-Path $root $launcher) -GuiCheck | Out-String
-        Assert-True ($LASTEXITCODE -eq 0 -and $output.Contains('IndieArkSetup-0.2.0.exe')) ($launcher + ' resolves to the local GUI')
+        Assert-True ($LASTEXITCODE -eq 0 -and $output.Contains('IndieArkSetup-0.2.1.exe')) ($launcher + ' resolves to the local GUI')
     }
     $safeOutput = & (Join-Path $root 'bootstrap.cmd') -GuiCheck -DryRun | Out-String
     $safeMetadata = ($safeOutput -split "`r?`n" | Where-Object { $_.StartsWith('{') } | Select-Object -Last 1) | ConvertFrom-Json
     Assert-True ($safeMetadata.DryRunOnly -and -not $safeMetadata.RequiresElevation) 'Safe GUI routing never requests installation privileges'
-    $exe = Join-Path $root 'desktop\bin\IndieArkSetup-0.2.0.exe'
+    $exe = Join-Path $root 'desktop\bin\IndieArkSetup-0.2.1.exe'
     $report = Join-Path $scratch 'binary-smoke.json'
     $process = Start-Process -FilePath $exe -ArgumentList @('--smoke-test',('"' + $report + '"')) -WindowStyle Hidden -PassThru
     if (-not $process.WaitForExit(60000)) { $process.Kill(); throw 'Binary smoke test timed out' }

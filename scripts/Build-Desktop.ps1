@@ -15,6 +15,9 @@ try {
     $output = Join-Path $PWD ('bin\IndieArkSetup-' + $version + '.exe')
     New-Item -ItemType Directory -Path (Split-Path -Parent $output) -Force | Out-Null
     Copy-Item -LiteralPath $source -Destination $output -Force
+    # Frozen launchers recognize this local name before handing off to bootstrap.ps1.
+    # Publishing still uploads only the versioned asset; legacy Release assets stay intact.
+    Copy-Item -LiteralPath $output -Destination (Join-Path $PWD 'bin\IndieArkSetup.exe') -Force
     Write-Output ('Desktop executable: ' + $output)
 }
 finally { Pop-Location }

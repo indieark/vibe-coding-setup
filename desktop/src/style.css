@@ -148,14 +148,43 @@ button svg {
   background-size: 5px 5px;
 }
 .topbar {
-  height: 64px;
+  height: 48px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 28px;
+  padding: 0 0 0 20px;
   background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
 }
+.brand { pointer-events: none; }
+.titlebar-space { flex: 1; height: 100%; min-width: 24px; }
+.top-actions { height: 100%; }
+.theme-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 10px;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.theme-button:hover { background: var(--hover); }
+.window-controls { display: flex; height: 100%; margin-left: 4px; }
+.window-control {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 100%;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+.window-control:hover { background: var(--hover); }
+.window-close:hover { background: var(--window-close); color: var(--window-close-text); }
+.window-control:focus-visible { outline-offset: -4px; }
 .brand,
 .top-actions {
   display: flex;
@@ -167,8 +196,8 @@ button svg {
   letter-spacing: -0.3px;
 }
 .brand-icon {
-  width: 33px;
-  height: 33px;
+  width: 29px;
+  height: 29px;
   background: var(--brand-soft);
   color: var(--brand);
   display: grid;
@@ -368,20 +397,22 @@ tr:last-child td {
 }
 .check-col,
 td:first-child {
-  width: 48px;
-  padding-left: 19px;
+  width: 52px;
+  padding-left: 18px;
+  padding-right: 12px;
 }
 tr.unselected .app-name,
-tr.unselected .app-purpose {
+tr.unselected td > .app-purpose {
   opacity: 0.5;
 }
+.software tr.unselected .app-name { opacity: 0.65; }
 .checkbox {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   vertical-align: middle;
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   border-radius: 4px;
   border: 1px solid var(--input-border);
   background: var(--input);
@@ -714,11 +745,32 @@ input:disabled {
 }
 .app-toggle {
   background: transparent;
-  padding: 8px 0;
+  padding: 0;
   text-align: left;
   width: 100%;
-  min-height: 40px;
+  min-height: 44px;
+  gap: 12px;
 }
+.software table { table-layout: fixed; }
+.software tbody td { padding-top: 10px; padding-bottom: 10px; vertical-align: middle; }
+.software th:last-child { width: 145px; }
+.software td:last-child { padding-right: 16px; }
+.app-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  color: var(--text);
+}
+.app-icon img { width: 30px; height: 30px; object-fit: contain; }
+.app-icon-codex img, .app-icon-chatgpt img {
+  filter: var(--mono-icon-filter);
+}
+.app-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.app-label { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; font-size: 13px; line-height: 1.4; }
+.software .app-purpose { margin: 0; font-size: 12px; line-height: 1.4; font-weight: 400; }
+.software .version-detail { font-size: 11px; line-height: 1.4; margin-top: 4px; }
 .component-name {
   display: block;
   width: 100%;

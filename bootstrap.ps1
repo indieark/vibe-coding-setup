@@ -3453,10 +3453,17 @@ function ConvertTo-BootstrapNonEmptyStringArray {
 }
 
 function Start-BootstrapDesktop {
-    param([string]$Root, [string]$SourceRoot, [string]$UserHome, [switch]$CheckOnly, [switch]$DryRunOnly)
+    param([string]$Root, [string]$SourceRoot, [string]$UserHome, [switch]$CheckOnly, [switch]$DryRunOnly, [string]$EntryPath)
+
+    # Older frozen launchers save this script as vibe-bootstrap.ps1.
+    # The desktop host consumes a complete source directory with a canonical entry name.
+    $canonicalEntry = Join-Path $Root 'bootstrap.ps1'
+    if (-not [string]::IsNullOrWhiteSpace($EntryPath) -and [IO.Path]::GetFullPath($EntryPath) -ne [IO.Path]::GetFullPath($canonicalEntry)) {
+        Copy-Item -LiteralPath $EntryPath -Destination $canonicalEntry -Force
+    }
 
     Copy-BootstrapDependency -SourceRoot $SourceRoot -DestinationRoot $Root -RelativePath 'scripts/DesktopWorker.ps1' -Refresh:(Test-HttpSourceRoot -SourceRoot $SourceRoot)
-    $releaseAsset = 'IndieArkSetup-0.2.0.exe'
+    $releaseAsset = 'IndieArkSetup-0.2.1.exe'
     $executable = Join-Path $Root ('desktop\bin\' + $releaseAsset)
     if ((Test-HttpSourceRoot -SourceRoot $SourceRoot) -or -not (Test-Path -LiteralPath $executable)) {
         Copy-BootstrapReleaseAsset -Repo $BootstrapAssetsRepo -Tag $BootstrapAssetsTag -DestinationRoot $Root -RelativePath ('desktop/bin/' + $releaseAsset) -AssetName $releaseAsset -Refresh $true
@@ -3562,7 +3569,7 @@ $skillBundlePath = Join-Path $root 'downloads\skills.zip'
 
 if ($Gui -and $Tui) { throw 'Choose either -Gui or -Tui.' }
 if ($Gui -or $GuiCheck -or ($shouldUseTui -and -not $Tui)) {
-    Start-BootstrapDesktop -Root $root -SourceRoot $BootstrapSourceRoot -UserHome $effectiveUserHome -CheckOnly:$GuiCheck -DryRunOnly:$DryRun
+    Start-BootstrapDesktop -Root $root -SourceRoot $BootstrapSourceRoot -UserHome $effectiveUserHome -CheckOnly:$GuiCheck -DryRunOnly:$DryRun -EntryPath $PSCommandPath
     return
 }
 
