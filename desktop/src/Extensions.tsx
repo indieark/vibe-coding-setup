@@ -1,6 +1,7 @@
 import { ImportOptions, type ImportPolicy } from "./ImportOptions";
-import { Boxes, CheckCircle2, Circle, RefreshCw, Search } from "lucide-react";
+import { Boxes, CheckCircle2, ChevronRight, Circle, Eraser, Info, ListChecks, ListFilter, MonitorCheck, RefreshCw, Search, Settings2 } from "lucide-react";
 import { Toggle } from "./Toggle";
+import { ItemKindIcon } from "./ItemKindIcon";
 import {
   componentStatus,
   extensionKinds,
@@ -92,6 +93,7 @@ export function Extensions({
                 aria-pressed={kind === key}
                 onClick={() => setKind(key as ExtensionItem["kind"])}
               >
+                <ItemKindIcon kind={key} />
                 {label}
                 <span>{items.filter((item) => item.kind === key).length}</span>
               </button>
@@ -117,6 +119,7 @@ export function Extensions({
               ])
             }
           >
+            <ListFilter size={14} aria-hidden="true" />
             选择筛选结果（{rows.length}）
           </button>
           <button
@@ -133,6 +136,7 @@ export function Extensions({
               ])
             }
           >
+            <ItemKindIcon kind="skill" size={14} />
             全部 Skills
           </button>
           <button
@@ -149,6 +153,7 @@ export function Extensions({
               ])
             }
           >
+            <ItemKindIcon kind="profile" size={14} />
             全部套件
           </button>
         </div>
@@ -157,8 +162,8 @@ export function Extensions({
             <thead>
               <tr>
                 <th className="check-col" />
-                <th>名称与用途</th>
-                <th>本机状态</th>
+                <th><span className="field-label"><ListChecks size={14} aria-hidden="true" />名称与用途</span></th>
+                <th><span className="field-label"><MonitorCheck size={14} aria-hidden="true" />本机状态</span></th>
               </tr>
             </thead>
             <tbody>
@@ -231,32 +236,35 @@ export function Extensions({
                             );
                         }}
                       >
-                        {item.name}
+                        <span className="component-title">{item.name}</span>
+                        <span className="app-purpose">
+                          {included && !explicit ? "由套件或依赖包含 · " : ""}
+                          {item.description ||
+                            (item.kind === "skill"
+                              ? "按需扩展 AI 工作能力"
+                              : "按需安装")}
+                        </span>
                       </button>
-                      <div className="app-purpose">
-                        {included && !explicit ? "由套件或依赖包含 · " : ""}
-                        {item.description ||
-                          (item.kind === "skill"
-                            ? "按需扩展 AI 工作能力"
-                            : "按需安装")}
-                      </div>
                     </td>
                     <td>
-                      <span className={"status " + status}>
-                        {status === "ok" ? (
-                          <CheckCircle2 size={13} />
-                        ) : (
-                          <Circle size={10} />
-                        )}
-                        {label}
-                      </span>
-                      <button
-                        className="text-button detail-button"
-                        onClick={() => setFocus(item.id)}
-                        aria-label={"查看 " + item.name + " 详情"}
-                      >
-                        详情
-                      </button>
+                      <div className="component-state">
+                        <span className={"status " + status}>
+                          {status === "ok" ? (
+                            <CheckCircle2 size={13} />
+                          ) : (
+                            <Circle size={10} />
+                          )}
+                          {label}
+                        </span>
+                        <button
+                          className="text-button detail-button"
+                          onClick={() => setFocus(item.id)}
+                          aria-label={"查看 " + item.name + " 详情"}
+                        >
+                          <Info size={13} aria-hidden="true" />
+                          详情
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -304,23 +312,24 @@ export function Extensions({
       </section>
       <aside className="panel extension-summary">
         <div className="panel-heading">
-          <h2>本次选择</h2>
+          <h2><ListChecks size={17} aria-hidden="true" />本次选择</h2>
           <button
             className="text-button"
             disabled={busy || !selected.length}
             onClick={() => onSelect([])}
           >
+            <Eraser size={14} aria-hidden="true" />
             清空
           </button>
         </div>
         <div className="extension-detail-scroll">
           {detail && (
             <section className="component-detail">
-              <h3>{detail.name}</h3>
+              <h3><ItemKindIcon kind={detail.kind} />{detail.name}</h3>
               <p>{detail.description || "按需安装的扩展组件"}</p>
               {detail.skills.length > 0 && (
                 <details>
-                  <summary>包含 {detail.skills.length} 个 Skills</summary>
+                  <summary><ChevronRight className="disclosure-chevron" size={14} aria-hidden="true" /><ItemKindIcon kind="skill" />包含 {detail.skills.length} 个 Skills</summary>
                   <ul className="name-list">
                     {detail.skills.map((name) => (
                       <li key={name}>{name}</li>
@@ -328,10 +337,10 @@ export function Extensions({
                   </ul>
                 </details>
               )}
-              {detail.mcp.length > 0 && <p>MCP：{detail.mcp.join("、")}</p>}
-              <p>CLI 依赖：{detail.requires.join("、") || "无"}</p>
+              {detail.mcp.length > 0 && <p className="detail-property"><ItemKindIcon kind="mcp" /><span>MCP：{detail.mcp.join("、")}</span></p>}
+              <p className="detail-property"><ItemKindIcon kind="cli" /><span>CLI 依赖：{detail.requires.join("、") || "无"}</span></p>
               {detail.targets.length > 0 && (
-                <p>已有配置：{detail.targets.join("、")}</p>
+                <p className="detail-property"><Settings2 size={15} aria-hidden="true" /><span>已有配置：{detail.targets.join("、")}</span></p>
               )}
             </section>
           )}
@@ -347,6 +356,8 @@ export function Extensions({
               open={resolved[key].length > 0 && resolved[key].length <= 6}
             >
               <summary>
+                <ChevronRight className="disclosure-chevron" size={14} aria-hidden="true" />
+                <ItemKindIcon kind={key} />
                 {extensionKinds[key]}{" "}
                 <span className="count">{resolved[key].length}</span>
               </summary>

@@ -1,4 +1,5 @@
 import { CheckCircle2, Circle, LoaderCircle, XCircle } from "lucide-react";
+import { ItemKindIcon } from "./ItemKindIcon";
 export type PlannedItem = { Key: string; Name: string; Kind: string };
 export function Results({
   run,
@@ -62,6 +63,7 @@ export function Results({
                 <td>
                   <strong>{item.Name}</strong>
                   <span className="kind-caption">
+                    <ItemKindIcon kind={item.Kind} size={13} />
                     {(
                       {
                         app: "软件",

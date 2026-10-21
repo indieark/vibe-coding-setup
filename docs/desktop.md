@@ -4,7 +4,9 @@
 
 Windows 桌面界面使用 Tauri 2、React 和 TypeScript。软件清单与安装策略仍由 `manifest/apps.json` 和 `modules/common.psm1` 维护。无操作参数的启动脚本默认进入桌面界面。
 
-窗口使用一体化顶栏，支持拖动、双击最大化或还原、主题切换、最小化和关闭；执行中关闭仍由宿主拦截。软件列表采用紧凑双行布局，图标随程序打包，来源与许可见 [软件图标](../desktop/src/assets/apps/README.md)。
+窗口使用一体化顶栏，支持拖动、双击最大化或还原、主题切换、最小化和关闭；执行中关闭仍由宿主拦截。软件与扩展列表采用紧凑双行布局，套件、Skills、MCP、CLI 和配置字段使用统一语义图标。软件品牌图标随程序打包，来源与许可见 [软件图标](../desktop/src/assets/apps/README.md)。
+
+扩展列表的名称与描述间距固定为 3px，描述最多显示两行；完整说明在右侧详情中展示。列表行高随内容自然增长，长清单在区块内滚动。
 
 桌面界面支持软件选择、环境检查、安全演练、应用安装、CC Switch Provider 导入、逐项结果、失败重试、停止后续任务、亮暗主题和脱敏诊断导出。“扩展组件”页直接选择和安装套件、Skills、MCP、CLI，并配置来源冲突策略及 Skills Manager 场景。软件、API 配置与扩展统一组成一次执行计划。
 
@@ -16,7 +18,9 @@ Windows 桌面界面使用 Tauri 2、React 和 TypeScript。软件清单与安�
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Desktop.ps1
 ```
 
-当前构建产物为 `desktop/bin/IndieArkSetup-0.2.1.exe`，版本取自 `tauri.conf.json`，不进入版本控制。再次构建可传 `-SkipInstall` 复用已安装的 npm 依赖；依赖变化时重新运行完整构建。
+当前构建产物为 `desktop/bin/IndieArkSetup-0.2.2.exe`，版本取自 `tauri.conf.json`，不进入版本控制。再次构建可传 `-SkipInstall` 复用已安装的 npm 依赖；依赖变化时重新运行完整构建。
+
+发布构建按 [Tauri 官方体积建议](https://tauri.app/concept/size/) 使用 `opt-level = "s"`、LTO、单代码生成单元和符号剥离，优先减小 exe。`panic = "abort"` 移除 Rust panic 展开代码；不可恢复的 Rust panic 会终止进程，安装与配置的常规错误仍通过现有结果和事件返回。界面与完整脚本仍内嵌，体积优化不依赖额外解压工具。
 
 构建同时生成本地 `desktop/bin/IndieArkSetup.exe` 兼容副本，供内容固定的旧 `.cmd` 识别本地仓库，再由主脚本选择当前版本。发布只上传带版本的 exe 与 SHA256，不覆盖公开 Release 中原有的未版本化安装包。
 
@@ -104,7 +108,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-DesktopCompon
 旧的独立远程 `.cmd` 每次从 GitHub `main` 下载主脚本，并获取公开的 GUI 资产。桌面发布必须同时交付：
 
 - 新版 `bootstrap.ps1`、共享模块、`scripts/DesktopWorker.ps1`。
-- `bootstrap-assets/IndieArkSetup-0.2.1.exe` 及对应 SHA256 公开资产。
+- `bootstrap-assets/IndieArkSetup-0.2.2.exe` 及对应 SHA256 公开资产。
 
 发布 workflow 为 `.github/workflows/publish-desktop.yml`。推送 `release/desktop-*` 分支，或手动运行该 workflow 后，Windows runner 使用锁定依赖构建、检查两种旧启动脚本与打包 Worker，再用 Actions 的 `GITHUB_TOKEN` 上传带版本的 exe 和 SHA256 文件。它只更新该版本的两个资产，保留其它旧安装包，包括原来的 0.1 GUI。
 

@@ -6,10 +6,12 @@ import {
   Boxes,
   CheckCircle2,
   Circle,
+  Cpu,
   Download,
   FileDown,
   KeyRound,
   LoaderCircle,
+  Link,
   Monitor,
   Play,
   RefreshCw,
@@ -18,6 +20,7 @@ import {
   ShieldCheck,
   Square,
   Terminal,
+  Tag,
   XCircle,
 } from "lucide-react";
 import { describeRow, initialRun, reduceEvent } from "./state.mjs";
@@ -467,7 +470,7 @@ function Setup() {
             )}
           </button>
         </nav>
-        <main className="content">
+        <main className={"content " + (tab === "extensions" ? "extension-content" : "")}>
           <div className="page-heading">
             <div>
               <h1>
@@ -690,7 +693,7 @@ function Setup() {
                   }
                 >
                   <label>
-                    Provider 名称
+                    <span className="field-label"><Tag size={15} aria-hidden="true" />Provider 名称</span>
                     <input
                       name="providerName"
                       disabled={busy || !configure}
@@ -719,6 +722,7 @@ function Setup() {
                       disabled={busy || !provider.name.trim()}
                       onClick={() => void inspectProvider()}
                     >
+                      <RefreshCw size={14} aria-hidden="true" />
                       重新检查
                     </button>
                   </div>
@@ -751,7 +755,7 @@ function Setup() {
                   {!reuseExisting ? (
                     <>
                       <label>
-                        API 地址
+                        <span className="field-label"><Link size={15} aria-hidden="true" />API 地址</span>
                         <input
                           name="baseUrl"
                           disabled={busy || !configure || reuseExisting}
@@ -767,7 +771,7 @@ function Setup() {
                         />
                       </label>
                       <label>
-                        默认模型
+                        <span className="field-label"><Cpu size={15} aria-hidden="true" />默认模型</span>
                         <input
                           name="model"
                           disabled={busy || !configure || reuseExisting}
@@ -780,7 +784,7 @@ function Setup() {
                         />
                       </label>
                       <label>
-                        API Key
+                        <span className="field-label"><KeyRound size={15} aria-hidden="true" />API Key</span>
                         <input
                           type="password"
                           name="apiKey"

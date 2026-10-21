@@ -1,4 +1,4 @@
-import { Settings2 } from "lucide-react";
+import { ChevronRight, FileQuestion, Files, FolderCog, Settings2, Tag, type LucideIcon } from "lucide-react";
 import { Toggle } from "./Toggle";
 export type ImportPolicy = {
   orphanPolicy: "preserve" | "backup";
@@ -20,12 +20,14 @@ export const defaultPolicy: ImportPolicy = {
 };
 function Choices({
   label,
+  icon: Icon,
   value,
   choices,
   disabled,
   change,
 }: {
   label: string;
+  icon: LucideIcon;
   value: string;
   choices: [string, string][];
   disabled: boolean;
@@ -33,7 +35,7 @@ function Choices({
 }) {
   return (
     <fieldset className="policy-field" disabled={disabled}>
-      <legend>{label}</legend>
+      <legend><span className="field-label"><Icon size={15} aria-hidden="true" />{label}</span></legend>
       <div className="policy-choices">
         {choices.map(([key, text]) => (
           <button
@@ -77,12 +79,14 @@ export function ImportOptions({
       }
     >
       <summary>
+        <ChevronRight className="disclosure-chevron" size={14} aria-hidden="true" />
         <Settings2 size={16} />
         导入与场景设置
       </summary>
       <div className="policy-body">
         <Choices
           label="无来源标记的同名 Skill"
+          icon={FileQuestion}
           value={policy.orphanPolicy}
           choices={[
             ["preserve", "保留现有"],
@@ -93,6 +97,7 @@ export function ImportOptions({
         />
         <Choices
           label="其他来源的同名 Skill"
+          icon={Files}
           value={policy.foreignPolicy}
           choices={[
             ["preserve", "保留现有"],
@@ -118,6 +123,7 @@ export function ImportOptions({
         )}
         <Choices
           label="Skills Manager 场景注册"
+          icon={FolderCog}
           value={policy.scenarioMode}
           choices={[
             ["skip", "跳过"],
@@ -129,7 +135,7 @@ export function ImportOptions({
         />
         {policy.scenarioMode === "custom" && (
           <label>
-            场景名称
+            <span className="field-label"><Tag size={15} aria-hidden="true" />场景名称</span>
             <input
               name="scenarioName"
               value={policy.scenarioName}

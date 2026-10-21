@@ -9,11 +9,11 @@
   min-height: 0;
 }
 .extension-toolbar {
-  padding: 12px 18px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
 }
 .kind-tabs {
@@ -24,8 +24,12 @@
   padding: 3px;
 }
 .kind-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: transparent;
-  padding: 7px 10px;
+  padding: 6px 7px;
+  font-size: 12px;
   border-radius: 6px;
   color: var(--muted);
 }
@@ -35,7 +39,7 @@
   box-shadow: var(--active-shadow);
 }
 .kind-tabs span {
-  margin-left: 6px;
+  margin-left: 0;
   opacity: 0.65;
   font-size: 12px;
 }
@@ -45,9 +49,10 @@
   gap: 7px;
   color: var(--muted);
   flex: 1;
-  min-width: 140px;
+  min-width: 100px;
 }
 .extension-search input {
+  min-width: 0;
   width: 100%;
   padding: 7px;
   border: 1px solid var(--border);
@@ -61,7 +66,29 @@
   font-weight: 600;
   text-align: left;
   overflow-wrap: anywhere;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  min-height: 40px;
 }
+.component-title { font-size: 13px; line-height: 1.45; }
+.extension-list table { table-layout: fixed; }
+.extension-list th:last-child { width: 170px; }
+.extension-list tbody td { padding-top: 10px; padding-bottom: 10px; vertical-align: middle; }
+.extension-list td:nth-child(2) { padding-right: 14px; }
+.extension-list td:last-child { padding-right: 16px; }
+.component-state { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.extension-list .status { font-size: 12px; }
+.extension-list .detail-button { min-height: 28px; padding: 3px 0; flex-shrink: 0; }
+.extension-list .panel-heading,
+.extension-summary .panel-heading { min-height: 48px; }
+.extension-list .software-footer { min-height: 48px; padding: 6px 12px; }
+.extension-list .selection-actions { padding: 4px 12px; }
+.extension-list .selection-actions .text-button { min-height: 28px; padding: 4px 6px; }
+.extension-content .result-strip { margin-top: 10px; padding: 5px 12px; }
+.extension-content .result-strip .text-button { min-height: 28px; padding: 4px 6px; }
 .component-name:hover {
   color: var(--brand);
 }
@@ -99,10 +126,26 @@
   margin: 12px 0 4px;
 }
 .extension-list .app-purpose {
-  max-width: 420px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   overflow-wrap: anywhere;
   white-space: normal;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
 }
+.field-label { display: inline-flex; align-items: center; gap: 7px; }
+.field-label svg { color: var(--muted); }
+.detail-property { display: flex; align-items: flex-start; gap: 7px; }
+.detail-property svg { margin-top: 3px; }
+.extension-summary summary { display: flex; align-items: center; gap: 8px; list-style: none; }
+.extension-summary summary::-webkit-details-marker { display: none; }
+.disclosure-chevron { color: var(--muted); transition: transform 0.15s; }
+details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
+.selection-group > summary > .count { margin-left: auto; }
 * {
   box-sizing: border-box;
 }
@@ -771,12 +814,6 @@ input:disabled {
 .app-label { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; font-size: 13px; line-height: 1.4; }
 .software .app-purpose { margin: 0; font-size: 12px; line-height: 1.4; font-weight: 400; }
 .software .version-detail { font-size: 11px; line-height: 1.4; margin-top: 4px; }
-.component-name {
-  display: block;
-  width: 100%;
-  min-height: 40px;
-  padding: 6px 0;
-}
 .app-toggle:hover,
 .component-name:hover {
   color: var(--brand);
@@ -820,9 +857,9 @@ input:disabled {
   min-width: 0;
 }
 .selection-group {
-  margin: 12px 0;
+  margin: 0;
   border-bottom: 1px solid var(--border);
-  padding-bottom: 10px;
+  padding-bottom: 0;
 }
 summary {
   cursor: pointer;
@@ -971,7 +1008,9 @@ summary:focus-visible {
   font-size: 13px;
 }
 .kind-caption {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 12px;
   color: var(--muted);
 }
