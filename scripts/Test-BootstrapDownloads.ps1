@@ -90,7 +90,7 @@ try {
         function Copy-BootstrapReleaseAsset {
             param($Repo,$Tag,$DestinationRoot,$RelativePath,$AssetName,$Refresh)
             if ($reuseOnly) { throw 'Local GUI should reuse the existing executable' }
-            if ($AssetName -ne 'IndieArkSetup-0.2.2.exe') { throw 'Unexpected desktop asset' }
+            if ($AssetName -ne 'IndieArkSetup-0.2.3.exe') { throw 'Unexpected desktop asset' }
             $path = Join-Path $DestinationRoot $RelativePath
             [void](New-Item -ItemType Directory -Path (Split-Path -Parent $path) -Force)
             [IO.File]::WriteAllBytes($path, [byte[]]@(77,90,0,0))

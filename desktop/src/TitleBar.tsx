@@ -44,7 +44,7 @@ export function TitleBar({ theme, onToggleTheme, onError }: {
       </div>
       <div className="titlebar-space" data-tauri-drag-region />
       <div className="top-actions">
-        <span className="version">Desktop 0.2.2</span>
+        <span className="version">Desktop 0.2.3</span>
         <button type="button" className="theme-button"
           aria-label={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"}
           title={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"}

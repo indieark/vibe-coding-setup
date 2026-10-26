@@ -3463,7 +3463,7 @@ function Start-BootstrapDesktop {
     }
 
     Copy-BootstrapDependency -SourceRoot $SourceRoot -DestinationRoot $Root -RelativePath 'scripts/DesktopWorker.ps1' -Refresh:(Test-HttpSourceRoot -SourceRoot $SourceRoot)
-    $releaseAsset = 'IndieArkSetup-0.2.2.exe'
+    $releaseAsset = 'IndieArkSetup-0.2.3.exe'
     $executable = Join-Path $Root ('desktop\bin\' + $releaseAsset)
     if ((Test-HttpSourceRoot -SourceRoot $SourceRoot) -or -not (Test-Path -LiteralPath $executable)) {
         Copy-BootstrapReleaseAsset -Repo $BootstrapAssetsRepo -Tag $BootstrapAssetsTag -DestinationRoot $Root -RelativePath ('desktop/bin/' + $releaseAsset) -AssetName $releaseAsset -Refresh $true
