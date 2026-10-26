@@ -27,6 +27,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Check Python installer selection
+        shell: pwsh
+        run: ./scripts/Test-Python.ps1
+
       - name: Refresh release assets
         shell: pwsh
         env:

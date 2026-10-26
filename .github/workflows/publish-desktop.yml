@@ -50,6 +50,7 @@ jobs:
         run: |
           ./scripts/Test-Bootstrap.ps1
           ./scripts/Test-BootstrapDownloads.ps1
+          ./scripts/Test-Python.ps1
           ./scripts/Test-Desktop.ps1 -SkipBinary
           ./scripts/Test-DesktopComponents.ps1
       - name: Build desktop executable

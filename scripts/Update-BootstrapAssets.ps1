@@ -297,24 +297,48 @@ function Get-NodeInstaller {
     }
 }
 
-function Get-Python313Installer {
+function Get-PythonInstaller {
+    param([Parameter(Mandatory=$true)][pscustomobject]$Definition)
+
+    if ($Definition.wingetId -notmatch '^Python\.Python\.(?<series>3\.\d+)$') {
+        throw ('Unsupported Python package ID: {0}' -f $Definition.wingetId)
+    }
+    $series = $Matches['series']
+    $minimumVersion = [version]$Definition.minimumVersion
     $listing = Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/' -UseBasicParsing
     $versions = @(
-        [regex]::Matches($listing.Content, 'href="(?<version>3\.13\.\d+)/"') |
+        [regex]::Matches($listing.Content, ('href="(?<version>{0}\.\d+)/"' -f [regex]::Escape($series))) |
             ForEach-Object { $_.Groups['version'].Value } |
-            Sort-Object { [version]$_ } -Descending
+            Where-Object { [version]$_ -ge $minimumVersion } |
+            Sort-Object { [version]$_ } -Descending -Unique
     )
 
-    if ($versions.Count -eq 0) {
-        throw 'Could not resolve latest Python 3.13 release.'
+    foreach ($version in $versions) {
+        $assetName = 'python-{0}-amd64.exe' -f $version
+        $downloadUrl = 'https://www.python.org/ftp/python/{0}/{1}' -f $version, $assetName
+        try {
+            $response = Invoke-WebRequest -Uri $downloadUrl -Method Head -UseBasicParsing -TimeoutSec 30
+            if ([int]$response.StatusCode -ne 200) {
+                throw ('Unexpected HTTP status {0} for {1}' -f $response.StatusCode, $downloadUrl)
+            }
+        }
+        catch {
+            # Source-only releases are expected; transport/server failures must remain visible.
+            $responseProperty = $_.Exception.PSObject.Properties['Response']
+            if ($null -ne $responseProperty -and $responseProperty.Value -and [int]$responseProperty.Value.StatusCode -in @(404, 410)) {
+                Write-Step ('Skipping Python {0}: Windows x64 installer is not published.' -f $version)
+                continue
+            }
+            throw
+        }
+
+        return [pscustomobject]@{
+            Name = $assetName
+            DownloadUrl = $downloadUrl
+        }
     }
 
-    $version = $versions[0]
-    $assetName = 'python-{0}-amd64.exe' -f $version
-    return [pscustomobject]@{
-        Name = $assetName
-        DownloadUrl = 'https://www.python.org/ftp/python/{0}/{1}' -f $version, $assetName
-    }
+    throw ('No published Python {0} Windows x64 installer meets minimum version {1}.' -f $series, $minimumVersion)
 }
 
 function Get-VSCodeInstaller {
@@ -446,8 +470,8 @@ $managedAssets = @(
     @{
         Key = 'python'
         ManifestPath = 'fallback.releaseAsset'
-        ExistingAssetPattern = '^python-3\.13\.\d+-amd64\.exe$'
-        Resolve = { Get-Python313Installer }
+        ExistingAssetPattern = '^python-3\.14\.\d+-amd64\.exe$'
+        Resolve = { Get-PythonInstaller -Definition ($manifest.apps | Where-Object key -eq 'python' | Select-Object -First 1) }
     },
     @{
         Key = 'vscode'

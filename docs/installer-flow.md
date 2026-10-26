@@ -47,6 +47,8 @@ TUI 默认安装模式只写入内部的 `BootstrapTuiResolved` 标记，用于�
 - 已安装且版本不低于目标：跳过。
 - 版本无法可靠比较时，按该应用的策略保守处理。
 
+manifest 可用 `minimumVersion` 设置安全版本下限。带下限的 winget 应用只安装已确认达标的版本；源版本过旧或无法确定时进入 fallback，fallback 包和失败后复查也必须满足下限。目标版本不会低于此下限。
+
 检测顺序固定为：
 
 1. `command`
@@ -84,7 +86,7 @@ Skill 文件复制完成后，`-SkillsManagerScenarioMode` 决定是否写入 Sk
 ## 特殊行为索引
 
 - `Codex Desktop` 和 `ChatGPT (Pake)` 当前按 presence-only 处理：检测到已安装即跳过。
-- `Python 3.13` 优先 `py -V`，失败后回退 `python --version`。
+- Python 按 manifest 指定分支调用 `py -3.14 -V`，失败后回退 `python --version`；两条命令都必须满足 `detect.versionPattern`，避免把其他分支或预发布版本误认成已安装。旧分支不会被卸载，已有虚拟环境需单独更新。
 - `CC Switch` Provider 导入只走 `ccswitch://v1/import` deep link，不写 SQLite；已有同名 Provider 默认保留，显式地址、模型或 Key 参数会触发重新导入。
 - `Skills Manager` 是可选应用，仅显式选装时按上游 GitHub latest tag 判断是否需要升级。
 - 不创建固定的 Codex 工作目录；安装完成后可直接在客户端新建会话。

@@ -754,6 +754,7 @@ function Invoke-WingetAction {
         [Parameter(Mandatory)]
         [string]$PackageId,
         [string]$Source,
+        [string]$Version,
         [switch]$DryRun
     )
 
@@ -773,6 +774,10 @@ function Invoke-WingetAction {
 
     if (-not [string]::IsNullOrWhiteSpace($Source)) {
         $wingetArgs += @('--source', $Source)
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($Version)) {
+        $wingetArgs += @('--version', $Version)
     }
 
     if ($DryRun) {
@@ -1148,6 +1153,7 @@ function Get-InstalledCommandVersion {
         return $null
     }
 
+    $versionPattern = [string](Get-ObjectPropertyValue -Object $DetectConfig -Name 'versionPattern')
     $commandSpecs = New-Object System.Collections.Generic.List[object]
     $commandSpecs.Add([pscustomobject]@{
             command = $primaryCommandName
@@ -1202,6 +1208,16 @@ function Get-InstalledCommandVersion {
 
         if ([string]::IsNullOrWhiteSpace($version)) {
             $version = Get-NormalizedVersionString -VersionText $outputText
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($versionPattern) -and $version -notmatch $versionPattern) {
+            $lastFailure = [pscustomobject]@{
+                Found   = $false
+                Version = $null
+                Source  = 'command'
+                Detail  = $commandName
+            }
+            continue
         }
 
         return [pscustomobject]@{
@@ -1358,6 +1374,23 @@ function Get-DesiredAppVersion {
         'winget' {
             $wingetSource = [string](Get-ObjectPropertyValue -Object $Definition -Name 'wingetSource')
             $version = Get-WingetPackageLatestVersion -PackageId $Definition.wingetId -Source $wingetSource
+            $minimumVersion = [string](Get-ObjectPropertyValue -Object $Definition -Name 'minimumVersion')
+            if (-not [string]::IsNullOrWhiteSpace($minimumVersion)) {
+                $minimumSource = 'manifest-minimum'
+                $fallbackVersion = Get-FallbackReleaseAssetVersion -Definition $Definition
+                if ((Compare-VersionStrings -LeftVersion $fallbackVersion -RightVersion $minimumVersion) -gt 0) {
+                    $minimumVersion = $fallbackVersion
+                    $minimumSource = 'fallback-release-asset'
+                }
+                $comparison = Compare-VersionStrings -LeftVersion $version -RightVersion $minimumVersion
+                if ($null -eq $comparison -or $comparison -lt 0) {
+                    return [pscustomobject]@{
+                        Found   = $true
+                        Version = $minimumVersion
+                        Source  = $minimumSource
+                    }
+                }
+            }
             if (-not [string]::IsNullOrWhiteSpace($version)) {
                 return [pscustomobject]@{
                     Found   = $true
@@ -1610,7 +1643,8 @@ function Test-InstallRecoveredAfterPrimaryFailure {
         Reset-InstallDetectionState
         $installed = Get-InstalledAppVersion -Definition $Definition
         if ($installed.Found) {
-            if ($InitialDecision.Reason -eq 'missing') {
+            $minimumVersion = [string](Get-ObjectPropertyValue -Object $Definition -Name 'minimumVersion')
+            if ($InitialDecision.Reason -eq 'missing' -and [string]::IsNullOrWhiteSpace($minimumVersion)) {
                 return [pscustomobject]@{
                     Recovered        = $true
                     InstalledVersion = $installed.Version
@@ -1845,7 +1879,26 @@ function Install-AppFromDefinition {
         'winget' {
             try {
                 $wingetSource = [string](Get-ObjectPropertyValue -Object $Definition -Name 'wingetSource')
-                Invoke-WingetAction -Action 'install' -PackageId $Definition.wingetId -Source $wingetSource -DryRun:$DryRun
+                $wingetParameters = @{ Action = 'install'; PackageId = $Definition.wingetId; Source = $wingetSource; DryRun = $DryRun }
+                $minimumVersion = [string](Get-ObjectPropertyValue -Object $Definition -Name 'minimumVersion')
+                if (-not [string]::IsNullOrWhiteSpace($minimumVersion)) {
+                    $minimumVersion = (Get-DesiredAppVersion -Definition $Definition).Version
+                    $availableVersion = Get-WingetPackageLatestVersion -PackageId $Definition.wingetId -Source $wingetSource
+                    $comparison = Compare-VersionStrings -LeftVersion $availableVersion -RightVersion $minimumVersion
+                    if ($null -eq $comparison -or $comparison -lt 0) {
+                        throw ('winget {0} does not provide the required version >= {1}; available: {2}' -f $Definition.wingetId, $minimumVersion, $availableVersion)
+                    }
+                    $wingetParameters.Version = $availableVersion
+                }
+                Invoke-WingetAction @wingetParameters
+                if (-not $DryRun -and -not [string]::IsNullOrWhiteSpace($minimumVersion)) {
+                    Reset-InstallDetectionState
+                    $installed = Get-InstalledAppVersion -Definition $Definition
+                    $comparison = Compare-VersionStrings -LeftVersion $installed.Version -RightVersion $minimumVersion
+                    if (-not $installed.Found -or $null -eq $comparison -or $comparison -lt 0) {
+                        throw ('winget completed but {0} >= {1} could not be confirmed.' -f $Definition.name, $minimumVersion)
+                    }
+                }
                 return [pscustomobject]@{
                     Name   = $Definition.name
                     Key    = $Definition.key
@@ -2017,6 +2070,13 @@ function Install-AppFromDefinition {
             $releaseRepo = [string](Get-ObjectPropertyValue -Object $fallback -Name 'releaseRepo')
             $releaseTag = [string](Get-ObjectPropertyValue -Object $fallback -Name 'releaseTag')
             $assetName = $fallbackReleaseAsset
+            $minimumVersion = [string](Get-ObjectPropertyValue -Object $Definition -Name 'minimumVersion')
+            if (-not [string]::IsNullOrWhiteSpace($minimumVersion)) {
+                $comparison = Compare-VersionStrings -LeftVersion (Get-FallbackReleaseAssetVersion -Definition $Definition) -RightVersion $minimumVersion
+                if ($null -eq $comparison -or $comparison -lt 0) {
+                    throw ('Fallback {0} does not meet the required version >= {1}' -f $assetName, $minimumVersion)
+                }
+            }
             $url = Get-GitHubReleaseAssetDownloadUrl -Repo $releaseRepo -Tag $releaseTag -AssetName $assetName
             $destination = Join-Path $downloadsRoot $assetName
 

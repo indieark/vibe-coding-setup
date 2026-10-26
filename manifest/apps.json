@@ -55,17 +55,20 @@
     },
     {
       "key": "python",
-      "name": "Python 3.13",
+      "name": "Python 3.14",
       "order": 30,
       "strategy": "winget",
-      "wingetId": "Python.Python.3.13",
+      "wingetId": "Python.Python.3.14",
       "wingetSource": "winget",
+      "minimumVersion": "3.14.10",
       "detect": {
         "command": "py",
         "args": [
+          "-3.14",
           "-V"
         ],
         "regex": "Python (?<version>[0-9][0-9A-Za-z.\\-]*)",
+        "versionPattern": "^3\\.14\\.\\d+$",
         "fallbackCommands": [
           {
             "command": "python",
@@ -79,7 +82,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "python-3.13.17-amd64.exe",
+        "releaseAsset": "python-3.14.10-amd64.exe",
         "installerType": "exe",
         "silentArgs": [
           "/quiet",

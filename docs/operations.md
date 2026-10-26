@@ -173,4 +173,5 @@ CC Switch 默认 Provider 为 `IndieArk API`，Base URL 为 `https://api.indiear
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-Bootstrap.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-BootstrapDownloads.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-Python.ps1
 ```
