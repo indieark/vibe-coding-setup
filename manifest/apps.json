@@ -48,7 +48,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "node-v26.13.0-x64.msi",
+        "releaseAsset": "node-v27.0.0-alpha.0.0.0-x64.msi",
         "installerType": "msi",
         "silentArgs": []
       }
@@ -174,7 +174,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "CC-Switch-v4.0.21-Windows.msi",
+        "releaseAsset": "CC-Switch-v4.0.22-Windows.msi",
         "installerType": "msi",
         "silentArgs": []
       }
