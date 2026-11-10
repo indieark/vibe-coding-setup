@@ -174,7 +174,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "CC-Switch-v4.0.27-Windows.msi",
+        "releaseAsset": "CC-Switch-v4.0.28-Windows.msi",
         "installerType": "msi",
         "silentArgs": []
       }
@@ -195,7 +195,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "skills-manager_1.43.3_x64_en-US.msi",
+        "releaseAsset": "skills-manager_1.43.4_x64_en-US.msi",
         "installerType": "msi",
         "silentArgs": []
       }
