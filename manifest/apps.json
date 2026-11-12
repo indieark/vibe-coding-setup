@@ -112,7 +112,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "VSCodeUserSetup-x64-1.145.3.exe",
+        "releaseAsset": "VSCodeUserSetup-x64-1.146.0.exe",
         "installerType": "exe",
         "silentArgs": [
           "/VERYSILENT",
@@ -174,7 +174,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "CC-Switch-v4.0.29-Windows.msi",
+        "releaseAsset": "CC-Switch-v4.0.30-Windows.msi",
         "installerType": "msi",
         "silentArgs": []
       }
