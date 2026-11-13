@@ -48,7 +48,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "node-v27.0.0-alpha.0.0.0-x64.msi",
+        "releaseAsset": "node-v27.0.0-alpha.0.1.0-x64.msi",
         "installerType": "msi",
         "silentArgs": []
       }
@@ -174,7 +174,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "CC-Switch-v4.0.30-Windows.msi",
+        "releaseAsset": "CC-Switch-v4.0.31-Windows.msi",
         "installerType": "msi",
         "silentArgs": []
       }
@@ -195,7 +195,7 @@
       "fallback": {
         "releaseRepo": "indieark/vibe-coding-setup",
         "releaseTag": "bootstrap-assets",
-        "releaseAsset": "skills-manager_1.43.4_x64_en-US.msi",
+        "releaseAsset": "skills-manager_1.44.0_x64_en-US.msi",
         "installerType": "msi",
         "silentArgs": []
       }
